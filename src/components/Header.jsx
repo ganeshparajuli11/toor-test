@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   Facebook,
@@ -12,9 +12,9 @@ import {
   Calendar,
   Settings,
   LogOut,
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import './Header.css';
+} from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import "./Header.css";
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -26,30 +26,33 @@ const Header = () => {
   const navigate = useNavigate();
 
   const menuItems = [
-    { name: 'HOME', path: '/', hasDropdown: false },
-    { name: 'HOTELS', path: '/hotels', hasDropdown: false },
-    { name: 'FLIGHTS', path: '/flights', hasDropdown: false },
-    { name: 'CRUISE', path: '/cruises', hasDropdown: false },
-    { name: 'CARS', path: '/cars', hasDropdown: false },
-    { name: 'BLOG', path: '/blog', hasDropdown: false },
+    { name: "HOME", path: "/", hasDropdown: false },
+    { name: "HOTELS", path: "/hotels", hasDropdown: false },
+    { name: "FLIGHTS", path: "/flights", hasDropdown: false },
+    { name: "CRUISE", path: "/cruises", hasDropdown: false },
+    { name: "CARS", path: "/cars", hasDropdown: false },
+    { name: "BLOG", path: "/blog", hasDropdown: false },
     {
-      name: 'PAGES',
-      path: '#',
+      name: "PAGES",
+      path: "#",
       hasDropdown: true,
       dropdownItems: [
-        { name: 'About Us', path: '/about' },
-        { name: 'Contact', path: '/contact' },
-        { name: 'FAQ', path: '/faq' },
-        { name: 'Terms & Conditions', path: '/terms' },
-        { name: 'Privacy Policy', path: '/privacy' }
-      ]
+        { name: "About Us", path: "/about" },
+        { name: "Contact", path: "/contact" },
+        { name: "FAQ", path: "/faq" },
+        { name: "Terms & Conditions", path: "/terms" },
+        { name: "Privacy Policy", path: "/privacy" },
+      ],
     },
   ];
 
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target)
+      ) {
         setIsProfileDropdownOpen(false);
       }
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -57,14 +60,14 @@ const Header = () => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = () => {
     logout();
     setIsProfileDropdownOpen(false);
-    navigate('/');
+    navigate("/");
   };
 
   return (
@@ -112,14 +115,33 @@ const Header = () => {
                 <div className="profile-dropdown" ref={profileDropdownRef}>
                   <button
                     className="profile-trigger"
-                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                    onClick={() =>
+                      setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                    }
                     aria-label="Profile menu"
                   >
                     <div className="profile-avatar">
-                      <User size={12} />
+                      <svg
+                        width="8"
+                        height="8"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
                     </div>
                     <span className="profile-name">{user?.name}</span>
-                    <ChevronDown size={10} className={`profile-chevron ${isProfileDropdownOpen ? 'open' : ''}`} />
+                    <ChevronDown
+                      size={10}
+                      className={`profile-chevron ${
+                        isProfileDropdownOpen ? "open" : ""
+                      }`}
+                    />
                   </button>
 
                   {isProfileDropdownOpen && (
@@ -131,8 +153,12 @@ const Header = () => {
                           className="profile-dropdown-avatar"
                         />
                         <div className="profile-dropdown-info">
-                          <div className="profile-dropdown-name">{user?.name}</div>
-                          <div className="profile-dropdown-email">{user?.email}</div>
+                          <div className="profile-dropdown-name">
+                            {user?.name}
+                          </div>
+                          <div className="profile-dropdown-email">
+                            {user?.email}
+                          </div>
                         </div>
                       </div>
                       <div className="profile-dropdown-divider"></div>
@@ -212,10 +238,7 @@ const Header = () => {
                     stroke="currentColor"
                     strokeWidth="2"
                   />
-                  <path
-                    d="M12 10L20 16L12 22V10Z"
-                    fill="currentColor"
-                  />
+                  <path d="M12 10L20 16L12 22V10Z" fill="currentColor" />
                 </svg>
               </div>
               <span className="logo-text">TOOR</span>
@@ -233,7 +256,11 @@ const Header = () => {
                     <div className="nav-dropdown">
                       <button
                         className="nav-link nav-dropdown-trigger"
-                        onClick={() => setOpenDropdown(openDropdown === item.name ? null : item.name)}
+                        onClick={() =>
+                          setOpenDropdown(
+                            openDropdown === item.name ? null : item.name
+                          )
+                        }
                       >
                         {item.name}
                         <ChevronDown size={16} />
