@@ -1,0 +1,236 @@
+/* ImageGallery Component Styles */
+
+/* Gallery Grid */
+.image-gallery {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-sm);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  max-height: 384px;
+}
+
+@media (min-width: 768px) {
+  .image-gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Main Image */
+.gallery-main-image {
+  position: relative;
+  height: 384px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .gallery-main-image {
+    grid-row: span 2;
+  }
+}
+
+.gallery-main-image-group {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-base);
+}
+
+.gallery-main-image-group:hover img {
+  transform: scale(1.1);
+}
+
+.gallery-main-image-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0);
+  transition: background-color var(--transition-base);
+}
+
+.gallery-main-image-group:hover .gallery-main-image-overlay {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Thumbnail Grid */
+.gallery-thumbnails {
+  display: none;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+}
+
+@media (min-width: 768px) {
+  .gallery-thumbnails {
+    display: grid;
+  }
+}
+
+.gallery-thumbnail {
+  position: relative;
+  height: 184px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.gallery-thumbnail-group {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-base);
+}
+
+.gallery-thumbnail-group:hover img {
+  transform: scale(1.1);
+}
+
+.gallery-thumbnail-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0);
+  transition: background-color var(--transition-base);
+}
+
+.gallery-thumbnail-group:hover .gallery-thumbnail-overlay {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* View All Photos Button */
+.gallery-view-all {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.gallery-view-all-button {
+  padding: 12px var(--spacing-lg);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border-radius: var(--radius-lg);
+  border: none;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  transition: all var(--transition-fast);
+}
+
+.gallery-view-all-button:hover {
+  background-color: var(--color-primary-hover);
+  transform: scale(1.05);
+}
+
+/* Full Screen Modal */
+.gallery-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background-color: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+/* Close Button */
+.gallery-modal-close {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  width: 48px;
+  height: 48px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.gallery-modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.gallery-modal-close-icon {
+  color: var(--color-white);
+}
+
+/* Navigation Buttons */
+.gallery-modal-prev,
+.gallery-modal-next {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.gallery-modal-prev:hover,
+.gallery-modal-next:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.gallery-modal-prev {
+  left: var(--spacing-md);
+}
+
+.gallery-modal-next {
+  right: var(--spacing-md);
+}
+
+.gallery-modal-nav-icon {
+  color: var(--color-white);
+  font-size: var(--font-size-2xl);
+}
+
+/* Main Image in Modal */
+.gallery-modal-image-container {
+  max-width: 1152px;
+  max-height: 90vh;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-modal-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Image Counter */
+.gallery-modal-counter {
+  position: absolute;
+  bottom: var(--spacing-md);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-full);
+  color: var(--color-white);
+  font-size: var(--font-size-sm);
+}

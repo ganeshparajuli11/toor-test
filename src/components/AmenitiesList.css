@@ -1,0 +1,95 @@
+/* AmenitiesList Component Styles */
+
+.amenities-section {
+  background-color: var(--color-white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-light);
+}
+
+.amenities-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Amenities Grid */
+.amenities-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+@media (min-width: 640px) {
+  .amenities-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .amenities-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Amenity Item */
+.amenity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  transition: background-color var(--transition-fast);
+}
+
+.amenity-item:hover {
+  background-color: var(--color-off-white);
+}
+
+.amenity-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  background-color: rgba(0, 188, 212, 0.1);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.amenity-item:hover .amenity-icon-wrapper {
+  background-color: rgba(0, 188, 212, 0.15);
+}
+
+.amenity-icon {
+  color: var(--color-primary);
+}
+
+.amenity-name {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Show More/Less Button */
+.amenities-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.amenities-toggle:hover {
+  color: var(--color-primary-dark);
+}
+
+.amenities-toggle-icon {
+  transition: transform var(--transition-fast);
+}
