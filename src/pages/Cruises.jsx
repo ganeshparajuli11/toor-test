@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Anchor, MapPin, Calendar, Users, Star } from 'lucide-react';
+import { Anchor, MapPin, Calendar, Users, Star, Heart, Share2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
+import ToastContainer, { showToast } from '../components/ToastContainer';
 import './Cruises.css';
 
 const Cruises = () => {
   const [searchParams] = useSearchParams();
   const [cruises, setCruises] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState([]);
 
   // Extract search parameters
   const destination = searchParams.get('destination') || 'Various Destinations';
@@ -113,6 +115,29 @@ const Cruises = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const toggleFavorite = (cruiseId) => {
+    setFavorites((prev) =>
+      prev.includes(cruiseId)
+        ? prev.filter((id) => id !== cruiseId)
+        : [...prev, cruiseId]
+    );
+  };
+
+  const handleShare = (cruise) => {
+    if (navigator.share) {
+      navigator
+        .share({
+          title: cruise.name,
+          text: `Check out this cruise: ${cruise.name}`,
+          url: window.location.href,
+        })
+        .catch((error) => console.log('Error sharing:', error));
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Link copied to clipboard!', 'success');
+    }
+  };
+
   return (
     <>
       <SEO
@@ -121,6 +146,8 @@ const Cruises = () => {
         keywords="cruise booking, cruise deals, vacation cruises, ocean cruises"
         canonical="/cruises"
       />
+
+      <ToastContainer />
 
       <div className="cruises-page">
         <Header />
@@ -195,6 +222,27 @@ const Cruises = () => {
                       <div className="cruise-card-rating">
                         <Star size={14} fill="currentColor" />
                         <span>{cruise.rating}</span>
+                      </div>
+                      <div className="card-action-buttons">
+                        <button
+                          className={`card-action-button favorite-button ${
+                            favorites.includes(cruise.id) ? 'active' : ''
+                          }`}
+                          onClick={() => toggleFavorite(cruise.id)}
+                          aria-label="Add to favorites"
+                        >
+                          <Heart
+                            size={20}
+                            fill={favorites.includes(cruise.id) ? 'currentColor' : 'none'}
+                          />
+                        </button>
+                        <button
+                          className="card-action-button share-button"
+                          onClick={() => handleShare(cruise)}
+                          aria-label="Share"
+                        >
+                          <Share2 size={18} />
+                        </button>
                       </div>
                     </div>
                     <div className="cruise-card-content">

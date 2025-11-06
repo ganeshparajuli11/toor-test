@@ -1,17 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronDown,
-  Facebook,
-  Twitter,
-  Instagram,
-  Youtube,
   Menu,
   X,
   User,
   Calendar,
   Settings,
   LogOut,
+  Globe,
+  Phone,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import "./Header.css";
@@ -20,10 +18,19 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("EN");
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const profileDropdownRef = useRef(null);
   const dropdownRef = useRef(null);
+  const languageDropdownRef = useRef(null);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
 
   const menuItems = [
     { name: "HOME", path: "/", hasDropdown: false },
@@ -58,6 +65,12 @@ const Header = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setOpenDropdown(null);
       }
+      if (
+        languageDropdownRef.current &&
+        !languageDropdownRef.current.contains(event.target)
+      ) {
+        setIsLanguageDropdownOpen(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -70,153 +83,14 @@ const Header = () => {
     navigate("/");
   };
 
+  const handleLanguageChange = (lang, currency) => {
+    setSelectedLanguage(lang);
+    setSelectedCurrency(currency);
+    setIsLanguageDropdownOpen(false);
+  };
+
   return (
     <header className="header">
-      {/* Top Bar */}
-      <div className="header-topbar">
-        <div className="container">
-          <div className="topbar-content">
-            <div className="topbar-social">
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-              >
-                <Facebook size={12} />
-              </a>
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Twitter"
-              >
-                <Twitter size={12} />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-              >
-                <Instagram size={12} />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Youtube"
-              >
-                <Youtube size={12} />
-              </a>
-            </div>
-            <div className="topbar-actions">
-              {isAuthenticated ? (
-                <div className="profile-dropdown" ref={profileDropdownRef}>
-                  <button
-                    className="profile-trigger"
-                    onClick={() =>
-                      setIsProfileDropdownOpen(!isProfileDropdownOpen)
-                    }
-                    aria-label="Profile menu"
-                  >
-                    <div className="profile-avatar">
-                      <svg
-                        width="8"
-                        height="8"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
-                    </div>
-                    <span className="profile-name">{user?.name}</span>
-                    <ChevronDown
-                      size={10}
-                      className={`profile-chevron ${
-                        isProfileDropdownOpen ? "open" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {isProfileDropdownOpen && (
-                    <div className="profile-dropdown-menu">
-                      <div className="profile-dropdown-header">
-                        <img
-                          src={user?.avatar}
-                          alt={user?.name}
-                          className="profile-dropdown-avatar"
-                        />
-                        <div className="profile-dropdown-info">
-                          <div className="profile-dropdown-name">
-                            {user?.name}
-                          </div>
-                          <div className="profile-dropdown-email">
-                            {user?.email}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="profile-dropdown-divider"></div>
-                      <Link
-                        to="/profile"
-                        className="profile-dropdown-item"
-                        onClick={() => setIsProfileDropdownOpen(false)}
-                      >
-                        <User size={16} />
-                        <span>My Profile</span>
-                      </Link>
-                      <Link
-                        to="/bookings"
-                        className="profile-dropdown-item"
-                        onClick={() => setIsProfileDropdownOpen(false)}
-                      >
-                        <Calendar size={16} />
-                        <span>My Bookings</span>
-                      </Link>
-                      <Link
-                        to="/settings"
-                        className="profile-dropdown-item"
-                        onClick={() => setIsProfileDropdownOpen(false)}
-                      >
-                        <Settings size={16} />
-                        <span>Settings</span>
-                      </Link>
-                      <div className="profile-dropdown-divider"></div>
-                      <button
-                        className="profile-dropdown-item"
-                        onClick={handleLogout}
-                      >
-                        <LogOut size={16} />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <Link to="/login" className="topbar-link">
-                    LOGIN
-                  </Link>
-                  <Link to="/signup" className="topbar-link">
-                    SIGNUP
-                  </Link>
-                </>
-              )}
-              <select className="topbar-currency">
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Navigation */}
       <nav className="header-nav">
         <div className="container">
@@ -281,13 +155,226 @@ const Header = () => {
                       )}
                     </div>
                   ) : (
-                    <Link to={item.path} className="nav-link">
+                    <Link
+                      to={item.path}
+                      className={`nav-link ${isActive(item.path) ? 'active' : ''}`}
+                    >
                       {item.name}
                     </Link>
                   )}
                 </li>
               ))}
             </ul>
+
+            {/* Action Buttons and Auth Section */}
+            <div className="nav-actions">
+              {/* Language & Currency Switcher */}
+              <div className="language-dropdown" ref={languageDropdownRef}>
+                <button
+                  className="nav-icon-button language-button"
+                  onClick={() =>
+                    setIsLanguageDropdownOpen(!isLanguageDropdownOpen)
+                  }
+                  aria-label="Language and Currency"
+                >
+                  <Globe size={18} />
+                  <span className="language-text">
+                    {selectedLanguage} | {selectedCurrency}
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`language-chevron ${
+                      isLanguageDropdownOpen ? "open" : ""
+                    }`}
+                  />
+                </button>
+
+                {isLanguageDropdownOpen && (
+                  <div className="language-dropdown-menu">
+                    <button
+                      className="language-dropdown-item"
+                      onClick={() => handleLanguageChange("EN", "USD")}
+                    >
+                      <span className="language-flag">🇺🇸</span>
+                      <div className="language-info">
+                        <span className="language-name">English</span>
+                        <span className="language-currency">USD</span>
+                      </div>
+                    </button>
+                    <button
+                      className="language-dropdown-item"
+                      onClick={() => handleLanguageChange("EN", "EUR")}
+                    >
+                      <span className="language-flag">🇪🇺</span>
+                      <div className="language-info">
+                        <span className="language-name">English</span>
+                        <span className="language-currency">EUR</span>
+                      </div>
+                    </button>
+                    <button
+                      className="language-dropdown-item"
+                      onClick={() => handleLanguageChange("EN", "GBP")}
+                    >
+                      <span className="language-flag">🇬🇧</span>
+                      <div className="language-info">
+                        <span className="language-name">English</span>
+                        <span className="language-currency">GBP</span>
+                      </div>
+                    </button>
+                    <button
+                      className="language-dropdown-item"
+                      onClick={() => handleLanguageChange("EN", "CHF")}
+                    >
+                      <span className="language-flag">🇨🇭</span>
+                      <div className="language-info">
+                        <span className="language-name">English</span>
+                        <span className="language-currency">CHF</span>
+                      </div>
+                    </button>
+                    <button
+                      className="language-dropdown-item"
+                      onClick={() => handleLanguageChange("DE", "EUR")}
+                    >
+                      <span className="language-flag">🇩🇪</span>
+                      <div className="language-info">
+                        <span className="language-name">Deutsch</span>
+                        <span className="language-currency">EUR</span>
+                      </div>
+                    </button>
+                    <button
+                      className="language-dropdown-item"
+                      onClick={() => handleLanguageChange("FR", "EUR")}
+                    >
+                      <span className="language-flag">🇫🇷</span>
+                      <div className="language-info">
+                        <span className="language-name">Français</span>
+                        <span className="language-currency">EUR</span>
+                      </div>
+                    </button>
+                    <button
+                      className="language-dropdown-item"
+                      onClick={() => handleLanguageChange("ES", "EUR")}
+                    >
+                      <span className="language-flag">🇪🇸</span>
+                      <div className="language-info">
+                        <span className="language-name">Español</span>
+                        <span className="language-currency">EUR</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Contact Phone Button */}
+              <Link
+                to="/contact"
+                className="nav-icon-button"
+                aria-label="Contact"
+              >
+                <Phone size={18} />
+              </Link>
+
+              {/* Divider */}
+              <div className="nav-divider"></div>
+
+              {/* Auth Section */}
+              {isAuthenticated ? (
+                <div className="profile-dropdown" ref={profileDropdownRef}>
+                  <button
+                    className="profile-trigger"
+                    onClick={() =>
+                      setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                    }
+                    aria-label="Profile menu"
+                  >
+                    <div className="profile-avatar">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <span className="profile-name">{user?.name}</span>
+                    <ChevronDown
+                      size={14}
+                      className={`profile-chevron ${
+                        isProfileDropdownOpen ? "open" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {isProfileDropdownOpen && (
+                    <div className="profile-dropdown-menu">
+                      <div className="profile-dropdown-header">
+                        <img
+                          src={user?.avatar}
+                          alt={user?.name}
+                          className="profile-dropdown-avatar"
+                        />
+                        <div className="profile-dropdown-info">
+                          <div className="profile-dropdown-name">
+                            {user?.name}
+                          </div>
+                          <div className="profile-dropdown-email">
+                            {user?.email}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="profile-dropdown-divider"></div>
+                      <Link
+                        to="/profile"
+                        className="profile-dropdown-item"
+                        onClick={() => setIsProfileDropdownOpen(false)}
+                      >
+                        <User size={16} />
+                        <span>My Profile</span>
+                      </Link>
+                      <Link
+                        to="/bookings"
+                        className="profile-dropdown-item"
+                        onClick={() => setIsProfileDropdownOpen(false)}
+                      >
+                        <Calendar size={16} />
+                        <span>My Bookings</span>
+                      </Link>
+                      <Link
+                        to="/settings"
+                        className="profile-dropdown-item"
+                        onClick={() => setIsProfileDropdownOpen(false)}
+                      >
+                        <Settings size={16} />
+                        <span>Settings</span>
+                      </Link>
+                      <div className="profile-dropdown-divider"></div>
+                      <button
+                        className="profile-dropdown-item"
+                        onClick={handleLogout}
+                      >
+                        <LogOut size={16} />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="nav-auth-links">
+                  <Link to="/login" className="nav-auth-link">
+                    LOGIN
+                  </Link>
+                  <Link to="/signup" className="nav-auth-link">
+                    SIGNUP
+                  </Link>
+                </div>
+              )}
+            </div>
 
             {/* Mobile Menu Toggle */}
             <button

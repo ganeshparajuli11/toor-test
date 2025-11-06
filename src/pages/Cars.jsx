@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Car, MapPin, Users, Briefcase, Fuel, Settings } from 'lucide-react';
+import { Car, MapPin, Users, Briefcase, Fuel, Settings, Heart, Share2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
+import ToastContainer, { showToast } from '../components/ToastContainer';
 import './Cars.css';
 
 const Cars = () => {
   const [searchParams] = useSearchParams();
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState([]);
 
   // Extract search parameters
   const pickupLocation = searchParams.get('pickupLocation') || 'Various Locations';
@@ -131,6 +133,29 @@ const Cars = () => {
     });
   };
 
+  const toggleFavorite = (carId) => {
+    setFavorites((prev) =>
+      prev.includes(carId)
+        ? prev.filter((id) => id !== carId)
+        : [...prev, carId]
+    );
+  };
+
+  const handleShare = (car) => {
+    if (navigator.share) {
+      navigator
+        .share({
+          title: car.name,
+          text: `Check out this rental car: ${car.name}`,
+          url: window.location.href,
+        })
+        .catch((error) => console.log('Error sharing:', error));
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Link copied to clipboard!', 'success');
+    }
+  };
+
   return (
     <>
       <SEO
@@ -139,6 +164,8 @@ const Cars = () => {
         keywords="car rental, rent a car, car hire, vehicle rental, cheap car rental"
         canonical="/cars"
       />
+
+      <ToastContainer />
 
       <div className="cars-page">
         <Header />
@@ -208,6 +235,27 @@ const Cars = () => {
                       />
                       <div className="car-card-category">{car.category}</div>
                       <div className="car-card-provider">{car.provider}</div>
+                      <div className="card-action-buttons">
+                        <button
+                          className={`card-action-button favorite-button ${
+                            favorites.includes(car.id) ? 'active' : ''
+                          }`}
+                          onClick={() => toggleFavorite(car.id)}
+                          aria-label="Add to favorites"
+                        >
+                          <Heart
+                            size={20}
+                            fill={favorites.includes(car.id) ? 'currentColor' : 'none'}
+                          />
+                        </button>
+                        <button
+                          className="card-action-button share-button"
+                          onClick={() => handleShare(car)}
+                          aria-label="Share"
+                        >
+                          <Share2 size={18} />
+                        </button>
+                      </div>
                     </div>
                     <div className="car-card-content">
                       <h3 className="car-card-name">{car.name}</h3>

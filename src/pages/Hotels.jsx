@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { MapPin, Star, Wifi, Coffee, Tv, Wind } from 'lucide-react';
+import { MapPin, Star, Wifi, Coffee, Tv, Wind, Heart, Share2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
+import ToastContainer, { showToast } from '../components/ToastContainer';
 import './Hotels.css';
 
 const Hotels = () => {
   const [searchParams] = useSearchParams();
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState([]);
 
   // Extract search parameters
   const location = searchParams.get('location') || 'Various Locations';
@@ -103,6 +105,29 @@ const Hotels = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const toggleFavorite = (hotelId) => {
+    setFavorites((prev) =>
+      prev.includes(hotelId)
+        ? prev.filter((id) => id !== hotelId)
+        : [...prev, hotelId]
+    );
+  };
+
+  const handleShare = (hotel) => {
+    if (navigator.share) {
+      navigator
+        .share({
+          title: hotel.name,
+          text: `Check out this hotel: ${hotel.name}`,
+          url: window.location.href,
+        })
+        .catch((error) => console.log('Error sharing:', error));
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Link copied to clipboard!', 'success');
+    }
+  };
+
   return (
     <>
       <SEO
@@ -111,6 +136,8 @@ const Hotels = () => {
         keywords="hotel booking, hotels, accommodation, best hotel deals"
         canonical="/hotels"
       />
+
+      <ToastContainer />
 
       <div className="hotels-page">
         <Header />
@@ -184,6 +211,27 @@ const Hotels = () => {
                       <div className="hotel-card-rating">
                         <Star size={14} fill="currentColor" />
                         <span>{hotel.rating}</span>
+                      </div>
+                      <div className="card-action-buttons">
+                        <button
+                          className={`card-action-button favorite-button ${
+                            favorites.includes(hotel.id) ? 'active' : ''
+                          }`}
+                          onClick={() => toggleFavorite(hotel.id)}
+                          aria-label="Add to favorites"
+                        >
+                          <Heart
+                            size={20}
+                            fill={favorites.includes(hotel.id) ? 'currentColor' : 'none'}
+                          />
+                        </button>
+                        <button
+                          className="card-action-button share-button"
+                          onClick={() => handleShare(hotel)}
+                          aria-label="Share"
+                        >
+                          <Share2 size={18} />
+                        </button>
                       </div>
                     </div>
                     <div className="hotel-card-content">

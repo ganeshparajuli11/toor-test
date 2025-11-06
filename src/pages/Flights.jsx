@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Plane, Clock, ArrowRight, Briefcase } from 'lucide-react';
+import { Plane, Clock, ArrowRight, Briefcase, Heart, Share2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
+import ToastContainer, { showToast } from '../components/ToastContainer';
 import './Flights.css';
 
 const Flights = () => {
   const [searchParams] = useSearchParams();
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState([]);
 
   // Extract search parameters
   const from = searchParams.get('from') || 'Origin';
@@ -116,6 +118,29 @@ const Flights = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const toggleFavorite = (flightId) => {
+    setFavorites((prev) =>
+      prev.includes(flightId)
+        ? prev.filter((id) => id !== flightId)
+        : [...prev, flightId]
+    );
+  };
+
+  const handleShare = (flight) => {
+    if (navigator.share) {
+      navigator
+        .share({
+          title: `${flight.airline} Flight`,
+          text: `Check out this flight from ${flight.from} to ${flight.to}`,
+          url: window.location.href,
+        })
+        .catch((error) => console.log('Error sharing:', error));
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('Link copied to clipboard!', 'success');
+    }
+  };
+
   return (
     <>
       <SEO
@@ -124,6 +149,8 @@ const Flights = () => {
         keywords="cheap flights, flight booking, airline tickets, flight deals"
         canonical="/flights"
       />
+
+      <ToastContainer />
 
       <div className="flights-page">
         <Header />
@@ -192,9 +219,32 @@ const Flights = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flight-price-header">
-                        <span className="price-amount">${flight.price}</span>
-                        <span className="price-period">per person</span>
+                      <div className="flight-header-actions">
+                        <div className="card-action-buttons">
+                          <button
+                            className={`card-action-button favorite-button ${
+                              favorites.includes(flight.id) ? 'active' : ''
+                            }`}
+                            onClick={() => toggleFavorite(flight.id)}
+                            aria-label="Add to favorites"
+                          >
+                            <Heart
+                              size={20}
+                              fill={favorites.includes(flight.id) ? 'currentColor' : 'none'}
+                            />
+                          </button>
+                          <button
+                            className="card-action-button share-button"
+                            onClick={() => handleShare(flight)}
+                            aria-label="Share"
+                          >
+                            <Share2 size={18} />
+                          </button>
+                        </div>
+                        <div className="flight-price-header">
+                          <span className="price-amount">${flight.price}</span>
+                          <span className="price-period">per person</span>
+                        </div>
                       </div>
                     </div>
 
