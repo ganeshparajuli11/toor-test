@@ -6,27 +6,54 @@ import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
 import ToastContainer, { showToast } from '../components/ToastContainer';
+import useApi from '../hooks/useApi';
+import { API_ENDPOINTS } from '../config/api';
 import './Hotels.css';
 
 const Hotels = () => {
   const [searchParams] = useSearchParams();
   const [hotels, setHotels] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
+  const [useFallback, setUseFallback] = useState(false);
 
   // Extract search parameters
-  const location = searchParams.get('location') || 'Various Locations';
+  const location = searchParams.get('location') || 'PAR'; // Default to Paris city code
   const checkIn = searchParams.get('checkIn');
   const checkOut = searchParams.get('checkOut');
   const adults = searchParams.get('adults') || 2;
   const children = searchParams.get('children') || 0;
   const rooms = searchParams.get('rooms') || 1;
 
-  // Demo hotel data
+  // Prepare Amadeus API parameters
+  const apiParams = {
+    cityCode: location.length === 3 ? location : 'PAR', // Use city code if available, fallback to PAR
+    adults: parseInt(adults),
+    radius: 5,
+    radiusUnit: 'KM',
+    paymentPolicy: 'NONE',
+    bestRateOnly: true
+  };
+
+  // Add dates if available
+  if (checkIn) apiParams.checkInDate = checkIn;
+  if (checkOut) apiParams.checkOutDate = checkOut;
+
+  // Fetch hotels from Amadeus API
+  const { data: apiData, loading, error } = useApi(
+    API_ENDPOINTS.HOTEL_SEARCH,
+    {
+      params: apiParams,
+      immediate: !!checkIn && !!checkOut, // Only fetch if dates are provided
+      isAmadeusAPI: true,
+      dependencies: [location, checkIn, checkOut, adults, children, rooms]
+    }
+  );
+
+  // Transform Amadeus data to UI format or use fallback
   useEffect(() => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    if (error || (!loading && !apiData) || !checkIn || !checkOut) {
+      // Use fallback demo data
+      setUseFallback(true);
       setHotels([
         {
           id: 1,
@@ -95,9 +122,42 @@ const Hotels = () => {
           description: 'Tranquil garden setting with comfortable accommodations'
         }
       ]);
-      setLoading(false);
-    }, 800);
-  }, [location]);
+
+      // Show toast if API failed but we're using fallback
+      if (error && checkIn && checkOut) {
+        showToast('Using demo data. Please check your API credentials.', 'info');
+      }
+    } else if (apiData?.data) {
+      // Transform Amadeus data to UI format
+      setUseFallback(false);
+      const transformedHotels = apiData.data.map((offer, index) => {
+        const hotel = offer.hotel;
+        const firstOffer = offer.offers?.[0];
+
+        return {
+          id: hotel.hotelId || index,
+          name: hotel.name || 'Hotel',
+          location: `${hotel.cityCode || location}`,
+          image: `https://images.unsplash.com/photo-${1566073771259 + index}?w=400&h=300&fit=crop`, // Placeholder images
+          rating: hotel.rating || 4.5,
+          reviews: Math.floor(Math.random() * 300) + 50,
+          price: firstOffer?.price?.total ? Math.round(parseFloat(firstOffer.price.total)) : 100,
+          currency: firstOffer?.price?.currency || 'USD',
+          amenities: ['Free WiFi', 'Breakfast', 'Pool', 'AC'], // Would need to parse from offer details
+          description: firstOffer?.room?.description?.text || hotel.description || 'Comfortable accommodation with excellent facilities',
+          offerId: firstOffer?.id,
+          checkIn: firstOffer?.checkInDate,
+          checkOut: firstOffer?.checkOutDate
+        };
+      });
+
+      setHotels(transformedHotels);
+
+      if (transformedHotels.length > 0) {
+        showToast(`Found ${transformedHotels.length} hotels from Amadeus API`, 'success');
+      }
+    }
+  }, [apiData, loading, error, location, checkIn, checkOut]);
 
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -150,6 +210,26 @@ const Hotels = () => {
         {/* Results Section */}
         <div className="hotels-results-container">
           <div className="container">
+            {/* API Status Banner */}
+            {!loading && (
+              <div style={{
+                padding: '12px 20px',
+                marginBottom: '20px',
+                borderRadius: '8px',
+                backgroundColor: useFallback ? '#fff3cd' : '#d1e7dd',
+                border: `1px solid ${useFallback ? '#ffc107' : '#28a745'}`,
+                color: '#000'
+              }}>
+                <strong>{useFallback ? '⚠️ Demo Mode' : '✓ Live Amadeus API'}</strong>
+                <span style={{ marginLeft: '10px' }}>
+                  {useFallback
+                    ? 'Using demo data. Add check-in/out dates or verify API credentials to use live data.'
+                    : `Showing real hotel data from Amadeus API for ${location}`
+                  }
+                </span>
+              </div>
+            )}
+
             {/* Results Header */}
             <div className="hotels-results-header">
               <div>
@@ -262,7 +342,9 @@ const Hotels = () => {
                         <div className="hotel-card-price-wrapper">
                           <div className="hotel-card-price">
                             <span className="price-label">From</span>
-                            <span className="price-amount">${hotel.price}</span>
+                            <span className="price-amount">
+                              {hotel.currency && hotel.currency !== 'USD' ? hotel.currency : '$'}{hotel.price}
+                            </span>
                             <span className="price-period">/night</span>
                           </div>
                           <Link to={`/property/${hotel.id}`} className="hotel-card-button">View Details</Link>

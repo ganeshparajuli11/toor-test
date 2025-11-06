@@ -1,15 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
+import amadeusAuthService from '../services/amadeusAuth';
 
 /**
- * Custom hook for API data fetching with caching
+ * Custom hook for API data fetching with caching and Amadeus authentication
  *
  * @param {string} endpoint - API endpoint from API_ENDPOINTS
  * @param {Object} options - Additional options
  * @param {boolean} options.immediate - Whether to fetch immediately on mount
  * @param {Object} options.params - Query parameters
  * @param {Array} options.dependencies - Dependencies for re-fetching
+ * @param {boolean} options.isAmadeusAPI - Whether this is an Amadeus API call (default: true)
+ * @param {string} options.method - HTTP method (default: 'GET')
+ * @param {Object} options.body - Request body for POST/PUT requests
  * @returns {Object} { data, loading, error, refetch }
  */
 const useApi = (endpoint, options = {}) => {
@@ -19,6 +23,9 @@ const useApi = (endpoint, options = {}) => {
     dependencies = [],
     cacheKey = endpoint,
     cacheTime = 5 * 60 * 1000, // 5 minutes default cache
+    isAmadeusAPI = true,
+    method = 'GET',
+    body = null,
   } = options;
 
   const [data, setData] = useState(null);
@@ -56,34 +63,68 @@ const useApi = (endpoint, options = {}) => {
   );
 
   const fetchData = useCallback(async () => {
-    // Check cache first
-    const cachedData = cache();
-    if (cachedData) {
-      setData(cachedData);
-      setLoading(false);
-      return cachedData;
+    // Check cache first (only for GET requests)
+    if (method === 'GET') {
+      const cachedData = cache();
+      if (cachedData) {
+        setData(cachedData);
+        setLoading(false);
+        return cachedData;
+      }
     }
 
     setLoading(true);
     setError(null);
 
     try {
-      const url = getApiUrl(endpoint);
-      const response = await axios.get(url, { params });
+      const url = getApiUrl(endpoint, {}, isAmadeusAPI);
+
+      // Prepare headers
+      const headers = {};
+
+      // Add Amadeus authentication if this is an Amadeus API call
+      if (isAmadeusAPI) {
+        try {
+          const accessToken = await amadeusAuthService.getAccessToken();
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        } catch (authError) {
+          throw new Error('Authentication failed: ' + authError.message);
+        }
+      }
+
+      // Make API request based on method
+      let response;
+      if (method === 'GET') {
+        response = await axios.get(url, { params, headers });
+      } else if (method === 'POST') {
+        response = await axios.post(url, body, { params, headers });
+      } else if (method === 'PUT') {
+        response = await axios.put(url, body, { params, headers });
+      } else if (method === 'DELETE') {
+        response = await axios.delete(url, { params, headers });
+      }
 
       setData(response.data);
-      setCache(response.data);
+
+      // Cache only GET requests
+      if (method === 'GET') {
+        setCache(response.data);
+      }
+
       setLoading(false);
       return response.data;
     } catch (err) {
       const errorMessage =
-        err.response?.data?.message || err.message || 'An error occurred';
+        err.response?.data?.errors?.[0]?.detail ||
+        err.response?.data?.message ||
+        err.message ||
+        'An error occurred';
       setError(errorMessage);
       setLoading(false);
       console.error('API Error:', err);
       return null;
     }
-  }, [endpoint, params, cache, setCache]);
+  }, [endpoint, params, body, method, isAmadeusAPI, cache, setCache]);
 
   useEffect(() => {
     if (immediate) {
