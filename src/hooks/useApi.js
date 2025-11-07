@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
-import amadeusAuthService from '../services/amadeusAuth';
+import rateHawkAuthService from '../services/amadeusAuth';
 
 /**
- * Custom hook for API data fetching with caching and Amadeus authentication
+ * Custom hook for API data fetching with caching and RateHawk authentication
  *
  * @param {string} endpoint - API endpoint from API_ENDPOINTS
  * @param {Object} options - Additional options
  * @param {boolean} options.immediate - Whether to fetch immediately on mount
  * @param {Object} options.params - Query parameters
  * @param {Array} options.dependencies - Dependencies for re-fetching
- * @param {boolean} options.isAmadeusAPI - Whether this is an Amadeus API call (default: true)
+ * @param {boolean} options.isRateHawkAPI - Whether this is a RateHawk API call (default: true)
  * @param {string} options.method - HTTP method (default: 'GET')
  * @param {Object} options.body - Request body for POST/PUT requests
  * @returns {Object} { data, loading, error, refetch }
@@ -23,7 +23,7 @@ const useApi = (endpoint, options = {}) => {
     dependencies = [],
     cacheKey = endpoint,
     cacheTime = 5 * 60 * 1000, // 5 minutes default cache
-    isAmadeusAPI = true,
+    isRateHawkAPI = true,
     method = 'GET',
     body = null,
   } = options;
@@ -77,16 +77,19 @@ const useApi = (endpoint, options = {}) => {
     setError(null);
 
     try {
-      const url = getApiUrl(endpoint, {}, isAmadeusAPI);
+      const url = getApiUrl(endpoint, {}, isRateHawkAPI);
 
       // Prepare headers
-      const headers = {};
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
 
-      // Add Amadeus authentication if this is an Amadeus API call
-      if (isAmadeusAPI) {
+      // Add RateHawk authentication if this is a RateHawk API call
+      if (isRateHawkAPI) {
         try {
-          const accessToken = await amadeusAuthService.getAccessToken();
-          headers['Authorization'] = `Bearer ${accessToken}`;
+          const authHeader = rateHawkAuthService.getAuthorizationHeader();
+          headers['Authorization'] = authHeader;
         } catch (authError) {
           throw new Error('Authentication failed: ' + authError.message);
         }
@@ -124,7 +127,7 @@ const useApi = (endpoint, options = {}) => {
       console.error('API Error:', err);
       return null;
     }
-  }, [endpoint, params, body, method, isAmadeusAPI, cache, setCache]);
+  }, [endpoint, params, body, method, isRateHawkAPI, cache, setCache]);
 
   useEffect(() => {
     if (immediate) {

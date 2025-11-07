@@ -1,71 +1,67 @@
 /**
- * API Configuration
+ * RateHawk API Configuration
  *
- * Amadeus API Configuration for travel data
- * Documentation: https://developers.amadeus.com/
+ * Universal API configuration for RateHawk travel services
+ * Documentation: https://www.ratehawk.com/lp/en-us/API/
+ * Support: [email protected]
  */
 
 export const API_CONFIG = {
-  // Base URL for Amadeus API
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://test.api.amadeus.com',
+  // Base URL for RateHawk API
+  BASE_URL: import.meta.env.VITE_RATEHAWK_BASE_URL || 'https://api.ratehawk.com',
 
   // API Version
-  VERSION: import.meta.env.VITE_API_VERSION || 'v2',
+  VERSION: import.meta.env.VITE_RATEHAWK_VERSION || 'v3',
 
   // Timeout in milliseconds
   TIMEOUT: import.meta.env.VITE_API_TIMEOUT || 30000,
 
-  // Amadeus API Credentials
+  // RateHawk API Key (from environment variable)
   API_KEY: import.meta.env.VITE_API_KEY,
-  API_SECRET: import.meta.env.VITE_API_SECRET,
 
-  // OAuth2 Configuration
-  AUTH_URL: import.meta.env.VITE_AMADEUS_AUTH_URL || 'https://test.api.amadeus.com/v1/security/oauth2/token',
-  GRANT_TYPE: import.meta.env.VITE_AMADEUS_GRANT_TYPE || 'client_credentials',
+  // Default language for API responses (supports 32 languages)
+  DEFAULT_LANGUAGE: import.meta.env.VITE_RATEHAWK_LANGUAGE || 'en',
+
+  // Currency code
+  DEFAULT_CURRENCY: import.meta.env.VITE_RATEHAWK_CURRENCY || 'USD',
 };
 
 /**
- * Amadeus API Endpoints
+ * RateHawk API Endpoints
  *
- * Documentation: https://developers.amadeus.com/self-service/apis-docs
+ * Workflow: Hotel Static -> SERP -> Prebook -> Order Booking -> Order Finish -> Order Status
  */
 export const API_ENDPOINTS = {
-  // Authentication
-  AUTH_TOKEN: '/v1/security/oauth2/token',
-
   // Hotels & Accommodation
-  HOTEL_SEARCH: '/v3/shopping/hotel-offers',
-  HOTEL_OFFERS: '/v3/shopping/hotel-offers/by-hotel',
-  HOTEL_BOOKING: '/v2/booking/hotel-bookings',
-  HOTEL_RATINGS: '/v2/e-reputation/hotel-sentiments',
+  HOTEL_SEARCH: '/hotels/search', // SERP (Search Engine Results Page)
+  HOTEL_STATIC: '/hotels/static', // Hotel static data
+  HOTEL_PREBOOK: '/hotels/prebook', // Pre-booking validation
+  HOTEL_BOOKING: '/hotels/order/booking', // Create booking
+  HOTEL_ORDER_FINISH: '/hotels/order/finish', // Finish order
+  HOTEL_ORDER_STATUS: '/hotels/order/status', // Check order status
+  HOTEL_ORDER_INFO: '/hotels/order/info', // Get order information
+  HOTEL_ORDER_CANCEL: '/hotels/order/cancel', // Cancel order
+  HOTEL_REVIEWS: '/hotels/reviews', // Hotel reviews
+  HOTEL_CONTENT: '/hotels/content', // Hotel content/details
 
-  // Flights
-  FLIGHT_OFFERS_SEARCH: '/v2/shopping/flight-offers',
-  FLIGHT_OFFERS_PRICE: '/v1/shopping/flight-offers/pricing',
-  FLIGHT_CREATE_ORDER: '/v1/booking/flight-orders',
-  FLIGHT_INSPIRATION_SEARCH: '/v1/shopping/flight-destinations',
-  FLIGHT_CHEAPEST_DATE: '/v1/shopping/flight-dates',
-  AIRPORT_ROUTES: '/v1/airport/direct-destinations',
+  // Flights (if available)
+  FLIGHT_SEARCH: '/flights/search',
+  FLIGHT_BOOKING: '/flights/booking',
+  FLIGHT_ORDER_STATUS: '/flights/order/status',
+  FLIGHT_ORDER_CANCEL: '/flights/order/cancel',
 
-  // Car Rental
-  CAR_RENTAL_SEARCH: '/v1/shopping/car-rentals',
-  CAR_RENTAL_OFFERS: '/v1/shopping/car-rental-offers',
+  // Car Rentals (if available)
+  CAR_SEARCH: '/cars/search',
+  CAR_BOOKING: '/cars/booking',
 
-  // Activities & Tours
-  ACTIVITIES: '/v1/shopping/activities',
-  ACTIVITIES_BY_SQUARE: '/v1/shopping/activities/by-square',
+  // Cruises (if available)
+  CRUISE_SEARCH: '/cruises/search',
+  CRUISE_BOOKING: '/cruises/booking',
 
-  // Location & Reference Data
-  AIRPORT_CITY_SEARCH: '/v1/reference-data/locations',
-  AIRPORT_NEAREST: '/v1/reference-data/locations/airports',
-  AIRLINE_CODE_LOOKUP: '/v1/reference-data/airlines',
-
-  // Travel Recommendations
-  POINTS_OF_INTEREST: '/v1/reference-data/locations/pois',
-  SAFE_PLACE: '/v1/safety/safety-rated-locations',
-
-  // Trip Parser (for extracting booking data)
-  TRIP_PARSER: '/v3/travel/trip-parser',
+  // Reference Data
+  LOCATIONS: '/locations', // Location search/autocomplete
+  REGIONS: '/regions', // Region data
+  COUNTRIES: '/countries', // Country data
 
   // Local Backend Endpoints (if you have your own)
   // Authentication
@@ -97,17 +93,17 @@ export const API_ENDPOINTS = {
 };
 
 /**
- * Get full API URL
+ * Get full RateHawk API URL
  * @param {string} endpoint - Endpoint from API_ENDPOINTS
  * @param {Object} params - URL parameters to replace (e.g., {id: 123})
- * @param {boolean} isAmadeusAPI - Whether this is an Amadeus API endpoint (default: true)
+ * @param {boolean} isRateHawkAPI - Whether this is a RateHawk API endpoint (default: true)
  * @returns {string} Full API URL
  */
-export const getApiUrl = (endpoint, params = {}, isAmadeusAPI = true) => {
+export const getApiUrl = (endpoint, params = {}, isRateHawkAPI = true) => {
   let url;
 
-  if (isAmadeusAPI) {
-    // Amadeus API endpoints already include version in the path
+  if (isRateHawkAPI) {
+    // RateHawk API endpoints
     url = `${API_CONFIG.BASE_URL}${endpoint}`;
   } else {
     // Local backend endpoints
@@ -120,4 +116,138 @@ export const getApiUrl = (endpoint, params = {}, isAmadeusAPI = true) => {
   });
 
   return url;
+};
+
+/**
+ * Get RateHawk API headers
+ * @param {Object} customHeaders - Additional custom headers
+ * @returns {Object} Headers object for API requests
+ */
+export const getApiHeaders = (customHeaders = {}) => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${API_CONFIG.API_KEY}`,
+    'Accept': 'application/json',
+    'Accept-Language': API_CONFIG.DEFAULT_LANGUAGE,
+    ...customHeaders,
+  };
+};
+
+/**
+ * Make RateHawk API request
+ * @param {string} endpoint - API endpoint
+ * @param {Object} options - Request options
+ * @returns {Promise<Object>} API response
+ */
+export const apiRequest = async (endpoint, options = {}) => {
+  const {
+    method = 'GET',
+    params = {},
+    data = null,
+    headers = {},
+    isRateHawkAPI = true,
+  } = options;
+
+  const url = getApiUrl(endpoint, params, isRateHawkAPI);
+  const requestHeaders = getApiHeaders(headers);
+
+  try {
+    const requestOptions = {
+      method,
+      headers: requestHeaders,
+      signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
+    };
+
+    // Add query parameters for GET requests
+    if (method === 'GET' && data) {
+      const queryParams = new URLSearchParams(data);
+      const fullUrl = `${url}?${queryParams.toString()}`;
+      const response = await fetch(fullUrl, requestOptions);
+      return handleResponse(response);
+    }
+
+    // Add body for POST/PUT requests
+    if (method !== 'GET' && data) {
+      requestOptions.body = JSON.stringify(data);
+    }
+
+    const response = await fetch(url, requestOptions);
+    return handleResponse(response);
+  } catch (error) {
+    console.error('RateHawk API Error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Handle API response
+ * @param {Response} response - Fetch response
+ * @returns {Promise<Object>} Parsed response data
+ */
+const handleResponse = async (response) => {
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.message ||
+      `API Error: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return response.json();
+};
+
+/**
+ * Hotel search helper function
+ * @param {Object} searchParams - Search parameters
+ * @returns {Promise<Object>} Hotel search results
+ */
+export const searchHotels = async (searchParams) => {
+  const {
+    location,
+    checkIn,
+    checkOut,
+    adults = 2,
+    children = 0,
+    rooms = 1,
+    currency = API_CONFIG.DEFAULT_CURRENCY,
+    language = API_CONFIG.DEFAULT_LANGUAGE,
+  } = searchParams;
+
+  return apiRequest(API_ENDPOINTS.HOTEL_SEARCH, {
+    method: 'POST',
+    data: {
+      location,
+      checkin: checkIn,
+      checkout: checkOut,
+      adults,
+      children,
+      rooms,
+      currency,
+      language,
+    },
+  });
+};
+
+/**
+ * Get hotel details
+ * @param {string} hotelId - Hotel ID
+ * @returns {Promise<Object>} Hotel details
+ */
+export const getHotelDetails = async (hotelId) => {
+  return apiRequest(API_ENDPOINTS.HOTEL_CONTENT, {
+    method: 'GET',
+    data: { hotel_id: hotelId },
+  });
+};
+
+/**
+ * Pre-book hotel (validate availability and price)
+ * @param {string} bookHash - Booking hash from search results
+ * @returns {Promise<Object>} Pre-booking details
+ */
+export const prebookHotel = async (bookHash) => {
+  return apiRequest(API_ENDPOINTS.HOTEL_PREBOOK, {
+    method: 'POST',
+    data: { book_hash: bookHash },
+  });
 };

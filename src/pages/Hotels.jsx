@@ -17,34 +17,46 @@ const Hotels = () => {
   const [useFallback, setUseFallback] = useState(false);
 
   // Extract search parameters
-  const location = searchParams.get('location') || 'PAR'; // Default to Paris city code
-  const checkIn = searchParams.get('checkIn');
-  const checkOut = searchParams.get('checkOut');
+  const location = searchParams.get('location') || 'Paris'; // Default to Paris
+  const checkIn = searchParams.get('checkIn') || getDefaultCheckIn();
+  const checkOut = searchParams.get('checkOut') || getDefaultCheckOut();
   const adults = searchParams.get('adults') || 2;
   const children = searchParams.get('children') || 0;
   const rooms = searchParams.get('rooms') || 1;
 
-  // Prepare Amadeus API parameters
-  const apiParams = {
-    cityCode: location.length === 3 ? location : 'PAR', // Use city code if available, fallback to PAR
+  // Helper functions for default dates (7 days from now for check-in, 10 days for check-out)
+  function getDefaultCheckIn() {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().split('T')[0];
+  }
+
+  function getDefaultCheckOut() {
+    const date = new Date();
+    date.setDate(date.getDate() + 10);
+    return date.toISOString().split('T')[0];
+  }
+
+  // Prepare RateHawk API body
+  const apiBody = {
+    location,
+    checkin: checkIn,
+    checkout: checkOut,
     adults: parseInt(adults),
-    radius: 5,
-    radiusUnit: 'KM',
-    paymentPolicy: 'NONE',
-    bestRateOnly: true
+    children: parseInt(children),
+    rooms: parseInt(rooms),
+    currency: 'USD',
+    language: 'en'
   };
 
-  // Add dates if available
-  if (checkIn) apiParams.checkInDate = checkIn;
-  if (checkOut) apiParams.checkOutDate = checkOut;
-
-  // Fetch hotels from Amadeus API
+  // Fetch hotels from RateHawk API
   const { data: apiData, loading, error } = useApi(
     API_ENDPOINTS.HOTEL_SEARCH,
     {
-      params: apiParams,
-      immediate: !!checkIn && !!checkOut, // Only fetch if dates are provided
-      isAmadeusAPI: true,
+      method: 'POST',
+      body: apiBody,
+      immediate: true, // Always fetch to show default results
+      isRateHawkAPI: true,
       dependencies: [location, checkIn, checkOut, adults, children, rooms]
     }
   );
