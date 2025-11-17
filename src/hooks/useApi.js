@@ -1,19 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { getApiUrl } from '../config/api';
-import rateHawkAuthService from '../services/amadeusAuth';
+import { getApiUrl, getRapidAPIHeaders } from '../config/api';
+import rapidAPIAuthService from '../services/amadeusAuth';
 
 /**
- * Custom hook for API data fetching with caching and RateHawk authentication
+ * Custom hook for API data fetching with caching and RapidAPI authentication
  *
- * @param {string} endpoint - API endpoint from API_ENDPOINTS
+ * @param {Object|string} endpoint - API endpoint from API_ENDPOINTS (object for RapidAPI, string for local backend)
  * @param {Object} options - Additional options
- * @param {boolean} options.immediate - Whether to fetch immediately on mount
+ * @param {boolean} options.immediate - Whether to fetch immediately on mount (default: true)
  * @param {Object} options.params - Query parameters
  * @param {Array} options.dependencies - Dependencies for re-fetching
- * @param {boolean} options.isRateHawkAPI - Whether this is a RateHawk API call (default: true)
- * @param {string} options.method - HTTP method (default: 'GET')
+ * @param {boolean} options.isRapidAPI - Whether this is a RapidAPI call (default: true for object endpoints)
+ * @param {string} options.method - HTTP method (overrides endpoint.method)
  * @param {Object} options.body - Request body for POST/PUT requests
+ * @param {number} options.cacheTime - Cache duration in milliseconds (default: 5 minutes)
  * @returns {Object} { data, loading, error, refetch }
  */
 const useApi = (endpoint, options = {}) => {
@@ -21,12 +22,16 @@ const useApi = (endpoint, options = {}) => {
     immediate = true,
     params = {},
     dependencies = [],
-    cacheKey = endpoint,
     cacheTime = 5 * 60 * 1000, // 5 minutes default cache
-    isRateHawkAPI = true,
-    method = 'GET',
+    isRapidAPI = typeof endpoint === 'object', // Auto-detect based on endpoint type
+    method = endpoint?.method || 'GET',
     body = null,
   } = options;
+
+  // Generate cache key from endpoint
+  const cacheKey = typeof endpoint === 'string'
+    ? endpoint
+    : `${endpoint?.host}${endpoint?.url}`;
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(immediate);
@@ -77,19 +82,19 @@ const useApi = (endpoint, options = {}) => {
     setError(null);
 
     try {
-      const url = getApiUrl(endpoint, {}, isRateHawkAPI);
+      const url = getApiUrl(endpoint);
 
       // Prepare headers
-      const headers = {
+      let headers = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       };
 
-      // Add RateHawk authentication if this is a RateHawk API call
-      if (isRateHawkAPI) {
+      // Add RapidAPI authentication if this is a RapidAPI call
+      if (isRapidAPI && typeof endpoint === 'object') {
         try {
-          const authHeader = rateHawkAuthService.getAuthorizationHeader();
-          headers['Authorization'] = authHeader;
+          const rapidAPIHeaders = rapidAPIAuthService.getAuthHeaders(endpoint.host);
+          headers = { ...headers, ...rapidAPIHeaders };
         } catch (authError) {
           throw new Error('Authentication failed: ' + authError.message);
         }
@@ -97,14 +102,26 @@ const useApi = (endpoint, options = {}) => {
 
       // Make API request based on method
       let response;
-      if (method === 'GET') {
-        response = await axios.get(url, { params, headers });
-      } else if (method === 'POST') {
-        response = await axios.post(url, body, { params, headers });
-      } else if (method === 'PUT') {
-        response = await axios.put(url, body, { params, headers });
-      } else if (method === 'DELETE') {
-        response = await axios.delete(url, { params, headers });
+      const requestConfig = { headers, timeout: 30000 };
+
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await axios.get(url, { ...requestConfig, params });
+          break;
+        case 'POST':
+          response = await axios.post(url, body, { ...requestConfig, params });
+          break;
+        case 'PUT':
+          response = await axios.put(url, body, { ...requestConfig, params });
+          break;
+        case 'DELETE':
+          response = await axios.delete(url, { ...requestConfig, params });
+          break;
+        case 'PATCH':
+          response = await axios.patch(url, body, { ...requestConfig, params });
+          break;
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
       }
 
       setData(response.data);
@@ -117,23 +134,57 @@ const useApi = (endpoint, options = {}) => {
       setLoading(false);
       return response.data;
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.errors?.[0]?.detail ||
-        err.response?.data?.message ||
-        err.message ||
-        'An error occurred';
+      // Enhanced error handling for different API error formats
+      let errorMessage = 'An error occurred';
+
+      if (err.response) {
+        // Server responded with error
+        const errorData = err.response.data;
+
+        // RapidAPI error format
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+        // Amadeus/other API error format
+        else if (errorData.errors && errorData.errors[0]) {
+          errorMessage = errorData.errors[0].detail || errorData.errors[0].title;
+        }
+        // Generic error format
+        else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+        // HTTP status message
+        else {
+          errorMessage = `API Error: ${err.response.status} ${err.response.statusText}`;
+        }
+      } else if (err.request) {
+        // Request made but no response
+        errorMessage = 'No response from server. Please check your internet connection.';
+      } else if (err.message) {
+        // Request setup error
+        errorMessage = err.message;
+      }
+
       setError(errorMessage);
       setLoading(false);
       console.error('API Error:', err);
+      console.error('Error details:', {
+        url: getApiUrl(endpoint),
+        method,
+        params,
+        body,
+        error: errorMessage,
+      });
       return null;
     }
-  }, [endpoint, params, body, method, isRateHawkAPI, cache, setCache]);
+  }, [endpoint, params, body, method, isRapidAPI, cache, setCache]);
 
   useEffect(() => {
     if (immediate) {
       fetchData();
     }
-  }, [immediate, fetchData, ...dependencies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immediate, ...dependencies]);
 
   const refetch = useCallback(() => {
     return fetchData();

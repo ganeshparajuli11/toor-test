@@ -1,69 +1,136 @@
 /**
- * RateHawk API Configuration
+ * RapidAPI Configuration
  *
- * Universal API configuration for RateHawk travel services
- * Documentation: https://www.ratehawk.com/lp/en-us/API/
- * Support: [email protected]
+ * Universal API configuration for multiple travel services via RapidAPI
+ * Documentation: https://rapidapi.com/hub
+ *
+ * Get your API key: https://rapidapi.com/auth/sign-up (Free tier available)
  */
 
 export const API_CONFIG = {
-  // Base URL for RateHawk API
-  BASE_URL: import.meta.env.VITE_RATEHAWK_BASE_URL || 'https://api.ratehawk.com',
+  // RapidAPI Key (from environment variable)
+  RAPIDAPI_KEY: import.meta.env.VITE_RAPIDAPI_KEY,
 
-  // API Version
-  VERSION: import.meta.env.VITE_RATEHAWK_VERSION || 'v3',
+  // RapidAPI Host
+  RAPIDAPI_HOST: import.meta.env.VITE_RAPIDAPI_HOST || 'rapidapi.com',
+
+  // API Hosts for different services
+  HOTELS_HOST: import.meta.env.VITE_HOTELS_API_HOST || 'booking-com.p.rapidapi.com',
+  FLIGHTS_HOST: import.meta.env.VITE_FLIGHTS_API_HOST || 'skyscanner-flight-search.p.rapidapi.com',
+  CARS_HOST: import.meta.env.VITE_CARS_API_HOST || 'rental-cars.p.rapidapi.com',
+  ACTIVITIES_HOST: import.meta.env.VITE_ACTIVITIES_API_HOST || 'travel-advisor.p.rapidapi.com',
+  CRUISES_HOST: import.meta.env.VITE_CRUISES_API_HOST || 'booking-com.p.rapidapi.com',
 
   // Timeout in milliseconds
   TIMEOUT: import.meta.env.VITE_API_TIMEOUT || 30000,
 
-  // RateHawk API Key (from environment variable)
-  API_KEY: import.meta.env.VITE_API_KEY,
-
-  // Default language for API responses (supports 32 languages)
-  DEFAULT_LANGUAGE: import.meta.env.VITE_RATEHAWK_LANGUAGE || 'en',
-
-  // Currency code
-  DEFAULT_CURRENCY: import.meta.env.VITE_RATEHAWK_CURRENCY || 'USD',
+  // Default settings
+  DEFAULT_CURRENCY: import.meta.env.VITE_DEFAULT_CURRENCY || 'USD',
+  DEFAULT_LANGUAGE: import.meta.env.VITE_DEFAULT_LANGUAGE || 'en_US',
 };
 
 /**
- * RateHawk API Endpoints
- *
- * Workflow: Hotel Static -> SERP -> Prebook -> Order Booking -> Order Finish -> Order Status
+ * RapidAPI Endpoints
+ * Each service uses different RapidAPI endpoints
  */
 export const API_ENDPOINTS = {
-  // Hotels & Accommodation
-  HOTEL_SEARCH: '/hotels/search', // SERP (Search Engine Results Page)
-  HOTEL_STATIC: '/hotels/static', // Hotel static data
-  HOTEL_PREBOOK: '/hotels/prebook', // Pre-booking validation
-  HOTEL_BOOKING: '/hotels/order/booking', // Create booking
-  HOTEL_ORDER_FINISH: '/hotels/order/finish', // Finish order
-  HOTEL_ORDER_STATUS: '/hotels/order/status', // Check order status
-  HOTEL_ORDER_INFO: '/hotels/order/info', // Get order information
-  HOTEL_ORDER_CANCEL: '/hotels/order/cancel', // Cancel order
-  HOTEL_REVIEWS: '/hotels/reviews', // Hotel reviews
-  HOTEL_CONTENT: '/hotels/content', // Hotel content/details
+  // ==================== HOTELS (Booking.com API v15) ====================
+  // Base URL: https://booking-com15.p.rapidapi.com
+  HOTEL_SEARCH: {
+    url: '/api/v1/hotels/searchHotels',
+    host: API_CONFIG.HOTELS_HOST,
+    method: 'GET',
+  },
+  HOTEL_DETAILS: {
+    url: '/api/v1/hotels/getHotelDetails',
+    host: API_CONFIG.HOTELS_HOST,
+    method: 'GET',
+  },
+  HOTEL_PHOTOS: {
+    url: '/api/v1/hotels/getHotelPhotos',
+    host: API_CONFIG.HOTELS_HOST,
+    method: 'GET',
+  },
+  HOTEL_REVIEWS: {
+    url: '/api/v1/hotels/getHotelReviews',
+    host: API_CONFIG.HOTELS_HOST,
+    method: 'GET',
+  },
+  HOTEL_FACILITIES: {
+    url: '/api/v1/hotels/getHotelFacilities',
+    host: API_CONFIG.HOTELS_HOST,
+    method: 'GET',
+  },
+  LOCATION_SEARCH: {
+    url: '/api/v1/hotels/searchDestination',
+    host: API_CONFIG.HOTELS_HOST,
+    method: 'GET',
+  },
 
-  // Flights (if available)
-  FLIGHT_SEARCH: '/flights/search',
-  FLIGHT_BOOKING: '/flights/booking',
-  FLIGHT_ORDER_STATUS: '/flights/order/status',
-  FLIGHT_ORDER_CANCEL: '/flights/order/cancel',
+  // ==================== FLIGHTS (Skyscanner API) ====================
+  // Base URL: https://skyscanner-flight-search.p.rapidapi.com
+  FLIGHT_SEARCH: {
+    url: '/v2/flights/search',
+    host: API_CONFIG.FLIGHTS_HOST,
+    method: 'POST',
+  },
+  FLIGHT_AUTOCOMPLETE: {
+    url: '/v1/autosuggest/flights',
+    host: API_CONFIG.FLIGHTS_HOST,
+    method: 'GET',
+  },
+  FLIGHT_PRICES: {
+    url: '/v1/flights/getPriceCalendar',
+    host: API_CONFIG.FLIGHTS_HOST,
+    method: 'GET',
+  },
 
-  // Car Rentals (if available)
-  CAR_SEARCH: '/cars/search',
-  CAR_BOOKING: '/cars/booking',
+  // ==================== CAR RENTALS ====================
+  // Base URL: https://rental-cars.p.rapidapi.com
+  CAR_SEARCH: {
+    url: '/search',
+    host: API_CONFIG.CARS_HOST,
+    method: 'GET',
+  },
+  CAR_LOCATIONS: {
+    url: '/locations',
+    host: API_CONFIG.CARS_HOST,
+    method: 'GET',
+  },
 
-  // Cruises (if available)
-  CRUISE_SEARCH: '/cruises/search',
-  CRUISE_BOOKING: '/cruises/booking',
+  // ==================== ACTIVITIES (Travel Advisor API) ====================
+  // Base URL: https://travel-advisor.p.rapidapi.com
+  ACTIVITIES_SEARCH: {
+    url: '/attractions/list',
+    host: API_CONFIG.ACTIVITIES_HOST,
+    method: 'GET',
+  },
+  ACTIVITIES_DETAILS: {
+    url: '/attractions/get-details',
+    host: API_CONFIG.ACTIVITIES_HOST,
+    method: 'GET',
+  },
+  LOCATION_AUTOCOMPLETE: {
+    url: '/locations/auto-complete',
+    host: API_CONFIG.ACTIVITIES_HOST,
+    method: 'GET',
+  },
 
-  // Reference Data
-  LOCATIONS: '/locations', // Location search/autocomplete
-  REGIONS: '/regions', // Region data
-  COUNTRIES: '/countries', // Country data
+  // ==================== CRUISES ====================
+  // Using Booking.com API for cruise data as well
+  CRUISE_SEARCH: {
+    url: '/v1/cruises/search',
+    host: API_CONFIG.CRUISES_HOST,
+    method: 'GET',
+  },
+  CRUISE_DETAILS: {
+    url: '/v1/cruises/data',
+    host: API_CONFIG.CRUISES_HOST,
+    method: 'GET',
+  },
 
-  // Local Backend Endpoints (if you have your own)
+  // ==================== LOCAL BACKEND ENDPOINTS ====================
+  // These would be your own backend API endpoints
   // Authentication
   SIGNUP: '/auth/signup',
   LOGIN: '/auth/login',
@@ -86,168 +153,193 @@ export const API_ENDPOINTS = {
   // Additional Content
   ARTICLES: '/blog/articles',
   TEAM: '/team/members',
-
-  // Reviews
-  PROPERTY_REVIEWS: '/properties/:id/reviews',
-  PROPERTY_ADD_REVIEW: '/properties/:id/reviews',
 };
 
 /**
- * Get full RateHawk API URL
- * @param {string} endpoint - Endpoint from API_ENDPOINTS
- * @param {Object} params - URL parameters to replace (e.g., {id: 123})
- * @param {boolean} isRateHawkAPI - Whether this is a RateHawk API endpoint (default: true)
- * @returns {string} Full API URL
+ * Get RapidAPI headers
+ * @param {string} host - API host for the specific service
+ * @param {Object} customHeaders - Additional custom headers
+ * @returns {Object} Headers object for RapidAPI requests
  */
-export const getApiUrl = (endpoint, params = {}, isRateHawkAPI = true) => {
-  let url;
-
-  if (isRateHawkAPI) {
-    // RateHawk API endpoints
-    url = `${API_CONFIG.BASE_URL}${endpoint}`;
-  } else {
-    // Local backend endpoints
-    url = `${API_CONFIG.BASE_URL}/api/${API_CONFIG.VERSION}${endpoint}`;
+export const getRapidAPIHeaders = (host, customHeaders = {}) => {
+  if (!API_CONFIG.RAPIDAPI_KEY || API_CONFIG.RAPIDAPI_KEY === 'your_rapidapi_key_here') {
+    console.warn('RapidAPI key is not configured. Please set VITE_RAPIDAPI_KEY in your .env file.');
   }
 
-  // Replace URL parameters like :id with actual values
-  Object.entries(params).forEach(([key, value]) => {
-    url = url.replace(`:${key}`, value);
-  });
-
-  return url;
-};
-
-/**
- * Get RateHawk API headers
- * @param {Object} customHeaders - Additional custom headers
- * @returns {Object} Headers object for API requests
- */
-export const getApiHeaders = (customHeaders = {}) => {
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${API_CONFIG.API_KEY}`,
-    'Accept': 'application/json',
-    'Accept-Language': API_CONFIG.DEFAULT_LANGUAGE,
+    'X-RapidAPI-Key': API_CONFIG.RAPIDAPI_KEY,
+    'X-RapidAPI-Host': host,
     ...customHeaders,
   };
 };
 
 /**
- * Make RateHawk API request
- * @param {string} endpoint - API endpoint
- * @param {Object} options - Request options
- * @returns {Promise<Object>} API response
+ * Get full API URL for RapidAPI endpoints
+ * @param {Object} endpoint - Endpoint object from API_ENDPOINTS
+ * @returns {string} Full API URL
  */
-export const apiRequest = async (endpoint, options = {}) => {
-  const {
-    method = 'GET',
-    params = {},
-    data = null,
-    headers = {},
-    isRateHawkAPI = true,
-  } = options;
-
-  const url = getApiUrl(endpoint, params, isRateHawkAPI);
-  const requestHeaders = getApiHeaders(headers);
-
-  try {
-    const requestOptions = {
-      method,
-      headers: requestHeaders,
-      signal: AbortSignal.timeout(API_CONFIG.TIMEOUT),
-    };
-
-    // Add query parameters for GET requests
-    if (method === 'GET' && data) {
-      const queryParams = new URLSearchParams(data);
-      const fullUrl = `${url}?${queryParams.toString()}`;
-      const response = await fetch(fullUrl, requestOptions);
-      return handleResponse(response);
-    }
-
-    // Add body for POST/PUT requests
-    if (method !== 'GET' && data) {
-      requestOptions.body = JSON.stringify(data);
-    }
-
-    const response = await fetch(url, requestOptions);
-    return handleResponse(response);
-  } catch (error) {
-    console.error('RateHawk API Error:', error);
-    throw error;
+export const getApiUrl = (endpoint) => {
+  // If it's a string endpoint (local backend), return as is
+  if (typeof endpoint === 'string') {
+    // This would be your local backend URL
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+    return `${backendUrl}${endpoint}`;
   }
+
+  // If it's a RapidAPI endpoint object
+  if (endpoint.url && endpoint.host) {
+    return `https://${endpoint.host}${endpoint.url}`;
+  }
+
+  throw new Error('Invalid endpoint configuration');
 };
 
 /**
- * Handle API response
- * @param {Response} response - Fetch response
- * @returns {Promise<Object>} Parsed response data
+ * Helper function to search hotels (Booking.com v15 API)
+ * @param {Object} params - Search parameters
+ * @returns {Object} Request configuration
  */
-const handleResponse = async (response) => {
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      errorData.message ||
-      `API Error: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.json();
-};
-
-/**
- * Hotel search helper function
- * @param {Object} searchParams - Search parameters
- * @returns {Promise<Object>} Hotel search results
- */
-export const searchHotels = async (searchParams) => {
+export const buildHotelSearchRequest = (params) => {
   const {
-    location,
+    destination = 'Paris',
     checkIn,
     checkOut,
     adults = 2,
     children = 0,
     rooms = 1,
     currency = API_CONFIG.DEFAULT_CURRENCY,
-    language = API_CONFIG.DEFAULT_LANGUAGE,
-  } = searchParams;
+  } = params;
 
-  return apiRequest(API_ENDPOINTS.HOTEL_SEARCH, {
-    method: 'POST',
-    data: {
-      location,
-      checkin: checkIn,
-      checkout: checkOut,
-      adults,
-      children,
-      rooms,
-      currency,
-      language,
+  return {
+    url: getApiUrl(API_ENDPOINTS.HOTEL_SEARCH),
+    headers: getRapidAPIHeaders(API_CONFIG.HOTELS_HOST),
+    params: {
+      dest_type: 'city',
+      search_query: destination,
+      arrival_date: checkIn, // Format: YYYY-MM-DD
+      departure_date: checkOut, // Format: YYYY-MM-DD
+      adults: adults,
+      children_age: children > 0 ? '0' : '',
+      room_qty: rooms,
+      units: 'metric',
+      temperature_unit: 'c',
+      currency_code: currency,
+      languagecode: 'en-us',
     },
-  });
+  };
 };
 
 /**
- * Get hotel details
- * @param {string} hotelId - Hotel ID
- * @returns {Promise<Object>} Hotel details
+ * Helper function to search flights
+ * @param {Object} params - Search parameters
+ * @returns {Object} Request configuration
  */
-export const getHotelDetails = async (hotelId) => {
-  return apiRequest(API_ENDPOINTS.HOTEL_CONTENT, {
-    method: 'GET',
-    data: { hotel_id: hotelId },
-  });
+export const buildFlightSearchRequest = (params) => {
+  const {
+    origin,
+    destination,
+    departureDate,
+    returnDate,
+    adults = 1,
+    cabinClass = 'economy',
+    currency = API_CONFIG.DEFAULT_CURRENCY,
+  } = params;
+
+  return {
+    url: getApiUrl(API_ENDPOINTS.FLIGHT_SEARCH),
+    headers: getRapidAPIHeaders(API_CONFIG.FLIGHTS_HOST),
+    data: {
+      origin,
+      destination,
+      date: departureDate, // Format: YYYY-MM-DD
+      returnDate, // Optional, for round trip
+      adults,
+      cabinClass,
+      currency,
+    },
+  };
 };
 
 /**
- * Pre-book hotel (validate availability and price)
- * @param {string} bookHash - Booking hash from search results
- * @returns {Promise<Object>} Pre-booking details
+ * Helper function to search cars
+ * @param {Object} params - Search parameters
+ * @returns {Object} Request configuration
  */
-export const prebookHotel = async (bookHash) => {
-  return apiRequest(API_ENDPOINTS.HOTEL_PREBOOK, {
-    method: 'POST',
-    data: { book_hash: bookHash },
-  });
+export const buildCarSearchRequest = (params) => {
+  const {
+    pickupLocation,
+    dropoffLocation,
+    pickupDate,
+    dropoffDate,
+    driverAge = 30,
+    currency = API_CONFIG.DEFAULT_CURRENCY,
+  } = params;
+
+  return {
+    url: getApiUrl(API_ENDPOINTS.CAR_SEARCH),
+    headers: getRapidAPIHeaders(API_CONFIG.CARS_HOST),
+    params: {
+      pick_up_location: pickupLocation,
+      drop_off_location: dropoffLocation || pickupLocation,
+      pick_up_date: pickupDate, // Format: YYYY-MM-DD
+      drop_off_date: dropoffDate, // Format: YYYY-MM-DD
+      driver_age: driverAge,
+      currency,
+    },
+  };
+};
+
+/**
+ * Helper function to search activities
+ * @param {Object} params - Search parameters
+ * @returns {Object} Request configuration
+ */
+export const buildActivitiesSearchRequest = (params) => {
+  const {
+    locationId,
+    currency = API_CONFIG.DEFAULT_CURRENCY,
+    lang = 'en_US',
+    limit = 30,
+  } = params;
+
+  return {
+    url: getApiUrl(API_ENDPOINTS.ACTIVITIES_SEARCH),
+    headers: getRapidAPIHeaders(API_CONFIG.ACTIVITIES_HOST),
+    params: {
+      location_id: locationId,
+      currency,
+      lang,
+      lunit: 'km',
+      limit,
+    },
+  };
+};
+
+/**
+ * Helper function for location autocomplete
+ * @param {string} query - Search query
+ * @returns {Object} Request configuration
+ */
+export const buildLocationAutocompleteRequest = (query) => {
+  return {
+    url: getApiUrl(API_ENDPOINTS.LOCATION_AUTOCOMPLETE),
+    headers: getRapidAPIHeaders(API_CONFIG.ACTIVITIES_HOST),
+    params: {
+      query,
+      lang: API_CONFIG.DEFAULT_LANGUAGE,
+    },
+  };
+};
+
+export default {
+  API_CONFIG,
+  API_ENDPOINTS,
+  getApiUrl,
+  getRapidAPIHeaders,
+  buildHotelSearchRequest,
+  buildFlightSearchRequest,
+  buildCarSearchRequest,
+  buildActivitiesSearchRequest,
+  buildLocationAutocompleteRequest,
 };

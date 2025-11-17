@@ -11,13 +11,16 @@ import { API_ENDPOINTS } from '../config/api';
 import './Hotels.css';
 
 const Hotels = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [hotels, setHotels] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [useFallback, setUseFallback] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
 
-  // Extract search parameters
-  const location = searchParams.get('location') || 'Paris'; // Default to Paris
+  // Extract search parameters from URL
+  const urlLocation = searchParams.get('location') || 'Paris';
+  const urlDestId = searchParams.get('dest_id');
+  const urlSearchType = searchParams.get('search_type') || 'CITY';
   const checkIn = searchParams.get('checkIn') || getDefaultCheckIn();
   const checkOut = searchParams.get('checkOut') || getDefaultCheckOut();
   const adults = searchParams.get('adults') || 2;
@@ -37,40 +40,80 @@ const Hotels = () => {
     return date.toISOString().split('T')[0];
   }
 
-  // Prepare RateHawk API body
-  const apiBody = {
-    location,
-    checkin: checkIn,
-    checkout: checkOut,
-    adults: parseInt(adults),
-    children: parseInt(children),
-    rooms: parseInt(rooms),
-    currency: 'USD',
-    language: 'en'
+  // Initialize location from URL params or use default
+  useEffect(() => {
+    if (urlDestId) {
+      // Use location from URL (from EnhancedSearch)
+      setSelectedLocation({
+        dest_id: urlDestId,
+        search_type: urlSearchType,
+        label: urlLocation,
+        name: urlLocation.split(',')[0] // Get city name from label
+      });
+    } else if (!selectedLocation) {
+      // Default to Paris if no URL params
+      setSelectedLocation({
+        dest_id: '-1456928',
+        search_type: 'CITY',
+        label: 'Paris, Île-de-France, France',
+        name: 'Paris'
+      });
+    }
+  }, [urlDestId, urlLocation, urlSearchType]);
+
+  // Convert ISO dates to YYYY-MM-DD format for API
+  const formatDateForAPI = (isoDate) => {
+    if (!isoDate) return null;
+    const date = new Date(isoDate);
+    return date.toISOString().split('T')[0];
   };
 
-  // Fetch hotels from RateHawk API
+  // Prepare RapidAPI query parameters for Booking.com v15
+  const apiParams = selectedLocation ? {
+    dest_id: selectedLocation.dest_id,
+    search_type: selectedLocation.search_type || 'CITY',
+    arrival_date: formatDateForAPI(checkIn), // API requires this format
+    departure_date: formatDateForAPI(checkOut), // API requires this format
+    adults: parseInt(adults),
+    children_age: parseInt(children) > 0 ? '0,17' : '',
+    room_qty: parseInt(rooms),
+    page_number: 1,
+    units: 'metric',
+    temperature_unit: 'c',
+    currency_code: 'USD',
+    languagecode: 'en-us',
+    location: 'US'
+  } : null;
+
+  // Fetch hotels from Booking.com API via RapidAPI (only when location is selected)
   const { data: apiData, loading, error } = useApi(
     API_ENDPOINTS.HOTEL_SEARCH,
     {
-      method: 'POST',
-      body: apiBody,
-      immediate: true, // Always fetch to show default results
-      isRateHawkAPI: true,
-      dependencies: [location, checkIn, checkOut, adults, children, rooms]
+      params: apiParams,
+      immediate: !!selectedLocation && !!apiParams?.arrival_date && !!apiParams?.departure_date, // Fetch when location and dates available
+      isRapidAPI: true,
+      dependencies: [selectedLocation?.dest_id, checkIn, checkOut, adults, children, rooms]
     }
   );
 
-  // Transform Amadeus data to UI format or use fallback
+
+  const currentLocation = selectedLocation?.name || selectedLocation?.label || 'Paris';
+
+  // Transform API data to UI format or use fallback
   useEffect(() => {
-    if (error || (!loading && !apiData) || !checkIn || !checkOut) {
+    // Don't do anything while loading
+    if (loading) {
+      return;
+    }
+
+    if (error || !apiData) {
       // Use fallback demo data
       setUseFallback(true);
       setHotels([
         {
           id: 1,
           name: 'Grand Plaza Hotel',
-          location: location,
+          location: currentLocation,
           image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop',
           rating: 4.8,
           reviews: 245,
@@ -81,7 +124,7 @@ const Hotels = () => {
         {
           id: 2,
           name: 'Ocean View Resort',
-          location: location,
+          location: currentLocation,
           image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&h=300&fit=crop',
           rating: 4.6,
           reviews: 189,
@@ -92,7 +135,7 @@ const Hotels = () => {
         {
           id: 3,
           name: 'City Center Inn',
-          location: location,
+          location: currentLocation,
           image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&h=300&fit=crop',
           rating: 4.5,
           reviews: 312,
@@ -103,7 +146,7 @@ const Hotels = () => {
         {
           id: 4,
           name: 'Mountain Lodge',
-          location: location,
+          location: currentLocation,
           image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&h=300&fit=crop',
           rating: 4.9,
           reviews: 156,
@@ -114,7 +157,7 @@ const Hotels = () => {
         {
           id: 5,
           name: 'Downtown Boutique Hotel',
-          location: location,
+          location: currentLocation,
           image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&h=300&fit=crop',
           rating: 4.7,
           reviews: 203,
@@ -125,7 +168,7 @@ const Hotels = () => {
         {
           id: 6,
           name: 'Garden Suites',
-          location: location,
+          location: currentLocation,
           image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&h=300&fit=crop',
           rating: 4.4,
           reviews: 178,
@@ -136,40 +179,52 @@ const Hotels = () => {
       ]);
 
       // Show toast if API failed but we're using fallback
-      if (error && checkIn && checkOut) {
+      if (error) {
         showToast('Using demo data. Please check your API credentials.', 'info');
       }
-    } else if (apiData?.data) {
-      // Transform Amadeus data to UI format
+    } else if (apiData?.status && apiData?.data?.hotels) {
+      // Transform Booking.com API v15 data to UI format
       setUseFallback(false);
-      const transformedHotels = apiData.data.map((offer, index) => {
-        const hotel = offer.hotel;
-        const firstOffer = offer.offers?.[0];
+      const hotelsList = apiData.data.hotels || [];
 
-        return {
-          id: hotel.hotelId || index,
-          name: hotel.name || 'Hotel',
-          location: `${hotel.cityCode || location}`,
-          image: `https://images.unsplash.com/photo-${1566073771259 + index}?w=400&h=300&fit=crop`, // Placeholder images
-          rating: hotel.rating || 4.5,
-          reviews: Math.floor(Math.random() * 300) + 50,
-          price: firstOffer?.price?.total ? Math.round(parseFloat(firstOffer.price.total)) : 100,
-          currency: firstOffer?.price?.currency || 'USD',
-          amenities: ['Free WiFi', 'Breakfast', 'Pool', 'AC'], // Would need to parse from offer details
-          description: firstOffer?.room?.description?.text || hotel.description || 'Comfortable accommodation with excellent facilities',
-          offerId: firstOffer?.id,
-          checkIn: firstOffer?.checkInDate,
-          checkOut: firstOffer?.checkOutDate
+      const transformedHotels = hotelsList.slice(0, 20).map((hotelItem, index) => {
+        // API structure: { hotel_id, property: {...} }
+        const hotel = hotelItem.property || hotelItem;
+        const hotelId = hotelItem.hotel_id || hotel.id || hotel.hotel_id || index;
+
+        // Get image URL - API provides array of photo URLs
+        const imageUrl = hotel.photoUrls?.[0] ||
+                        hotel.max_1440_photo_url ||
+                        hotel.main_photo_url ||
+                        `https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop`;
+
+        const transformed = {
+          id: hotelId,
+          name: hotel.name || hotel.hotel_name || 'Hotel',
+          location: currentLocation,
+          image: imageUrl,
+          rating: hotel.reviewScore || hotel.review_score || 4.5,
+          reviews: hotel.reviewCount || hotel.review_nr || 0,
+          price: Math.round(hotel.priceBreakdown?.grossPrice?.value || hotel.min_total_price || 100),
+          currency: hotel.priceBreakdown?.grossPrice?.currency || hotel.currency || 'USD',
+          amenities: hotel.facilities?.slice(0, 4) || ['Free WiFi', 'Breakfast'],
+          description: hotel.reviewScoreWord || hotel.review_score_word || 'Comfortable accommodation',
+          checkIn: checkIn,
+          checkOut: checkOut,
+          url: hotel.url,
+          propertyClass: hotel.propertyClass || hotel.accuratePropertyClass || 0
         };
+
+        return transformed;
       });
 
       setHotels(transformedHotels);
 
       if (transformedHotels.length > 0) {
-        showToast(`Found ${transformedHotels.length} hotels from Amadeus API`, 'success');
+        showToast(`Found ${transformedHotels.length} real hotels in ${currentLocation}!`, 'success');
       }
     }
-  }, [apiData, loading, error, location, checkIn, checkOut]);
+  }, [apiData, loading, error]);
 
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -203,8 +258,8 @@ const Hotels = () => {
   return (
     <>
       <SEO
-        title={`Hotels in ${location} | TOOR - Find Your Perfect Stay`}
-        description={`Find and book the best hotels in ${location}. Compare prices, read reviews, and get the best deals.`}
+        title={`Hotels in ${currentLocation} | TOOR - Find Your Perfect Stay`}
+        description={`Find and book the best hotels in ${currentLocation}. Compare prices, read reviews, and get the best deals.`}
         keywords="hotel booking, hotels, accommodation, best hotel deals"
         canonical="/hotels"
       />
@@ -232,11 +287,11 @@ const Hotels = () => {
                 border: `1px solid ${useFallback ? '#ffc107' : '#28a745'}`,
                 color: '#000'
               }}>
-                <strong>{useFallback ? '⚠️ Demo Mode' : '✓ Live Amadeus API'}</strong>
+                <strong>{useFallback ? '⚠️ Demo Mode' : '✓ Live Booking.com API'}</strong>
                 <span style={{ marginLeft: '10px' }}>
                   {useFallback
-                    ? 'Using demo data. Add check-in/out dates or verify API credentials to use live data.'
-                    : `Showing real hotel data from Amadeus API for ${location}`
+                    ? 'Using demo data. Subscribe to Booking.com v15 API to use live data.'
+                    : `Showing real hotel data from Booking.com API for ${currentLocation}`
                   }
                 </span>
               </div>
@@ -246,10 +301,10 @@ const Hotels = () => {
             <div className="hotels-results-header">
               <div>
                 <p className="hotels-breadcrumb">
-                  Home › Hotels in {location}
+                  Home › Hotels in {currentLocation}
                 </p>
                 <h1 className="hotels-title">
-                  {loading ? 'Loading...' : `${hotels.length} Hotels Found`}
+                  {loading ? 'Searching hotels...' : `${hotels.length} Hotels Found in ${currentLocation}`}
                   {checkIn && checkOut && (
                     <span className="hotels-dates">
                       {' '}for {formatDate(checkIn)} - {formatDate(checkOut)}
@@ -289,7 +344,7 @@ const Hotels = () => {
                     </div>
                   </div>
                 ))
-              ) : (
+              ) : hotels.length > 0 ? (
                 // Hotel cards
                 hotels.map((hotel) => (
                   <div key={hotel.id} className="hotel-card">
@@ -365,6 +420,11 @@ const Hotels = () => {
                     </div>
                   </div>
                 ))
+              ) : (
+                <div className="no-results">
+                  <h3>No hotels to display</h3>
+                  <p>Hotels array is empty. Check console for details.</p>
+                </div>
               )}
             </div>
 

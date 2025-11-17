@@ -1,0 +1,99 @@
+Hotels.jsx:291 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+Hotels.jsx:385 🎨 RENDERING HOTELS: 20 hotels
+Hotels.jsx:386 First 3 hotels: (3) [{…}, {…}, {…}]0: image: "https://cf.bstatic.com/xdata/images/hotel/square500/403330297.jpg?k=eeb6b01a94407ceead8d536a1c732324bedbb440d7d57f30920b34e2cd56701b&o="name: "Hotel Ama-La, Thamel, Kathmandu"[[Prototype]]: Object1: image: "https://cf.bstatic.com/xdata/images/hotel/square500/201118825.jpg?k=323bea911300fca9fb94183f03f8fa9347c0b27e2e37ca3ca756cd43cb8cbb1c&o="name: "Kathmandu Eco Hotel"[[Prototype]]: Object2: image: "https://cf.bstatic.com/xdata/images/hotel/square500/155229938.jpg?k=62067db4cbe0e5884e88ac8820fc86bac8a4b235b422dd152e3f90dfab158336&o="name: "Hotel Pleasure Home"[[Prototype]]: Objectlength: 3[[Prototype]]: Array(0)
+installHook.js:1 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+installHook.js:1 🎨 RENDERING HOTELS: 20 hotels
+installHook.js:1 First 3 hotels: (3) [{…}, {…}, {…}]
+Hotels.jsx:101 === Hotels Debug ===
+Hotels.jsx:102 Selected Location: {dest_id: '-1022488', search_type: 'city', label: 'Pokhara, Nepal', name: 'Pokhara'}dest_id: "-1022488"label: "Pokhara, Nepal"name: "Pokhara"search_type: "city"[[Prototype]]: Object
+Hotels.jsx:103 API Params: {dest_id: '-1022488', search_type: 'city', arrival_date: '2025-11-17', departure_date: '2025-11-19', adults: 2, …}adults: 2arrival_date: "2025-11-17"children_age: ""currency_code: "USD"departure_date: "2025-11-19"dest_id: "-1022488"languagecode: "en-us"location: "US"page_number: 1room_qty: 1search_type: "city"temperature_unit: "c"units: "metric"[[Prototype]]: Object
+Hotels.jsx:104 API Data: {status: true, message: 'Success', timestamp: 1763305972173, data: {…}}data: {hotels: Array(20), meta: Array(1), appear: Array(3)}message: "Success"status: truetimestamp: 1763305972173[[Prototype]]: Object
+Hotels.jsx:105 Loading: false
+Hotels.jsx:106 Error: null
+Hotels.jsx:107 ===================
+
+[
+    {
+        "name": "Hotel Ama-La, Thamel, Kathmandu",
+        "image": "https://cf.bstatic.com/xdata/images/hotel/square500/403330297.jpg?k=eeb6b01a94407ceead8d536a1c732324bedbb440d7d57f30920b34e2cd56701b&o="
+    },
+    {
+        "name": "Kathmandu Eco Hotel",
+        "image": "https://cf.bstatic.com/xdata/images/hotel/square500/201118825.jpg?k=323bea911300fca9fb94183f03f8fa9347c0b27e2e37ca3ca756cd43cb8cbb1c&o="
+    },
+    {
+        "name": "Hotel Pleasure Home",
+        "image": "https://cf.bstatic.com/xdata/images/hotel/square500/155229938.jpg?k=62067db4cbe0e5884e88ac8820fc86bac8a4b235b422dd152e3f90dfab158336&o="
+    }
+]
+
+
+Hotels.jsx:291 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+Hotels.jsx:385 🎨 RENDERING HOTELS: 20 hotels
+Hotels.jsx:386 First 3 hotels: (3) [{…}, {…}, {…}]0: image: "https://cf.bstatic.com/xdata/images/hotel/square500/403330297.jpg?k=eeb6b01a94407ceead8d536a1c732324bedbb440d7d57f30920b34e2cd56701b&o="name: "Hotel Ama-La, Thamel, Kathmandu"[[Prototype]]: Object1: image: "https://cf.bstatic.com/xdata/images/hotel/square500/201118825.jpg?k=323bea911300fca9fb94183f03f8fa9347c0b27e2e37ca3ca756cd43cb8cbb1c&o="name: "Kathmandu Eco Hotel"[[Prototype]]: Object2: image: "https://cf.bstatic.com/xdata/images/hotel/square500/155229938.jpg?k=62067db4cbe0e5884e88ac8820fc86bac8a4b235b422dd152e3f90dfab158336&o="name: "Hotel Pleasure Home"[[Prototype]]: Objectlength: 3[[Prototype]]: Array(0)
+installHook.js:1 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+installHook.js:1 🎨 RENDERING HOTELS: 20 hotels
+installHook.js:1 First 3 hotels: (3) [{…}, {…}, {…}]
+Hotels.jsx:101 === Hotels Debug ===
+Hotels.jsx:102 Selected Location: {dest_id: '-1022488', search_type: 'city', label: 'Pokhara, Nepal', name: 'Pokhara'}dest_id: "-1022488"label: "Pokhara, Nepal"name: "Pokhara"search_type: "city"[[Prototype]]: Object
+Hotels.jsx:103 API Params: {dest_id: '-1022488', search_type: 'city', arrival_date: '2025-11-17', departure_date: '2025-11-19', adults: 2, …}adults: 2arrival_date: "2025-11-17"children_age: ""currency_code: "USD"departure_date: "2025-11-19"dest_id: "-1022488"languagecode: "en-us"location: "US"page_number: 1room_qty: 1search_type: "city"temperature_unit: "c"units: "metric"[[Prototype]]: Object
+Hotels.jsx:104 API Data: {status: true, message: 'Success', timestamp: 1763305972173, data: {…}}data: {hotels: Array(20), meta: Array(1), appear: Array(3)}message: "Success"status: truetimestamp: 1763305972173[[Prototype]]: Object
+Hotels.jsx:105 Loading: false
+Hotels.jsx:106 Error: null
+Hotels.jsx:107 ===================
+Hotels.jsx:291 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+Hotels.jsx:385 🎨 RENDERING HOTELS: 20 hotels
+Hotels.jsx:386 First 3 hotels: (3) [{…}, {…}, {…}]
+installHook.js:1 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+installHook.js:1 🎨 RENDERING HOTELS: 20 hotels
+installHook.js:1 First 3 hotels: (3) [{…}, {…}, {…}]
+Hotels.jsx:101 === Hotels Debug ===
+Hotels.jsx:102 Selected Location: {dest_id: '-1022488', search_type: 'city', label: 'Pokhara, Nepal', name: 'Pokhara'}
+Hotels.jsx:103 API Params: {dest_id: '-1022488', search_type: 'city', arrival_date: '2025-11-17', departure_date: '2025-11-19', adults: 2, …}
+Hotels.jsx:104 API Data: {status: true, message: 'Success', timestamp: 1763305972173, data: {…}}
+Hotels.jsx:105 Loading: false
+Hotels.jsx:106 Error: null
+Hotels.jsx:107 ===================
+{
+    "dest_id": "-1022488",
+    "search_type": "city",
+    "arrival_date": "2025-11-17",
+    "departure_date": "2025-11-19",
+    "adults": 2,
+    "children_age": "",
+    "room_qty": 1,
+    "page_number": 1,
+    "units": "metric",
+    "temperature_unit": "c",
+    "currency_code": "USD",
+    "languagecode": "en-us",
+    "location": "US"
+}
+
+Hotels.jsx:291 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+Hotels.jsx:385 🎨 RENDERING HOTELS: 20 hotels
+Hotels.jsx:386 First 3 hotels: (3) [{…}, {…}, {…}]
+installHook.js:1 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+installHook.js:1 🎨 RENDERING HOTELS: 20 hotels
+installHook.js:1 First 3 hotels: (3) [{…}, {…}, {…}]
+Hotels.jsx:101 === Hotels Debug ===
+Hotels.jsx:102 Selected Location: {dest_id: '-1022488', search_type: 'city', label: 'Pokhara, Nepal', name: 'Pokhara'}
+Hotels.jsx:103 API Params: {dest_id: '-1022488', search_type: 'city', arrival_date: '2025-11-17', departure_date: '2025-11-19', adults: 2, …}adults: 2arrival_date: "2025-11-17"children_age: ""currency_code: "USD"departure_date: "2025-11-19"dest_id: "-1022488"languagecode: "en-us"location: "US"page_number: 1room_qty: 1search_type: "city"temperature_unit: "c"units: "metric"[[Prototype]]: Object
+Hotels.jsx:104 API Data: {status: true, message: 'Success', timestamp: 1763305972173, data: {…}}data: {hotels: Array(20), meta: Array(1), appear: Array(3)}message: "Success"status: truetimestamp: 1763305972173[[Prototype]]: Object
+Hotels.jsx:105 Loading: false
+Hotels.jsx:106 Error: null
+Hotels.jsx:107 ===================
+
+Hotels.jsx:291 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+Hotels.jsx:385 🎨 RENDERING HOTELS: 20 hotels
+Hotels.jsx:386 First 3 hotels: (3) [{…}, {…}, {…}]
+installHook.js:1 🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+installHook.js:1 🎨 RENDERING HOTELS: 20 hotels
+installHook.js:1 First 3 hotels: (3) [{…}, {…}, {…}]
+Hotels.jsx:101 === Hotels Debug ===
+Hotels.jsx:102 Selected Location: {dest_id: '-1022488', search_type: 'city', label: 'Pokhara, Nepal', name: 'Pokhara'}
+Hotels.jsx:103 API Params: {dest_id: '-1022488', search_type: 'city', arrival_date: '2025-11-17', departure_date: '2025-11-19', adults: 2, …}adults: 2arrival_date: "2025-11-17"children_age: ""currency_code: "USD"departure_date: "2025-11-19"dest_id: "-1022488"languagecode: "en-us"location: "US"page_number: 1room_qty: 1search_type: "city"temperature_unit: "c"units: "metric"[[Prototype]]: Object
+Hotels.jsx:104 API Data: {status: true, message: 'Success', timestamp: 1763305972173, data: {…}}data: appear: Array(3)0: {component: {…}, id: 'cma'}1: contentUrl: "https://mobile-apps.booking.com/json/mobile.saba?route_path=saba-chat-entrypoint&add_bh_info=1&add_genius_percentage_value=1&add_ribbon_text=1&affiliate_id=332731&arrival_date=2025-11-17&autoextend=1&booked_x_times_for_dates=1&booked_x_times_threshold=1&categories_filter_additional_data=&change_popularity_sort_option_copy_tag=1&change_sort_options_copy_tags=1&check_excluded_charge_or_tax=1&check_flexible_dates=1&check_is_candidate_wholesaler=1&currency_code=USD&dark_mode=1&deeplink_sec_since_click=168567.9046729803&departure_date=2025-11-19&dest_ids=-1022136&device_id=57d11ec8bad14e119e4c15a86202c23f&distance_unit=metric&dl_sr_adoption=1&dotd=2&exposure_api_version=2.17&fix_dotd=1&flex_window=0&generate_map_bounding_box=1&get_cny_campaign_banner=1&get_skiing_info=1&guest_qty=2&include_amazon_banner=1&include_apartment_config=1&include_badges_in_price_breakdown=1&include_beach_information=1&include_bh_quality_classification=1&include_block_ids=1&include_bsb_info=1&include_bwallet_hotel_eligibility=1&include_composite_breakdown=1&include_cpc_non_trader_copy=1&include_excluded_charges_detail=1&include_free_cancellation=1&include_genius_badge=1&include_last_reservation=1&include_nr_bookings_best_range_message=1&include_nr_bookings_today=1&include_offered_bed_types=1&include_preview_cards=1&include_rack_rate_savings=1&include_rtb=1&include_ski_information=1&languagecode=en-us&location_source=recents&mark_first_highlighted_hotel=1&min_saba_version=31&network_type=wifi&new_segments_carousel=1&offset=0&optimized_call=1&outcome=search_results&page_define_enabled=1&pref_match=0&reason=change_sort_options&remove_wishlist_padding=1&room_qty=1&rows=auto&saba=1&saba_payload_root=1&saba_version=50&sb_calendar_open=1&search_type=city&send_ranking_version=1&send_search_id=1&show_beach_filter_badge=1&show_city_distance=1&show_distance_to_beach=1&show_distance_to_nearest_public_transport=1&show_genius_free_breakfast=0&show_if_mobile_deal=1&show_negotiated_rates=1&show_no_prepayment=1&show_policy=1&show_review_score_breakdowns=1&show_selected_filter_values=1&show_soldout=1&sort_by=auto&sort_by_source=sort_options&sort_genius_new_copy=1&source=search_results&temperature_unit=c&travel_purpose=&unfiltered_count_enabled=1&units=metric&use_dest_based_list_creation=1&use_direct_payment=1&user_os=15.5&user_version=36.8-iphone&categories_filter=price%3A%3AUSD-min-max&page=search-results"[[Prototype]]: Object2: {component: {…}, id: 'signin_now'}length: 3[[Prototype]]: Array(0)hotels: Array(20)0: {hotel_id: 9166634, accessibilityLabel: 'Hotel Ama-La, Thamel, Kathmandu.\n4 out of 5 stars.…. Current price 81 USD..\nIncludes taxes and fees.', property: {…}}1: {hotel_id: 453312, accessibilityLabel: 'Kathmandu Eco Hotel.\n3 out of 5 stars.\nThis is a P…nd fees.\nFree cancellation.\nNo prepayment needed.', property: {…}}2: {hotel_id: 439553, accessibilityLabel: 'Hotel Pleasure Home.\n3 out of 5 stars.\nThis is a P… USD.\nIncludes taxes and fees.\nFree cancellation.', property: {…}}3: {hotel_id: 4668851, accessibilityLabel: 'Rest Up Kathmandu Hostel.\nThis is a Preferred Plus…needed.\nOnly 2 left at this price on Booking.com.', property: {…}}4: {hotel_id: 9916251, accessibilityLabel: 'Hotel Thrive, A Tropical Courtyard.\n4 out of 5 sta…needed.\nOnly 1 left at this price on Booking.com.', property: {…}}5: {hotel_id: 8859987, accessibilityLabel: 'Everest Boutique Hotel.\n3 out of 5 stars.\nThis is …needed.\nOnly 1 left at this price on Booking.com.', property: {…}}6: {hotel_id: 11428280, accessibilityLabel: 'Lemon Tree Premier Budhanilkantha Kathmandu, Nepal…Current price 130 USD..\n+2 USD taxes and charges.', property: {…}}7: {hotel_id: 2552426, accessibilityLabel: 'Oasis Kathmandu Hotel.\n3 out of 5 stars.\nThis is a…included.\n1 bed.\n88 USD.\nIncludes taxes and fees.', property: {…}}8: {hotel_id: 1064755, accessibilityLabel: 'Hotel Amaryllis.\n3 out of 5 stars.\nThis is a Prefe…needed.\nOnly 4 left at this price on Booking.com.', property: {…}}9: {hotel_id: 10391860, accessibilityLabel: 'Daali Hotel & Apartment.\n3 out of 5 stars.\nThis is…needed.\nOnly 2 left at this price on Booking.com.', property: {…}}10: {hotel_id: 8845880, accessibilityLabel: 'Kathmandu Aagantuk Hotel.\n3 out of 5 stars.\nThis i…needed.\nOnly 4 left at this price on Booking.com.', property: {…}}11: {hotel_id: 2764046, accessibilityLabel: 'Nirvana Boutique Hotel.\n4 out of 5 stars.\nThis is …..\nIncludes taxes and fees.\nNo prepayment needed.', property: {…}}12: {hotel_id: 9293430, accessibilityLabel: 'Magnificent Hotel.\n3 out of 5 stars.\nThis is a Pre…el room : 1 bed.\n87 USD.\nIncludes taxes and fees.', property: {…}}13: {hotel_id: 5774952, accessibilityLabel: 'Basera Boutique Hotel.\n5 out of 5 stars.\nThis is a…l room : 1 bed.\n165 USD.\nIncludes taxes and fees.', property: {…}}14: {hotel_id: 5529657, accessibilityLabel: 'Thamel Boutique Hotel.\n3 out of 5 stars.\nThis is a…needed.\nOnly 2 left at this price on Booking.com.', property: {…}}15: {hotel_id: 260386, accessibilityLabel: 'Kathmandu Guest House by KGH Group.\n4 out of 5 sta…needed.\nOnly 1 left at this price on Booking.com.', property: {…}}16: {hotel_id: 10316030, accessibilityLabel: 'Kwabahal Boutique Hostel.\nThis is a Preferred prop…needed.\nOnly 2 left at this price on Booking.com.', property: {…}}17: {hotel_id: 715465, accessibilityLabel: 'Hotel Yambu kathmandu.\n3 out of 5 stars.\nThis is a…needed.\nOnly 3 left at this price on Booking.com.', property: {…}}18: {hotel_id: 1516629, accessibilityLabel: 'Apsara Boutique Hotel.\n4 out of 5 stars.\nThis is a…needed.\nOnly 2 left at this price on Booking.com.', property: {…}}19: {hotel_id: 258346, accessibilityLabel: 'Hotel Shanker-Palatial Heritage Kathmandu.\n4 out o…l room : 1 bed.\n184 USD.\nIncludes taxes and fees.', property: {…}}length: 20[[Prototype]]: Array(0)meta: [{…}][[Prototype]]: Objectmessage: "Success"status: truetimestamp: 1763305972173[[Prototype]]: Object
+Hotels.jsx:105 Loading: false
+Hotels.jsx:106 Error: null
+Hotels.jsx:107 ===================

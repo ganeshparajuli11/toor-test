@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import { Search, MapPin, Calendar, Users, Minus, Plus, X, Plane, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 import 'react-datepicker/dist/react-datepicker.css';
 import './EnhancedSearch.css';
 
@@ -12,6 +14,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
   // Hotel search state
   const [hotelLocation, setHotelLocation] = useState('');
+  const [hotelLocationData, setHotelLocationData] = useState(null); // Store full location object with dest_id
   const [checkInDate, setCheckInDate] = useState(null);
   const [checkOutDate, setCheckOutDate] = useState(null);
   const [hotelGuests, setHotelGuests] = useState({ adults: 2, children: 0, rooms: 1 });
@@ -42,16 +45,11 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
   const [activeLocationField, setActiveLocationField] = useState('');
+  const [loadingLocations, setLoadingLocations] = useState(false);
 
   const locationRef = useRef(null);
   const guestRef = useRef(null);
-
-  const popularLocations = [
-    'New York, USA', 'Paris, France', 'London, UK', 'Tokyo, Japan',
-    'Dubai, UAE', 'Barcelona, Spain', 'Rome, Italy', 'Amsterdam, Netherlands',
-    'Singapore', 'Sydney, Australia', 'Bangkok, Thailand', 'Istanbul, Turkey',
-    'Los Angeles, USA', 'Miami, USA', 'Las Vegas, USA', 'San Francisco, USA'
-  ];
+  const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -67,12 +65,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLocationInput = (value, field) => {
+  const handleLocationInput = async (value, field) => {
     setActiveLocationField(field);
 
+    // Update the text value
     switch(field) {
       case 'hotel':
         setHotelLocation(value);
+        setHotelLocationData(null); // Clear location data when typing
         break;
       case 'from':
         setFromLocation(value);
@@ -91,37 +91,68 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
         break;
     }
 
-    if (value) {
-      const filtered = popularLocations.filter(loc =>
-        loc.toLowerCase().includes(value.toLowerCase())
-      );
-      setLocationSuggestions(filtered);
-      setShowLocationDropdown(true);
-    } else {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If empty, hide dropdown
+    if (!value || value.length < 2) {
       setLocationSuggestions([]);
       setShowLocationDropdown(false);
+      return;
     }
+
+    // Debounce API call
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        setLoadingLocations(true);
+        const response = await axios.get(
+          'https://booking-com15.p.rapidapi.com/api/v1/hotels/searchDestination',
+          {
+            params: { query: value },
+            headers: {
+              'X-RapidAPI-Key': API_CONFIG.RAPIDAPI_KEY,
+              'X-RapidAPI-Host': 'booking-com15.p.rapidapi.com',
+            },
+            timeout: 10000,
+          }
+        );
+
+        if (response.data?.status && response.data?.data) {
+          setLocationSuggestions(response.data.data.slice(0, 5));
+          setShowLocationDropdown(true);
+        }
+      } catch (error) {
+        console.error('Location search error:', error);
+        setLocationSuggestions([]);
+      } finally {
+        setLoadingLocations(false);
+      }
+    }, 300); // 300ms debounce
   };
 
   const selectLocation = (location) => {
+    // location is now the full API response object with dest_id, label, etc.
     switch(activeLocationField) {
       case 'hotel':
-        setHotelLocation(location);
+        setHotelLocation(location.label || location.name);
+        setHotelLocationData(location); // Store full location object
         break;
       case 'from':
-        setFromLocation(location);
+        setFromLocation(location.label || location.name);
         break;
       case 'to':
-        setToLocation(location);
+        setToLocation(location.label || location.name);
         break;
       case 'cruise':
-        setCruiseDestination(location);
+        setCruiseDestination(location.label || location.name);
         break;
       case 'pickup':
-        setPickupLocation(location);
+        setPickupLocation(location.label || location.name);
         break;
       case 'dropoff':
-        setDropoffLocation(location);
+        setDropoffLocation(location.label || location.name);
         break;
     }
     setShowLocationDropdown(false);
@@ -172,6 +203,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
         searchParams = {
           ...searchParams,
           location: hotelLocation,
+          dest_id: hotelLocationData?.dest_id || '',
+          search_type: hotelLocationData?.search_type || 'CITY',
           checkIn: checkInDate.toISOString(),
           checkOut: checkOutDate.toISOString(),
           adults: hotelGuests.adults,
@@ -281,17 +314,34 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                   type="text"
                   value={hotelLocation}
                   onChange={(e) => handleLocationInput(e.target.value, 'hotel')}
-                  placeholder="Where to?"
+                  placeholder="Type to search any city..."
                   className="enhanced-search-input"
                 />
-                {showLocationDropdown && locationSuggestions.length > 0 && (
+                {showLocationDropdown && activeLocationField === 'hotel' && (
                   <div className="location-dropdown">
-                    {locationSuggestions.slice(0, 5).map((suggestion, index) => (
-                      <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
-                        <MapPin size={14} />
-                        <span>{suggestion}</span>
+                    {loadingLocations ? (
+                      <div className="location-suggestion" style={{ opacity: 0.7 }}>
+                        <span>Searching...</span>
                       </div>
-                    ))}
+                    ) : locationSuggestions.length > 0 ? (
+                      locationSuggestions.map((suggestion, index) => (
+                        <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
+                          <MapPin size={14} />
+                          <div style={{ flex: 1 }}>
+                            <div>{suggestion.label}</div>
+                            {suggestion.hotels && (
+                              <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                                {suggestion.hotels} hotels • {suggestion.dest_type || suggestion.search_type}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="location-suggestion" style={{ opacity: 0.7 }}>
+                        <span>No locations found</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
