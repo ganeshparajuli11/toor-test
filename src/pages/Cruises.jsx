@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ratehawkService from '../services/ratehawk.service';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Anchor, MapPin, Calendar, Users, Star, Heart, Share2 } from 'lucide-react';
 import Header from '../components/Header';
@@ -21,92 +22,113 @@ const Cruises = () => {
   const adults = searchParams.get('adults') || 2;
   const children = searchParams.get('children') || 0;
 
-  // Demo cruise data
+  // Fetch cruises from API or use fallback
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setCruises([
-        {
-          id: 1,
-          name: 'Caribbean Paradise Cruise',
-          cruiseLine: 'Royal Ocean Lines',
-          destination: destination,
-          image: 'https://images.unsplash.com/photo-1545969734-706fc936d8db?w=400&h=300&fit=crop',
-          duration: `${duration} Days`,
-          ports: 5,
-          rating: 4.8,
-          reviews: 342,
-          price: 899,
-          features: ['All Meals', 'Entertainment', 'Pool', 'Spa']
-        },
-        {
-          id: 2,
-          name: 'Mediterranean Explorer',
-          cruiseLine: 'Luxury Seas',
-          destination: destination,
-          image: 'https://images.unsplash.com/photo-1560264418-c4445382edbc?w=400&h=300&fit=crop',
-          duration: `${duration} Days`,
-          ports: 7,
-          rating: 4.9,
-          reviews: 456,
-          price: 1299,
-          features: ['All Meals', 'Shore Excursions', 'Casino', 'Fine Dining']
-        },
-        {
-          id: 3,
-          name: 'Alaska Wilderness Voyage',
-          cruiseLine: 'Adventure Cruises',
-          destination: destination,
-          image: 'https://images.unsplash.com/photo-1554672408-730838453273?w=400&h=300&fit=crop',
-          duration: `${duration} Days`,
-          ports: 4,
-          rating: 4.7,
-          reviews: 289,
-          price: 1099,
-          features: ['All Meals', 'Glacier Viewing', 'Wildlife Tours', 'Spa']
-        },
-        {
-          id: 4,
-          name: 'South Pacific Dream',
-          cruiseLine: 'Island Voyages',
-          destination: destination,
-          image: 'https://images.unsplash.com/photo-1563729147818-22cc0b7d15d9?w=400&h=300&fit=crop',
-          duration: `${duration} Days`,
-          ports: 6,
-          rating: 4.6,
-          reviews: 234,
-          price: 1499,
-          features: ['All Meals', 'Water Sports', 'Private Beach', 'Pool']
-        },
-        {
-          id: 5,
-          name: 'Baltic Sea Adventure',
-          cruiseLine: 'Nordic Cruises',
-          destination: destination,
-          image: 'https://images.unsplash.com/photo-1548625149-720da0e44640?w=400&h=300&fit=crop',
-          duration: `${duration} Days`,
-          ports: 8,
-          rating: 4.8,
-          reviews: 312,
-          price: 1199,
-          features: ['All Meals', 'Cultural Tours', 'Entertainment', 'Spa']
-        },
-        {
-          id: 6,
-          name: 'Tropical Island Hopper',
-          cruiseLine: 'Sunshine Cruises',
-          destination: destination,
-          image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop',
-          duration: `${duration} Days`,
-          ports: 5,
-          rating: 4.5,
-          reviews: 198,
-          price: 799,
-          features: ['All Meals', 'Beach Access', 'Pool', 'Entertainment']
+    const fetchCruises = async () => {
+      setLoading(true);
+      try {
+        const results = await ratehawkService.searchCruises({
+          destination,
+          departureDate,
+          duration,
+          adults,
+          children
+        });
+
+        if (results && results.length > 0) {
+          setCruises(results);
+          showToast(`Found ${results.length} cruises via RateHawk!`, 'success');
+        } else {
+          throw new Error('No API results');
         }
-      ]);
-      setLoading(false);
-    }, 800);
+      } catch (error) {
+        // Fallback demo data
+        setCruises([
+          {
+            id: 1,
+            name: 'Caribbean Paradise Cruise',
+            cruiseLine: 'Royal Ocean Lines',
+            destination: destination,
+            image: 'https://images.unsplash.com/photo-1545969734-706fc936d8db?w=400&h=300&fit=crop',
+            duration: `${duration} Days`,
+            ports: 5,
+            rating: 4.8,
+            reviews: 342,
+            price: 899,
+            features: ['All Meals', 'Entertainment', 'Pool', 'Spa']
+          },
+          {
+            id: 2,
+            name: 'Mediterranean Explorer',
+            cruiseLine: 'Luxury Seas',
+            destination: destination,
+            image: 'https://images.unsplash.com/photo-1560264418-c4445382edbc?w=400&h=300&fit=crop',
+            duration: `${duration} Days`,
+            ports: 7,
+            rating: 4.9,
+            reviews: 456,
+            price: 1299,
+            features: ['All Meals', 'Shore Excursions', 'Casino', 'Fine Dining']
+          },
+          {
+            id: 3,
+            name: 'Alaska Wilderness Voyage',
+            cruiseLine: 'Adventure Cruises',
+            destination: destination,
+            image: 'https://images.unsplash.com/photo-1554672408-730838453273?w=400&h=300&fit=crop',
+            duration: `${duration} Days`,
+            ports: 4,
+            rating: 4.7,
+            reviews: 289,
+            price: 1099,
+            features: ['All Meals', 'Glacier Viewing', 'Wildlife Tours', 'Spa']
+          },
+          {
+            id: 4,
+            name: 'South Pacific Dream',
+            cruiseLine: 'Island Voyages',
+            destination: destination,
+            image: 'https://images.unsplash.com/photo-1563729147818-22cc0b7d15d9?w=400&h=300&fit=crop',
+            duration: `${duration} Days`,
+            ports: 6,
+            rating: 4.6,
+            reviews: 234,
+            price: 1499,
+            features: ['All Meals', 'Water Sports', 'Private Beach', 'Pool']
+          },
+          {
+            id: 5,
+            name: 'Baltic Sea Adventure',
+            cruiseLine: 'Nordic Cruises',
+            destination: destination,
+            image: 'https://images.unsplash.com/photo-1548625149-720da0e44640?w=400&h=300&fit=crop',
+            duration: `${duration} Days`,
+            ports: 8,
+            rating: 4.8,
+            reviews: 312,
+            price: 1199,
+            features: ['All Meals', 'Cultural Tours', 'Entertainment', 'Spa']
+          },
+          {
+            id: 6,
+            name: 'Tropical Island Hopper',
+            cruiseLine: 'Sunshine Cruises',
+            destination: destination,
+            image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop',
+            duration: `${duration} Days`,
+            ports: 5,
+            rating: 4.5,
+            reviews: 198,
+            price: 799,
+            features: ['All Meals', 'Beach Access', 'Pool', 'Entertainment']
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCruises();
   }, [destination, duration]);
 
   const formatDate = (dateString) => {
@@ -225,9 +247,8 @@ const Cruises = () => {
                       </div>
                       <div className="card-action-buttons">
                         <button
-                          className={`card-action-button favorite-button ${
-                            favorites.includes(cruise.id) ? 'active' : ''
-                          }`}
+                          className={`card-action-button favorite-button ${favorites.includes(cruise.id) ? 'active' : ''
+                            }`}
                           onClick={() => toggleFavorite(cruise.id)}
                           aria-label="Add to favorites"
                         >

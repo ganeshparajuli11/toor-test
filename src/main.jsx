@@ -5,6 +5,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ApiSettingsProvider } from './contexts/ApiSettingsContext';
 import './index.css';
 import './styles/design-system.css';
 import App from './App.jsx';
@@ -14,33 +15,35 @@ createRoot(document.getElementById('root')).render(
     <HelmetProvider>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <App />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 3000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
+          <ApiSettingsProvider>
+            <BrowserRouter>
+              <App />
+              <Toaster
+                position="top-right"
+                toastOptions={{
                   duration: 3000,
-                  iconTheme: {
-                    primary: '#00bcd4',
-                    secondary: '#fff',
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
                   },
-                },
-                error: {
-                  duration: 4000,
-                  iconTheme: {
-                    primary: '#e74c3c',
-                    secondary: '#fff',
+                  success: {
+                    duration: 3000,
+                    iconTheme: {
+                      primary: '#00bcd4',
+                      secondary: '#fff',
+                    },
                   },
-                },
-              }}
-            />
-          </BrowserRouter>
+                  error: {
+                    duration: 4000,
+                    iconTheme: {
+                      primary: '#e74c3c',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </BrowserRouter>
+          </ApiSettingsProvider>
         </AuthProvider>
       </ThemeProvider>
     </HelmetProvider>

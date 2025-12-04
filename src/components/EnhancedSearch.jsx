@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import { Search, MapPin, Calendar, Users, Minus, Plus, X, Plane, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
-import axios from 'axios';
-import { API_CONFIG } from '../config/api';
+import ratehawkService from '../services/ratehawk.service';
 import 'react-datepicker/dist/react-datepicker.css';
 import './EnhancedSearch.css';
 
@@ -69,7 +68,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
     setActiveLocationField(field);
 
     // Update the text value
-    switch(field) {
+    switch (field) {
       case 'hotel':
         setHotelLocation(value);
         setHotelLocationData(null); // Clear location data when typing
@@ -107,21 +106,33 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         setLoadingLocations(true);
-        const response = await axios.get(
-          'https://booking-com15.p.rapidapi.com/api/v1/hotels/searchDestination',
-          {
-            params: { query: value },
-            headers: {
-              'X-RapidAPI-Key': API_CONFIG.RAPIDAPI_KEY,
-              'X-RapidAPI-Host': 'booking-com15.p.rapidapi.com',
-            },
-            timeout: 10000,
-          }
-        );
 
-        if (response.data?.status && response.data?.data) {
-          setLocationSuggestions(response.data.data.slice(0, 5));
-          setShowLocationDropdown(true);
+        // Use RateHawk service for hotel autocomplete
+        // For other tabs (flight, car), we might need different services, 
+        // but for now we'll use RateHawk regions for all or just hotels
+
+        if (field === 'hotel') {
+          const results = await ratehawkService.searchRegions(value);
+
+          if (results && results.length > 0) {
+            // Transform RateHawk regions/hotels to suggestion format
+            const suggestions = results.map(item => ({
+              dest_id: item.id,
+              label: item.label || item.name,
+              search_type: item.type,
+              hotels: item.hotels_count || 0,
+              hotel_id: item.hotel_id // For direct hotel selection if needed
+            }));
+
+            setLocationSuggestions(suggestions.slice(0, 5));
+            setShowLocationDropdown(true);
+          } else {
+            setLocationSuggestions([]);
+          }
+        } else {
+          // Fallback for other tabs if needed, or implement specific services
+          // For now, just mock some data or keep empty
+          setLocationSuggestions([]);
         }
       } catch (error) {
         console.error('Location search error:', error);
@@ -134,7 +145,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
   const selectLocation = (location) => {
     // location is now the full API response object with dest_id, label, etc.
-    switch(activeLocationField) {
+    switch (activeLocationField) {
       case 'hotel':
         setHotelLocation(location.label || location.name);
         setHotelLocationData(location); // Store full location object
@@ -160,8 +171,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
   const handleGuestChange = (type, operation, guestType = 'hotel') => {
     const setState = guestType === 'hotel' ? setHotelGuests :
-                     guestType === 'flight' ? setFlightPassengers :
-                     setCruisePassengers;
+      guestType === 'flight' ? setFlightPassengers :
+        setCruisePassengers;
 
     setState(prev => ({
       ...prev,
@@ -173,8 +184,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
   const getGuestText = (guestType) => {
     const guests = guestType === 'hotel' ? hotelGuests :
-                   guestType === 'flight' ? flightPassengers :
-                   cruisePassengers;
+      guestType === 'flight' ? flightPassengers :
+        cruisePassengers;
 
     const parts = [];
     if (guests.adults > 0) parts.push(`${guests.adults} Adult${guests.adults > 1 ? 's' : ''}`);
@@ -190,7 +201,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
     let searchParams = { type: activeTab };
     let isValid = true;
 
-    switch(activeTab) {
+    switch (activeTab) {
       case 'hotel':
         if (!hotelLocation) {
           toast.error('Please enter a destination');
@@ -329,11 +340,9 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                           <MapPin size={14} />
                           <div style={{ flex: 1 }}>
                             <div>{suggestion.label}</div>
-                            {suggestion.hotels && (
-                              <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                                {suggestion.hotels} hotels • {suggestion.dest_type || suggestion.search_type}
-                              </div>
-                            )}
+                            <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                              {suggestion.search_type === 'Hotel' ? 'Hotel' : `${suggestion.hotels || 0} hotels • ${suggestion.search_type}`}
+                            </div>
                           </div>
                         </div>
                       ))

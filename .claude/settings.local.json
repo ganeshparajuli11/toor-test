@@ -8,7 +8,11 @@
       "Bash(cd:*)",
       "Bash(npm run build:*)",
       "Bash(kill:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(unzip:*)",
+      "Bash(sed:*)",
+      "WebFetch(domain:docs.emergingtravel.com)"
     ],
     "deny": [],
     "ask": []

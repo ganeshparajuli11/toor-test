@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ratehawkService from '../services/ratehawk.service';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Car, MapPin, Users, Briefcase, Fuel, Settings, Heart, Share2 } from 'lucide-react';
 import Header from '../components/Header';
@@ -21,105 +22,131 @@ const Cars = () => {
   const dropoffDate = searchParams.get('dropoffDate');
   const driverAge = searchParams.get('driverAge') || '30';
 
-  // Demo car data
+  // Fetch cars from API or use fallback
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setCars([
-        {
-          id: 1,
-          name: 'Toyota Corolla',
-          category: 'Economy',
-          image: 'https://images.unsplash.com/photo-1623869675781-80aa31012a5a?w=400&h=300&fit=crop',
-          passengers: 5,
-          luggage: 2,
-          transmission: 'Automatic',
-          fuelType: 'Petrol',
-          provider: 'Enterprise',
-          rating: 4.5,
-          reviews: 234,
-          price: 45,
-          features: ['AC', 'Bluetooth', 'USB Port']
-        },
-        {
-          id: 2,
-          name: 'Honda CR-V',
-          category: 'SUV',
-          image: 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=400&h=300&fit=crop',
-          passengers: 7,
-          luggage: 4,
-          transmission: 'Automatic',
-          fuelType: 'Hybrid',
-          provider: 'Hertz',
-          rating: 4.7,
-          reviews: 189,
-          price: 85,
-          features: ['AC', 'Navigation', 'Bluetooth', 'Backup Camera']
-        },
-        {
-          id: 3,
-          name: 'BMW 3 Series',
-          category: 'Luxury',
-          image: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400&h=300&fit=crop',
-          passengers: 5,
-          luggage: 3,
-          transmission: 'Automatic',
-          fuelType: 'Petrol',
-          provider: 'Sixt',
-          rating: 4.9,
-          reviews: 156,
-          price: 125,
-          features: ['AC', 'Navigation', 'Leather Seats', 'Sunroof']
-        },
-        {
-          id: 4,
-          name: 'Ford Transit Van',
-          category: 'Van',
-          image: 'https://images.unsplash.com/photo-1527192491265-7e15c55b1ed2?w=400&h=300&fit=crop',
-          passengers: 12,
-          luggage: 8,
-          transmission: 'Manual',
-          fuelType: 'Diesel',
-          provider: 'Budget',
-          rating: 4.4,
-          reviews: 98,
-          price: 95,
-          features: ['AC', 'GPS', 'Large Capacity']
-        },
-        {
-          id: 5,
-          name: 'Tesla Model 3',
-          category: 'Electric',
-          image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400&h=300&fit=crop',
-          passengers: 5,
-          luggage: 2,
-          transmission: 'Automatic',
-          fuelType: 'Electric',
-          provider: 'Enterprise',
-          rating: 4.8,
-          reviews: 267,
-          price: 110,
-          features: ['Autopilot', 'Navigation', 'Premium Sound']
-        },
-        {
-          id: 6,
-          name: 'Volkswagen Golf',
-          category: 'Compact',
-          image: 'https://images.unsplash.com/photo-1622353219448-46a8655d4b2e?w=400&h=300&fit=crop',
-          passengers: 5,
-          luggage: 2,
-          transmission: 'Manual',
-          fuelType: 'Petrol',
-          provider: 'Avis',
-          rating: 4.3,
-          reviews: 145,
-          price: 40,
-          features: ['AC', 'Bluetooth', 'Fuel Efficient']
+    const fetchCars = async () => {
+      setLoading(true);
+      try {
+        const results = await ratehawkService.searchTransfers({
+          pickupLocation,
+          dropoffLocation,
+          pickupDate,
+          dropoffDate
+        });
+
+        if (results && results.length > 0) {
+          setCars(results);
+          showToast(`Found ${results.length} transfers via RateHawk!`, 'success');
+        } else {
+          throw new Error('No API results');
         }
-      ]);
-      setLoading(false);
-    }, 800);
-  }, [pickupLocation]);
+      } catch (error) {
+        console.log('Using demo car data due to:', error.message);
+        // Fallback demo data
+        setCars([
+          {
+            id: 1,
+            name: 'Toyota Corolla',
+            category: 'Economy',
+            image: 'https://images.unsplash.com/photo-1623869675781-80aa31012a5a?w=400&h=300&fit=crop',
+            passengers: 5,
+            luggage: 2,
+            transmission: 'Automatic',
+            fuelType: 'Petrol',
+            provider: 'Enterprise',
+            rating: 4.5,
+            reviews: 234,
+            price: 45,
+            features: ['AC', 'Bluetooth', 'USB Port']
+          },
+          {
+            id: 2,
+            name: 'Honda CR-V',
+            category: 'SUV',
+            image: 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=400&h=300&fit=crop',
+            passengers: 7,
+            luggage: 4,
+            transmission: 'Automatic',
+            fuelType: 'Hybrid',
+            provider: 'Hertz',
+            rating: 4.7,
+            reviews: 189,
+            price: 85,
+            features: ['AC', 'Navigation', 'Bluetooth', 'Backup Camera']
+          },
+          {
+            id: 3,
+            name: 'BMW 3 Series',
+            category: 'Luxury',
+            image: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400&h=300&fit=crop',
+            passengers: 5,
+            luggage: 3,
+            transmission: 'Automatic',
+            fuelType: 'Petrol',
+            provider: 'Sixt',
+            rating: 4.9,
+            reviews: 156,
+            price: 125,
+            features: ['AC', 'Navigation', 'Leather Seats', 'Sunroof']
+          },
+          {
+            id: 4,
+            name: 'Ford Transit Van',
+            category: 'Van',
+            image: 'https://images.unsplash.com/photo-1527192491265-7e15c55b1ed2?w=400&h=300&fit=crop',
+            passengers: 12,
+            luggage: 8,
+            transmission: 'Manual',
+            fuelType: 'Diesel',
+            provider: 'Budget',
+            rating: 4.4,
+            reviews: 98,
+            price: 95,
+            features: ['AC', 'GPS', 'Large Capacity']
+          },
+          {
+            id: 5,
+            name: 'Tesla Model 3',
+            category: 'Electric',
+            image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400&h=300&fit=crop',
+            passengers: 5,
+            luggage: 2,
+            transmission: 'Automatic',
+            fuelType: 'Electric',
+            provider: 'Enterprise',
+            rating: 4.8,
+            reviews: 267,
+            price: 110,
+            features: ['Autopilot', 'Navigation', 'Premium Sound']
+          },
+          {
+            id: 6,
+            name: 'Volkswagen Golf',
+            category: 'Compact',
+            image: 'https://images.unsplash.com/photo-1622353219448-46a8655d4b2e?w=400&h=300&fit=crop',
+            passengers: 5,
+            luggage: 2,
+            transmission: 'Manual',
+            fuelType: 'Petrol',
+            provider: 'Avis',
+            rating: 4.3,
+            reviews: 145,
+            price: 40,
+            features: ['AC', 'Bluetooth', 'Fuel Efficient']
+          }
+        ]);
+        if (error.message !== 'No API results') {
+          // Only show toast if it's a real error, not just empty results which falls back silently usually
+          // But here we want to let user know we are using demo data
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCars();
+  }, [pickupLocation, dropoffLocation, pickupDate, dropoffDate]);
+
 
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -237,9 +264,8 @@ const Cars = () => {
                       <div className="car-card-provider">{car.provider}</div>
                       <div className="card-action-buttons">
                         <button
-                          className={`card-action-button favorite-button ${
-                            favorites.includes(car.id) ? 'active' : ''
-                          }`}
+                          className={`card-action-button favorite-button ${favorites.includes(car.id) ? 'active' : ''
+                            }`}
                           onClick={() => toggleFavorite(car.id)}
                           aria-label="Add to favorites"
                         >

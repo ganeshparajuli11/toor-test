@@ -6,13 +6,14 @@ import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
 import ToastContainer, { showToast } from '../components/ToastContainer';
-import useApi from '../hooks/useApi';
-import { API_ENDPOINTS } from '../config/api';
+import ratehawkService from '../services/ratehawk.service';
 import './Hotels.css';
 
 const Hotels = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [hotels, setHotels] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [useFallback, setUseFallback] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -53,178 +54,132 @@ const Hotels = () => {
     } else if (!selectedLocation) {
       // Default to Paris if no URL params
       setSelectedLocation({
-        dest_id: '-1456928',
-        search_type: 'CITY',
+        dest_id: '2734', // Paris Region ID
+        search_type: 'City',
         label: 'Paris, Île-de-France, France',
         name: 'Paris'
       });
     }
   }, [urlDestId, urlLocation, urlSearchType]);
 
-  // Convert ISO dates to YYYY-MM-DD format for API
-  const formatDateForAPI = (isoDate) => {
-    if (!isoDate) return null;
-    const date = new Date(isoDate);
-    return date.toISOString().split('T')[0];
-  };
-
-  // Prepare RapidAPI query parameters for Booking.com v15
-  const apiParams = selectedLocation ? {
-    dest_id: selectedLocation.dest_id,
-    search_type: selectedLocation.search_type || 'CITY',
-    arrival_date: formatDateForAPI(checkIn), // API requires this format
-    departure_date: formatDateForAPI(checkOut), // API requires this format
-    adults: parseInt(adults),
-    children_age: parseInt(children) > 0 ? '0,17' : '',
-    room_qty: parseInt(rooms),
-    page_number: 1,
-    units: 'metric',
-    temperature_unit: 'c',
-    currency_code: 'USD',
-    languagecode: 'en-us',
-    location: 'US'
-  } : null;
-
-  // Fetch hotels from Booking.com API via RapidAPI (only when location is selected)
-  const { data: apiData, loading, error } = useApi(
-    API_ENDPOINTS.HOTEL_SEARCH,
-    {
-      params: apiParams,
-      immediate: !!selectedLocation && !!apiParams?.arrival_date && !!apiParams?.departure_date, // Fetch when location and dates available
-      isRapidAPI: true,
-      dependencies: [selectedLocation?.dest_id, checkIn, checkOut, adults, children, rooms]
-    }
-  );
-
-
   const currentLocation = selectedLocation?.name || selectedLocation?.label || 'Paris';
 
-  // Transform API data to UI format or use fallback
+  // Fetch hotels from RateHawk API
   useEffect(() => {
-    // Don't do anything while loading
-    if (loading) {
-      return;
-    }
+    const fetchHotels = async () => {
+      if (!selectedLocation) return;
 
-    if (error || !apiData) {
-      // Use fallback demo data
-      setUseFallback(true);
-      setHotels([
-        {
-          id: 1,
-          name: 'Grand Plaza Hotel',
-          location: currentLocation,
-          image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop',
-          rating: 4.8,
-          reviews: 245,
-          price: 120,
-          amenities: ['Free WiFi', 'Breakfast', 'Pool', 'AC'],
-          description: 'Luxury hotel with stunning views and excellent service'
-        },
-        {
-          id: 2,
-          name: 'Ocean View Resort',
-          location: currentLocation,
-          image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&h=300&fit=crop',
-          rating: 4.6,
-          reviews: 189,
-          price: 95,
-          amenities: ['Free WiFi', 'Beach Access', 'Restaurant', 'AC'],
-          description: 'Beautiful beachfront property perfect for relaxation'
-        },
-        {
-          id: 3,
-          name: 'City Center Inn',
-          location: currentLocation,
-          image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&h=300&fit=crop',
-          rating: 4.5,
-          reviews: 312,
-          price: 80,
-          amenities: ['Free WiFi', 'Parking', 'Breakfast', 'Gym'],
-          description: 'Conveniently located in the heart of the city'
-        },
-        {
-          id: 4,
-          name: 'Mountain Lodge',
-          location: currentLocation,
-          image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&h=300&fit=crop',
-          rating: 4.9,
-          reviews: 156,
-          price: 150,
-          amenities: ['Free WiFi', 'Spa', 'Restaurant', 'Hiking'],
-          description: 'Peaceful mountain retreat with breathtaking scenery'
-        },
-        {
-          id: 5,
-          name: 'Downtown Boutique Hotel',
-          location: currentLocation,
-          image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&h=300&fit=crop',
-          rating: 4.7,
-          reviews: 203,
-          price: 110,
-          amenities: ['Free WiFi', 'Bar', 'Rooftop', 'AC'],
-          description: 'Stylish boutique hotel with modern amenities'
-        },
-        {
-          id: 6,
-          name: 'Garden Suites',
-          location: currentLocation,
-          image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&h=300&fit=crop',
-          rating: 4.4,
-          reviews: 178,
-          price: 75,
-          amenities: ['Free WiFi', 'Garden', 'Parking', 'Breakfast'],
-          description: 'Tranquil garden setting with comfortable accommodations'
-        }
-      ]);
-
-      // Show toast if API failed but we're using fallback
-      if (error) {
-        showToast('Using demo data. Please check your API credentials.', 'info');
-      }
-    } else if (apiData?.status && apiData?.data?.hotels) {
-      // Transform Booking.com API v15 data to UI format
+      setLoading(true);
+      setError(null);
       setUseFallback(false);
-      const hotelsList = apiData.data.hotels || [];
 
-      const transformedHotels = hotelsList.slice(0, 20).map((hotelItem, index) => {
-        // API structure: { hotel_id, property: {...} }
-        const hotel = hotelItem.property || hotelItem;
-        const hotelId = hotelItem.hotel_id || hotel.id || hotel.hotel_id || index;
-
-        // Get image URL - API provides array of photo URLs
-        const imageUrl = hotel.photoUrls?.[0] ||
-                        hotel.max_1440_photo_url ||
-                        hotel.main_photo_url ||
-                        `https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop`;
-
-        const transformed = {
-          id: hotelId,
-          name: hotel.name || hotel.hotel_name || 'Hotel',
-          location: currentLocation,
-          image: imageUrl,
-          rating: hotel.reviewScore || hotel.review_score || 4.5,
-          reviews: hotel.reviewCount || hotel.review_nr || 0,
-          price: Math.round(hotel.priceBreakdown?.grossPrice?.value || hotel.min_total_price || 100),
-          currency: hotel.priceBreakdown?.grossPrice?.currency || hotel.currency || 'USD',
-          amenities: hotel.facilities?.slice(0, 4) || ['Free WiFi', 'Breakfast'],
-          description: hotel.reviewScoreWord || hotel.review_score_word || 'Comfortable accommodation',
-          checkIn: checkIn,
-          checkOut: checkOut,
-          url: hotel.url,
-          propertyClass: hotel.propertyClass || hotel.accuratePropertyClass || 0
+      try {
+        // Format dates for API if needed, but service handles standard YYYY-MM-DD
+        const params = {
+          destination: selectedLocation.dest_id,
+          checkIn: checkIn.split('T')[0],
+          checkOut: checkOut.split('T')[0],
+          guests: parseInt(adults),
+          rooms: parseInt(rooms),
+          currency: 'USD'
         };
 
-        return transformed;
-      });
+        const results = await ratehawkService.searchHotels(params);
 
-      setHotels(transformedHotels);
-
-      if (transformedHotels.length > 0) {
-        showToast(`Found ${transformedHotels.length} real hotels in ${currentLocation}!`, 'success');
+        if (results && results.length > 0) {
+          setHotels(results);
+          showToast(`Found ${results.length} real hotels in ${currentLocation}!`, 'success');
+        } else {
+          // If no results, maybe fallback or just empty
+          setHotels([]);
+          showToast('No hotels found for these dates. Try different dates.', 'info');
+        }
+      } catch (err) {
+        console.error('Error fetching hotels:', err);
+        setError(err.message);
+        setUseFallback(true);
+        loadFallbackData();
+        showToast('Using demo data. Please check your RateHawk API credentials.', 'info');
+      } finally {
+        setLoading(false);
       }
+    };
+
+    if (selectedLocation && checkIn && checkOut) {
+      fetchHotels();
     }
-  }, [apiData, loading, error]);
+  }, [selectedLocation, checkIn, checkOut, adults, children, rooms]);
+
+  const loadFallbackData = () => {
+    setHotels([
+      {
+        id: 1,
+        name: 'Grand Plaza Hotel',
+        location: currentLocation,
+        image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop',
+        rating: 4.8,
+        reviews: 245,
+        price: 120,
+        amenities: ['Free WiFi', 'Breakfast', 'Pool', 'AC'],
+        description: 'Luxury hotel with stunning views and excellent service'
+      },
+      {
+        id: 2,
+        name: 'Ocean View Resort',
+        location: currentLocation,
+        image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&h=300&fit=crop',
+        rating: 4.6,
+        reviews: 189,
+        price: 95,
+        amenities: ['Free WiFi', 'Beach Access', 'Restaurant', 'AC'],
+        description: 'Beautiful beachfront property perfect for relaxation'
+      },
+      {
+        id: 3,
+        name: 'City Center Inn',
+        location: currentLocation,
+        image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&h=300&fit=crop',
+        rating: 4.5,
+        reviews: 312,
+        price: 80,
+        amenities: ['Free WiFi', 'Parking', 'Breakfast', 'Gym'],
+        description: 'Conveniently located in the heart of the city'
+      },
+      {
+        id: 4,
+        name: 'Mountain Lodge',
+        location: currentLocation,
+        image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&h=300&fit=crop',
+        rating: 4.9,
+        reviews: 156,
+        price: 150,
+        amenities: ['Free WiFi', 'Spa', 'Restaurant', 'Hiking'],
+        description: 'Peaceful mountain retreat with breathtaking scenery'
+      },
+      {
+        id: 5,
+        name: 'Downtown Boutique Hotel',
+        location: currentLocation,
+        image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&h=300&fit=crop',
+        rating: 4.7,
+        reviews: 203,
+        price: 110,
+        amenities: ['Free WiFi', 'Bar', 'Rooftop', 'AC'],
+        description: 'Stylish boutique hotel with modern amenities'
+      },
+      {
+        id: 6,
+        name: 'Garden Suites',
+        location: currentLocation,
+        image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&h=300&fit=crop',
+        rating: 4.4,
+        reviews: 178,
+        price: 75,
+        amenities: ['Free WiFi', 'Garden', 'Parking', 'Breakfast'],
+        description: 'Tranquil garden setting with comfortable accommodations'
+      }
+    ]);
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -287,11 +242,11 @@ const Hotels = () => {
                 border: `1px solid ${useFallback ? '#ffc107' : '#28a745'}`,
                 color: '#000'
               }}>
-                <strong>{useFallback ? '⚠️ Demo Mode' : '✓ Live Booking.com API'}</strong>
+                <strong>{useFallback ? '⚠️ Demo Mode' : '✓ Live RateHawk API'}</strong>
                 <span style={{ marginLeft: '10px' }}>
                   {useFallback
-                    ? 'Using demo data. Subscribe to Booking.com v15 API to use live data.'
-                    : `Showing real hotel data from Booking.com API for ${currentLocation}`
+                    ? 'Using demo data. Configure RateHawk API keys in Admin Settings.'
+                    : `Showing real hotel data from RateHawk API for ${currentLocation}`
                   }
                 </span>
               </div>
@@ -361,9 +316,8 @@ const Hotels = () => {
                       </div>
                       <div className="card-action-buttons">
                         <button
-                          className={`card-action-button favorite-button ${
-                            favorites.includes(hotel.id) ? 'active' : ''
-                          }`}
+                          className={`card-action-button favorite-button ${favorites.includes(hotel.id) ? 'active' : ''
+                            }`}
                           onClick={() => toggleFavorite(hotel.id)}
                           aria-label="Add to favorites"
                         >

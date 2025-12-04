@@ -23,6 +23,21 @@ import FlightDetail from './pages/FlightDetail';
 import CruiseDetail from './pages/CruiseDetail';
 import CarDetail from './pages/CarDetail';
 import UniversalBooking from './pages/UniversalBooking';
+
+// Admin imports
+import AdminLayout from './components/admin/AdminLayout';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminBookings from './pages/admin/AdminBookings';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminHotels from './pages/admin/AdminHotels';
+import AdminCars from './pages/admin/AdminCars';
+import AdminCruises from './pages/admin/AdminCruises';
+import AdminPayments from './pages/admin/AdminPayments';
+import AdminSettings from './pages/admin/AdminSettings';
+import TestAPI from './pages/admin/TestAPI';
+import ProtectedRoute from './components/admin/ProtectedRoute';
+
 import './App.css';
 
 function App() {
@@ -52,6 +67,28 @@ function App() {
       <Route path="/cruise/:id" element={<CruiseDetail />} />
       <Route path="/car/:id" element={<CarDetail />} />
       <Route path="/:type/:id/book" element={<UniversalBooking />} />
+
+      {/* Admin Routes */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="bookings" element={<AdminBookings />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="hotels" element={<AdminHotels />} />
+        <Route path="cars" element={<AdminCars />} />
+        <Route path="cruises" element={<AdminCruises />} />
+        <Route path="payments" element={<AdminPayments />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="test-api" element={<TestAPI />} />
+      </Route>
+
       <Route path="*" element={<div style={{ padding: '2rem', textAlign: 'center' }}><h1>404 - Page Not Found</h1></div>} />
     </Routes>
   );
