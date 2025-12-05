@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Ship, MapPin, Calendar, Users, Utensils, Dumbbell, Sparkles,
   Wifi, Music, Coffee, Wine, Check, ChevronRight, AlertCircle, Star
@@ -11,56 +11,68 @@ import './CruiseDetail.css';
 
 const CruiseDetail = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [selectedCabin, setSelectedCabin] = useState('oceanview');
 
+  // Get cruise data from URL params (passed from listing page)
+  const urlName = searchParams.get('name');
+  const urlCruiseLine = searchParams.get('cruiseLine');
+  const urlDestination = searchParams.get('destination');
+  const urlDuration = searchParams.get('duration');
+  const urlPorts = searchParams.get('ports');
+  const urlRating = searchParams.get('rating');
+  const urlReviews = searchParams.get('reviews');
+  const urlPrice = searchParams.get('price');
+  const urlImage = searchParams.get('image');
+
+  const basePrice = parseInt(urlPrice) || 899;
+
   const cruise = {
     id: id,
-    name: 'Mediterranean Dream Cruise',
-    ship: 'Royal Princess',
-    cruiseLine: 'Royal Caribbean',
-    destination: 'Mediterranean',
-    duration: '7 Nights',
-    departure: 'Barcelona, Spain',
+    name: urlName || 'Mediterranean Dream Cruise',
+    ship: `${urlCruiseLine || 'Royal'} Princess`,
+    cruiseLine: urlCruiseLine || 'Royal Caribbean',
+    destination: urlDestination || 'Mediterranean',
+    duration: urlDuration || '7 Nights',
+    departure: urlDestination ? `${urlDestination} Port` : 'Barcelona, Spain',
     departureDate: 'Mar 15, 2025',
     ports: [
-      'Barcelona, Spain',
-      'Marseille, France',
-      'Rome, Italy',
-      'Naples, Italy',
-      'Athens, Greece',
-      'Dubrovnik, Croatia',
-      'Venice, Italy',
-      'Barcelona, Spain'
+      urlDestination || 'Barcelona, Spain',
+      'Port 2',
+      'Port 3',
+      'Port 4',
+      'Port 5',
+      urlDestination || 'Barcelona, Spain'
     ],
-    image: 'https://images.unsplash.com/photo-1545134969-8a3cdfe2c89e?w=800&h=400&fit=crop',
-    rating: 4.8,
-    reviews: 1247,
+    image: urlImage || 'https://images.unsplash.com/photo-1545134969-8a3cdfe2c89e?w=800&h=400&fit=crop',
+    rating: parseFloat(urlRating) || 4.8,
+    reviews: parseInt(urlReviews) || 1247,
     cabinTypes: {
       interior: {
         name: 'Interior Cabin',
-        price: 899,
+        price: basePrice,
         size: '160 sq ft',
         occupancy: '2-3 guests',
         features: ['Queen bed', 'Private bathroom', 'TV', 'Safe']
       },
       oceanview: {
         name: 'Oceanview Cabin',
-        price: 1299,
+        price: Math.round(basePrice * 1.4),
         size: '180 sq ft',
         occupancy: '2-4 guests',
         features: ['Queen bed', 'Ocean view window', 'Private bathroom', 'TV', 'Mini fridge']
       },
       balcony: {
         name: 'Balcony Suite',
-        price: 1899,
+        price: Math.round(basePrice * 2.1),
         size: '220 sq ft',
         occupancy: '2-4 guests',
         features: ['King bed', 'Private balcony', 'Living area', 'Premium bathroom', 'Mini bar']
       },
       suite: {
         name: 'Grand Suite',
-        price: 3499,
+        price: Math.round(basePrice * 3.9),
         size: '350 sq ft',
         occupancy: '2-6 guests',
         features: ['King bed', 'Large balcony', 'Separate living room', 'Luxury bathroom', 'Butler service']

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Car, Users, Briefcase, Fuel, Zap, Navigation, Shield, Check,
   ChevronRight, AlertCircle, MapPin, Calendar, Star
@@ -11,21 +11,38 @@ import './CarDetail.css';
 
 const CarDetail = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [selectedProtection, setSelectedProtection] = useState('basic');
 
+  // Get car data from URL params (passed from listing page)
+  const urlName = searchParams.get('name');
+  const urlCategory = searchParams.get('category');
+  const urlImage = searchParams.get('image');
+  const urlPassengers = searchParams.get('passengers');
+  const urlLuggage = searchParams.get('luggage');
+  const urlTransmission = searchParams.get('transmission');
+  const urlFuelType = searchParams.get('fuelType');
+  const urlProvider = searchParams.get('provider');
+  const urlRating = searchParams.get('rating');
+  const urlReviews = searchParams.get('reviews');
+  const urlPrice = searchParams.get('price');
+
+  const basePrice = parseInt(urlPrice) || 75;
+
   const car = {
     id: id,
-    name: 'Toyota Camry 2024',
-    category: 'Sedan',
-    image: 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=800&h=500&fit=crop',
-    rating: 4.7,
-    reviews: 328,
+    name: urlName || 'Toyota Camry 2024',
+    category: urlCategory || 'Sedan',
+    image: urlImage || 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=800&h=500&fit=crop',
+    rating: parseFloat(urlRating) || 4.7,
+    reviews: parseInt(urlReviews) || 328,
+    provider: urlProvider || 'Enterprise',
     specs: {
-      passengers: 5,
-      luggage: 3,
-      transmission: 'Automatic',
-      fuelType: 'Hybrid',
+      passengers: parseInt(urlPassengers) || 5,
+      luggage: parseInt(urlLuggage) || 3,
+      transmission: urlTransmission || 'Automatic',
+      fuelType: urlFuelType || 'Hybrid',
       airConditioning: true,
       doors: 4
     },
@@ -39,7 +56,7 @@ const CarDetail = () => {
       'USB Charging',
       'Keyless Entry'
     ],
-    pricePerDay: 75,
+    pricePerDay: basePrice,
     protection: {
       basic: {
         name: 'Basic Protection',
@@ -48,16 +65,16 @@ const CarDetail = () => {
       },
       standard: {
         name: 'Standard Protection',
-        price: 15,
+        price: Math.round(basePrice * 0.2),
         features: ['Collision damage waiver', 'Theft protection', 'Roadside assistance']
       },
       premium: {
         name: 'Premium Protection',
-        price: 25,
+        price: Math.round(basePrice * 0.35),
         features: ['Full coverage', 'Zero deductible', 'Personal effects coverage', '24/7 support']
       }
     },
-    pickupLocation: 'Los Angeles International Airport',
+    pickupLocation: urlProvider ? `${urlProvider} Location` : 'Los Angeles International Airport',
     policies: {
       fuel: 'Full to Full - Pick up and return with a full tank',
       mileage: 'Unlimited mileage included',

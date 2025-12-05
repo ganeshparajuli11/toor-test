@@ -6,6 +6,8 @@ import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
 import ToastContainer, { showToast } from '../components/ToastContainer';
+import { useLocation } from '../context/LocationContext';
+import ratehawkService from '../services/ratehawk.service';
 import './Flights.css';
 
 const Flights = () => {
@@ -14,103 +16,88 @@ const Flights = () => {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
 
+  // Get user location from context
+  const { userLocation } = useLocation();
+
   // Extract search parameters
-  const from = searchParams.get('from') || 'Origin';
-  const to = searchParams.get('to') || 'Destination';
-  const departureDate = searchParams.get('departureDate');
-  const returnDate = searchParams.get('returnDate');
+  const urlFrom = searchParams.get('from') || '';
+  const urlFromId = searchParams.get('from_id') || '';
+  const urlTo = searchParams.get('to') || '';
+  const urlToId = searchParams.get('to_id') || '';
+  const departureDate = searchParams.get('departure');
+  const returnDate = searchParams.get('return');
   const flightType = searchParams.get('flightType') || 'roundtrip';
   const adults = searchParams.get('adults') || 1;
   const children = searchParams.get('children') || 0;
-  const flightClass = searchParams.get('flightClass') || 'economy';
+  const flightClass = searchParams.get('class') || 'economy';
 
-  // Demo flight data
+  // Use URL params or user's location as origin
+  const from = urlFrom || (userLocation?.city ? `${userLocation.city} (${userLocation.countryCode || ''})` : '');
+  const fromId = urlFromId;
+  const to = urlTo;
+  const toId = urlToId;
+
+  // Check if search params exist (to_id is required for API search)
+  const hasSearchParams = !!(fromId && toId);
+  const hasUrlSearchParams = !!(urlFrom && urlTo);
+
+  // Fetch flights from RateHawk API
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setFlights([
-        {
-          id: 1,
-          airline: 'Sky Airways',
+    const fetchFlights = async () => {
+      if (!hasSearchParams) {
+        setLoading(false);
+        setFlights([]);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const results = await ratehawkService.searchFlights({
           from: from,
+          from_id: fromId,
           to: to,
-          departureTime: '08:00 AM',
-          arrivalTime: '11:30 AM',
-          duration: '3h 30m',
-          stops: 'Non-stop',
-          price: 299,
-          class: flightClass,
-          logo: 'https://via.placeholder.com/60x60?text=SA'
-        },
-        {
-          id: 2,
-          airline: 'Global Airlines',
-          from: from,
-          to: to,
-          departureTime: '12:00 PM',
-          arrivalTime: '04:15 PM',
-          duration: '4h 15m',
-          stops: '1 Stop',
-          price: 249,
-          class: flightClass,
-          logo: 'https://via.placeholder.com/60x60?text=GA'
-        },
-        {
-          id: 3,
-          airline: 'Ocean Air',
-          from: from,
-          to: to,
-          departureTime: '03:30 PM',
-          arrivalTime: '07:00 PM',
-          duration: '3h 30m',
-          stops: 'Non-stop',
-          price: 329,
-          class: flightClass,
-          logo: 'https://via.placeholder.com/60x60?text=OA'
-        },
-        {
-          id: 4,
-          airline: 'Express Jets',
-          from: from,
-          to: to,
-          departureTime: '06:00 PM',
-          arrivalTime: '10:45 PM',
-          duration: '4h 45m',
-          stops: '1 Stop',
-          price: 199,
-          class: flightClass,
-          logo: 'https://via.placeholder.com/60x60?text=EJ'
-        },
-        {
-          id: 5,
-          airline: 'Premium Airways',
-          from: from,
-          to: to,
-          departureTime: '09:00 AM',
-          arrivalTime: '12:15 PM',
-          duration: '3h 15m',
-          stops: 'Non-stop',
-          price: 399,
-          class: flightClass,
-          logo: 'https://via.placeholder.com/60x60?text=PA'
-        },
-        {
-          id: 6,
-          airline: 'Budget Air',
-          from: from,
-          to: to,
-          departureTime: '01:00 PM',
-          arrivalTime: '06:30 PM',
-          duration: '5h 30m',
-          stops: '2 Stops',
-          price: 149,
-          class: flightClass,
-          logo: 'https://via.placeholder.com/60x60?text=BA'
+          to_id: toId,
+          departure: departureDate,
+          return: returnDate,
+          adults: parseInt(adults),
+          children: parseInt(children),
+          infants: 0,
+          class: flightClass
+        });
+
+        if (results && results.length > 0) {
+          // Transform API results to match our UI format
+          const transformedFlights = results.map((flight, index) => ({
+            id: flight.id || index + 1,
+            airline: flight.airline || flight.carrier_name || 'Airline',
+            from: flight.departure_city || from,
+            to: flight.arrival_city || to,
+            departureTime: flight.departure_time || '08:00 AM',
+            arrivalTime: flight.arrival_time || '11:30 AM',
+            duration: flight.duration || '3h 30m',
+            stops: flight.stops === 0 ? 'Non-stop' : `${flight.stops} Stop${flight.stops > 1 ? 's' : ''}`,
+            price: flight.price || flight.amount || 299,
+            class: flightClass,
+            logo: flight.airline_logo || `https://via.placeholder.com/60x60?text=${(flight.airline || 'FL').substring(0, 2).toUpperCase()}`
+          }));
+          setFlights(transformedFlights);
+          showToast(`Found ${transformedFlights.length} flights via RateHawk!`, 'success');
+        } else {
+          // No results from API - show message
+          setFlights([]);
+          showToast('No flights found for this route. Try different dates or destinations.', 'info');
         }
-      ]);
-      setLoading(false);
-    }, 800);
-  }, [from, to, flightClass]);
+      } catch (error) {
+        console.error('Flight search error:', error);
+        setFlights([]);
+        showToast('Flight search is currently unavailable. Please try again later.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlights();
+  }, [from, to, departureDate, returnDate, adults, children, flightClass, hasSearchParams]);
 
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -167,18 +154,25 @@ const Flights = () => {
             <div className="flights-results-header">
               <div>
                 <p className="flights-breadcrumb">
-                  Home › Flights › {from} to {to}
+                  Home › Flights{hasSearchParams ? ` › ${from} to ${to}` : ''}
                 </p>
                 <h1 className="flights-title">
-                  {loading ? 'Loading...' : `${flights.length} Flights Found`}
+                  {!hasSearchParams ? 'Search for Flights' :
+                   loading ? 'Searching flights...' : `${flights.length} Flights Found`}
                 </h1>
-                <p className="flights-search-info">
-                  {from} <ArrowRight size={16} /> {to}
-                  {departureDate && ` • ${formatDate(departureDate)}`}
-                  {returnDate && flightType === 'roundtrip' && ` - ${formatDate(returnDate)}`}
-                  {' '}• {adults} {adults === '1' ? 'Passenger' : 'Passengers'}
-                  {' '}• {flightClass.charAt(0).toUpperCase() + flightClass.slice(1)}
-                </p>
+                {hasSearchParams ? (
+                  <p className="flights-search-info">
+                    {from} <ArrowRight size={16} /> {to}
+                    {departureDate && ` • ${formatDate(departureDate)}`}
+                    {returnDate && flightType === 'roundtrip' && ` - ${formatDate(returnDate)}`}
+                    {' '}• {adults} {adults === '1' ? 'Passenger' : 'Passengers'}
+                    {' '}• {flightClass.charAt(0).toUpperCase() + flightClass.slice(1)}
+                  </p>
+                ) : (
+                  <p className="flights-search-info">
+                    Use the search above to find flights
+                  </p>
+                )}
               </div>
 
               {/* Sort */}
@@ -272,7 +266,10 @@ const Flights = () => {
                         </div>
                       </div>
 
-                      <Link to={`/flight/${flight.id}`} className="flight-card-button">View Details</Link>
+                      <Link
+                        to={`/flight/${flight.id}?airline=${encodeURIComponent(flight.airline)}&from=${encodeURIComponent(flight.from)}&to=${encodeURIComponent(flight.to)}&departureTime=${encodeURIComponent(flight.departureTime)}&arrivalTime=${encodeURIComponent(flight.arrivalTime)}&duration=${encodeURIComponent(flight.duration)}&stops=${encodeURIComponent(flight.stops)}&price=${flight.price}&class=${encodeURIComponent(flight.class)}`}
+                        className="flight-card-button"
+                      >View Details</Link>
                     </div>
                   </div>
                 ))
@@ -280,10 +277,18 @@ const Flights = () => {
             </div>
 
             {/* No Results */}
-            {!loading && flights.length === 0 && (
+            {!loading && flights.length === 0 && hasSearchParams && (
               <div className="no-results">
                 <h3>No flights found</h3>
                 <p>Try adjusting your search criteria</p>
+              </div>
+            )}
+
+            {/* No Search Yet */}
+            {!loading && !hasSearchParams && (
+              <div className="no-results">
+                <h3>Enter your travel details</h3>
+                <p>Use the search form above to find available flights</p>
               </div>
             )}
           </div>

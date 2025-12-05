@@ -20,7 +20,9 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
   // Flight search state
   const [fromLocation, setFromLocation] = useState('');
+  const [fromLocationData, setFromLocationData] = useState(null);
   const [toLocation, setToLocation] = useState('');
+  const [toLocationData, setToLocationData] = useState(null);
   const [departureDate, setDepartureDate] = useState(null);
   const [returnDate, setReturnDate] = useState(null);
   const [flightType, setFlightType] = useState('roundtrip');
@@ -35,7 +37,9 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
   // Car search state
   const [pickupLocation, setPickupLocation] = useState('');
+  const [pickupLocationData, setPickupLocationData] = useState(null);
   const [dropoffLocation, setDropoffLocation] = useState('');
+  const [dropoffLocationData, setDropoffLocationData] = useState(null);
   const [pickupDate, setPickupDate] = useState(null);
   const [dropoffDate, setDropoffDate] = useState(null);
   const [driverAge, setDriverAge] = useState('30');
@@ -47,12 +51,18 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
   const [loadingLocations, setLoadingLocations] = useState(false);
 
   const locationRef = useRef(null);
+  const toLocationRef = useRef(null);
+  const dropoffLocationRef = useRef(null);
   const guestRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (locationRef.current && !locationRef.current.contains(event.target)) {
+      const isInsideLocationRef = locationRef.current && locationRef.current.contains(event.target);
+      const isInsideToLocationRef = toLocationRef.current && toLocationRef.current.contains(event.target);
+      const isInsideDropoffLocationRef = dropoffLocationRef.current && dropoffLocationRef.current.contains(event.target);
+
+      if (!isInsideLocationRef && !isInsideToLocationRef && !isInsideDropoffLocationRef) {
         setShowLocationDropdown(false);
       }
       if (guestRef.current && !guestRef.current.contains(event.target)) {
@@ -67,26 +77,30 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
   const handleLocationInput = async (value, field) => {
     setActiveLocationField(field);
 
-    // Update the text value
+    // Update the text value and clear location data when typing
     switch (field) {
       case 'hotel':
         setHotelLocation(value);
-        setHotelLocationData(null); // Clear location data when typing
+        setHotelLocationData(null);
         break;
       case 'from':
         setFromLocation(value);
+        setFromLocationData(null);
         break;
       case 'to':
         setToLocation(value);
+        setToLocationData(null);
         break;
       case 'cruise':
         setCruiseDestination(value);
         break;
       case 'pickup':
         setPickupLocation(value);
+        setPickupLocationData(null);
         break;
       case 'dropoff':
         setDropoffLocation(value);
+        setDropoffLocationData(null);
         break;
     }
 
@@ -111,27 +125,22 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
         // For other tabs (flight, car), we might need different services, 
         // but for now we'll use RateHawk regions for all or just hotels
 
-        if (field === 'hotel') {
-          const results = await ratehawkService.searchRegions(value);
+        // Use RateHawk service for autocomplete on all location fields
+        const results = await ratehawkService.searchRegions(value);
 
-          if (results && results.length > 0) {
-            // Transform RateHawk regions/hotels to suggestion format
-            const suggestions = results.map(item => ({
-              dest_id: item.id,
-              label: item.label || item.name,
-              search_type: item.type,
-              hotels: item.hotels_count || 0,
-              hotel_id: item.hotel_id // For direct hotel selection if needed
-            }));
+        if (results && results.length > 0) {
+          // Transform RateHawk regions/hotels to suggestion format
+          const suggestions = results.map(item => ({
+            dest_id: item.id,
+            label: item.label || item.name,
+            search_type: item.type,
+            hotels: item.hotels_count || 0,
+            hotel_id: item.hotel_id // For direct hotel selection if needed
+          }));
 
-            setLocationSuggestions(suggestions.slice(0, 5));
-            setShowLocationDropdown(true);
-          } else {
-            setLocationSuggestions([]);
-          }
+          setLocationSuggestions(suggestions.slice(0, 5));
+          setShowLocationDropdown(true);
         } else {
-          // Fallback for other tabs if needed, or implement specific services
-          // For now, just mock some data or keep empty
           setLocationSuggestions([]);
         }
       } catch (error) {
@@ -148,22 +157,26 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
     switch (activeLocationField) {
       case 'hotel':
         setHotelLocation(location.label || location.name);
-        setHotelLocationData(location); // Store full location object
+        setHotelLocationData(location);
         break;
       case 'from':
         setFromLocation(location.label || location.name);
+        setFromLocationData(location);
         break;
       case 'to':
         setToLocation(location.label || location.name);
+        setToLocationData(location);
         break;
       case 'cruise':
         setCruiseDestination(location.label || location.name);
         break;
       case 'pickup':
         setPickupLocation(location.label || location.name);
+        setPickupLocationData(location);
         break;
       case 'dropoff':
         setDropoffLocation(location.label || location.name);
+        setDropoffLocationData(location);
         break;
     }
     setShowLocationDropdown(false);
@@ -233,6 +246,10 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
           toast.error('Please enter departure and destination');
           return;
         }
+        if (!fromLocationData?.dest_id || !toLocationData?.dest_id) {
+          toast.error('Please select locations from the dropdown suggestions');
+          return;
+        }
         if (!departureDate) {
           toast.error('Please select departure date');
           return;
@@ -244,7 +261,9 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
         searchParams = {
           ...searchParams,
           from: fromLocation,
+          from_id: fromLocationData?.dest_id || '',
           to: toLocation,
+          to_id: toLocationData?.dest_id || '',
           departure: departureDate.toISOString(),
           return: returnDate?.toISOString(),
           flightType,
@@ -279,6 +298,10 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
           toast.error('Please enter pickup location');
           return;
         }
+        if (!pickupLocationData?.dest_id) {
+          toast.error('Please select a pickup location from the dropdown suggestions');
+          return;
+        }
         if (!pickupDate || !dropoffDate) {
           toast.error('Please select pickup and drop-off dates');
           return;
@@ -286,7 +309,9 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
         searchParams = {
           ...searchParams,
           pickup: pickupLocation,
+          pickup_id: pickupLocationData?.dest_id || '',
           dropoff: dropoffLocation || pickupLocation,
+          dropoff_id: dropoffLocationData?.dest_id || pickupLocationData?.dest_id || '',
           pickupDate: pickupDate.toISOString(),
           dropoffDate: dropoffDate.toISOString(),
           driverAge
@@ -511,14 +536,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                     {locationSuggestions.slice(0, 5).map((suggestion, index) => (
                       <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
                         <MapPin size={14} />
-                        <span>{suggestion}</span>
+                        <span>{suggestion.label}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="enhanced-search-field">
+              <div className="enhanced-search-field" ref={toLocationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
                   <span>To</span>
@@ -535,7 +560,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                     {locationSuggestions.slice(0, 5).map((suggestion, index) => (
                       <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
                         <MapPin size={14} />
-                        <span>{suggestion}</span>
+                        <span>{suggestion.label}</span>
                       </div>
                     ))}
                   </div>
@@ -687,12 +712,12 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                   placeholder="Where to?"
                   className="enhanced-search-input"
                 />
-                {showLocationDropdown && locationSuggestions.length > 0 && (
+                {showLocationDropdown && activeLocationField === 'cruise' && locationSuggestions.length > 0 && (
                   <div className="location-dropdown">
                     {locationSuggestions.slice(0, 5).map((suggestion, index) => (
                       <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
                         <MapPin size={14} />
-                        <span>{suggestion}</span>
+                        <span>{suggestion.label}</span>
                       </div>
                     ))}
                   </div>
@@ -815,14 +840,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                     {locationSuggestions.slice(0, 5).map((suggestion, index) => (
                       <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
                         <MapPin size={14} />
-                        <span>{suggestion}</span>
+                        <span>{suggestion.label}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="enhanced-search-field">
+              <div className="enhanced-search-field" ref={dropoffLocationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
                   <span>Drop-off Location</span>
@@ -839,7 +864,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                     {locationSuggestions.slice(0, 5).map((suggestion, index) => (
                       <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
                         <MapPin size={14} />
-                        <span>{suggestion}</span>
+                        <span>{suggestion.label}</span>
                       </div>
                     ))}
                   </div>

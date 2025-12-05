@@ -24,6 +24,10 @@ import CruiseDetail from './pages/CruiseDetail';
 import CarDetail from './pages/CarDetail';
 import UniversalBooking from './pages/UniversalBooking';
 
+// Location context and modal
+import { LocationProvider } from './context/LocationContext';
+import LocationModal from './components/LocationModal';
+
 // Admin imports
 import AdminLayout from './components/admin/AdminLayout';
 import AdminLogin from './pages/admin/AdminLogin';
@@ -42,8 +46,10 @@ import './App.css';
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<TravelBookingPage />} />
+    <LocationProvider>
+      <LocationModal />
+      <Routes>
+        <Route path="/" element={<TravelBookingPage />} />
       <Route path="/properties" element={<PropertyList />} />
       <Route path="/hotels" element={<Hotels />} />
       <Route path="/flights" element={<Flights />} />
@@ -89,8 +95,9 @@ function App() {
         <Route path="test-api" element={<TestAPI />} />
       </Route>
 
-      <Route path="*" element={<div style={{ padding: '2rem', textAlign: 'center' }}><h1>404 - Page Not Found</h1></div>} />
-    </Routes>
+        <Route path="*" element={<div style={{ padding: '2rem', textAlign: 'center' }}><h1>404 - Page Not Found</h1></div>} />
+      </Routes>
+    </LocationProvider>
   );
 }
 

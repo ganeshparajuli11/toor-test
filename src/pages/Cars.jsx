@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
 import ToastContainer, { showToast } from '../components/ToastContainer';
+import { useLocation } from '../context/LocationContext';
 import './Cars.css';
 
 const Cars = () => {
@@ -15,137 +16,68 @@ const Cars = () => {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
 
+  // Get user location from context
+  const { userLocation } = useLocation();
+
   // Extract search parameters
-  const pickupLocation = searchParams.get('pickupLocation') || 'Various Locations';
-  const dropoffLocation = searchParams.get('dropoffLocation') || pickupLocation;
+  const urlPickupLocation = searchParams.get('pickup') || '';
+  const urlPickupId = searchParams.get('pickup_id') || '';
+  const urlDropoffLocation = searchParams.get('dropoff') || '';
+  const urlDropoffId = searchParams.get('dropoff_id') || '';
   const pickupDate = searchParams.get('pickupDate');
   const dropoffDate = searchParams.get('dropoffDate');
   const driverAge = searchParams.get('driverAge') || '30';
 
-  // Fetch cars from API or use fallback
+  // Use URL params or user's location
+  const pickupLocation = urlPickupLocation || (userLocation?.city ? `${userLocation.city}, ${userLocation.country || ''}` : '');
+  const pickupId = urlPickupId;
+  const dropoffLocation = urlDropoffLocation || pickupLocation;
+  const dropoffId = urlDropoffId || pickupId;
+
+  // Check if search params exist (pickup_id is required for API search)
+  const hasSearchParams = !!(pickupId);
+  const hasUrlSearchParams = !!urlPickupLocation;
+
+  // Fetch cars/transfers from RateHawk API
   useEffect(() => {
+    if (!hasSearchParams) {
+      setLoading(false);
+      setCars([]);
+      return;
+    }
+
     const fetchCars = async () => {
       setLoading(true);
       try {
         const results = await ratehawkService.searchTransfers({
           pickupLocation,
+          pickup_id: pickupId,
           dropoffLocation,
+          dropoff_id: dropoffId,
           pickupDate,
-          dropoffDate
+          dropoffDate,
+          passengers: 2
         });
 
         if (results && results.length > 0) {
           setCars(results);
-          showToast(`Found ${results.length} transfers via RateHawk!`, 'success');
+          showToast(`Found ${results.length} vehicles via RateHawk!`, 'success');
         } else {
-          throw new Error('No API results');
+          // No results from API
+          setCars([]);
+          showToast('No vehicles found for this location. Try a different pickup location.', 'info');
         }
       } catch (error) {
-        console.log('Using demo car data due to:', error.message);
-        // Fallback demo data
-        setCars([
-          {
-            id: 1,
-            name: 'Toyota Corolla',
-            category: 'Economy',
-            image: 'https://images.unsplash.com/photo-1623869675781-80aa31012a5a?w=400&h=300&fit=crop',
-            passengers: 5,
-            luggage: 2,
-            transmission: 'Automatic',
-            fuelType: 'Petrol',
-            provider: 'Enterprise',
-            rating: 4.5,
-            reviews: 234,
-            price: 45,
-            features: ['AC', 'Bluetooth', 'USB Port']
-          },
-          {
-            id: 2,
-            name: 'Honda CR-V',
-            category: 'SUV',
-            image: 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=400&h=300&fit=crop',
-            passengers: 7,
-            luggage: 4,
-            transmission: 'Automatic',
-            fuelType: 'Hybrid',
-            provider: 'Hertz',
-            rating: 4.7,
-            reviews: 189,
-            price: 85,
-            features: ['AC', 'Navigation', 'Bluetooth', 'Backup Camera']
-          },
-          {
-            id: 3,
-            name: 'BMW 3 Series',
-            category: 'Luxury',
-            image: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400&h=300&fit=crop',
-            passengers: 5,
-            luggage: 3,
-            transmission: 'Automatic',
-            fuelType: 'Petrol',
-            provider: 'Sixt',
-            rating: 4.9,
-            reviews: 156,
-            price: 125,
-            features: ['AC', 'Navigation', 'Leather Seats', 'Sunroof']
-          },
-          {
-            id: 4,
-            name: 'Ford Transit Van',
-            category: 'Van',
-            image: 'https://images.unsplash.com/photo-1527192491265-7e15c55b1ed2?w=400&h=300&fit=crop',
-            passengers: 12,
-            luggage: 8,
-            transmission: 'Manual',
-            fuelType: 'Diesel',
-            provider: 'Budget',
-            rating: 4.4,
-            reviews: 98,
-            price: 95,
-            features: ['AC', 'GPS', 'Large Capacity']
-          },
-          {
-            id: 5,
-            name: 'Tesla Model 3',
-            category: 'Electric',
-            image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400&h=300&fit=crop',
-            passengers: 5,
-            luggage: 2,
-            transmission: 'Automatic',
-            fuelType: 'Electric',
-            provider: 'Enterprise',
-            rating: 4.8,
-            reviews: 267,
-            price: 110,
-            features: ['Autopilot', 'Navigation', 'Premium Sound']
-          },
-          {
-            id: 6,
-            name: 'Volkswagen Golf',
-            category: 'Compact',
-            image: 'https://images.unsplash.com/photo-1622353219448-46a8655d4b2e?w=400&h=300&fit=crop',
-            passengers: 5,
-            luggage: 2,
-            transmission: 'Manual',
-            fuelType: 'Petrol',
-            provider: 'Avis',
-            rating: 4.3,
-            reviews: 145,
-            price: 40,
-            features: ['AC', 'Bluetooth', 'Fuel Efficient']
-          }
-        ]);
-        if (error.message !== 'No API results') {
-          // Only show toast if it's a real error, not just empty results which falls back silently usually
-          // But here we want to let user know we are using demo data
-        }
+        console.error('Car/transfer search error:', error);
+        setCars([]);
+        showToast('Car rental search is currently unavailable. Please try again later.', 'error');
       } finally {
         setLoading(false);
       }
     };
 
     fetchCars();
-  }, [pickupLocation, dropoffLocation, pickupDate, dropoffDate]);
+  }, [pickupLocation, pickupId, dropoffLocation, dropoffId, pickupDate, dropoffDate, hasSearchParams]);
 
 
   const formatDate = (dateString) => {
@@ -209,17 +141,24 @@ const Cars = () => {
             <div className="cars-results-header">
               <div>
                 <p className="cars-breadcrumb">
-                  Home › Car Rentals › {pickupLocation}
+                  Home › Car Rentals{hasSearchParams ? ` › ${pickupLocation}` : ''}
                 </p>
                 <h1 className="cars-title">
-                  {loading ? 'Loading...' : `${cars.length} Cars Available`}
+                  {!hasSearchParams ? 'Search for Car Rentals' :
+                   loading ? 'Searching cars...' : `${cars.length} Cars Available`}
                 </h1>
-                <p className="cars-search-info">
-                  <MapPin size={16} /> Pick-up: {pickupLocation}
-                  {pickupDate && ` • ${formatDate(pickupDate)}`}
-                  {dropoffLocation !== pickupLocation && ` → Drop-off: ${dropoffLocation}`}
-                  {dropoffDate && ` • ${formatDate(dropoffDate)}`}
-                </p>
+                {hasSearchParams ? (
+                  <p className="cars-search-info">
+                    <MapPin size={16} /> Pick-up: {pickupLocation}
+                    {pickupDate && ` • ${formatDate(pickupDate)}`}
+                    {dropoffLocation !== pickupLocation && ` → Drop-off: ${dropoffLocation}`}
+                    {dropoffDate && ` • ${formatDate(dropoffDate)}`}
+                  </p>
+                ) : (
+                  <p className="cars-search-info">
+                    Use the search above to find car rentals
+                  </p>
+                )}
               </div>
 
               {/* Sort */}
@@ -321,7 +260,10 @@ const Cars = () => {
                           <span className="price-amount">${car.price}</span>
                           <span className="price-period">/day</span>
                         </div>
-                        <Link to={`/car/${car.id}`} className="car-card-button">View Details</Link>
+                        <Link
+                          to={`/car/${car.id}?name=${encodeURIComponent(car.name)}&category=${encodeURIComponent(car.category)}&image=${encodeURIComponent(car.image)}&passengers=${car.passengers}&luggage=${car.luggage}&transmission=${encodeURIComponent(car.transmission)}&fuelType=${encodeURIComponent(car.fuelType)}&provider=${encodeURIComponent(car.provider)}&rating=${car.rating}&reviews=${car.reviews}&price=${car.price}`}
+                          className="car-card-button"
+                        >View Details</Link>
                       </div>
                     </div>
                   </div>
@@ -330,10 +272,18 @@ const Cars = () => {
             </div>
 
             {/* No Results */}
-            {!loading && cars.length === 0 && (
+            {!loading && cars.length === 0 && hasSearchParams && (
               <div className="no-results">
                 <h3>No cars available</h3>
                 <p>Try adjusting your search criteria</p>
+              </div>
+            )}
+
+            {/* No Search Yet */}
+            {!loading && !hasSearchParams && (
+              <div className="no-results">
+                <h3>Enter your pickup location</h3>
+                <p>Use the search form above to find available car rentals</p>
               </div>
             )}
           </div>

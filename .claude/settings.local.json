@@ -12,7 +12,8 @@
       "Bash(python3:*)",
       "Bash(unzip:*)",
       "Bash(sed:*)",
-      "WebFetch(domain:docs.emergingtravel.com)"
+      "WebFetch(domain:docs.emergingtravel.com)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

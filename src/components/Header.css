@@ -245,6 +245,48 @@
   line-height: 1.2;
 }
 
+/* Location Button */
+.nav-location-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.nav-location-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.nav-location-button svg {
+  flex-shrink: 0;
+}
+
+.location-text {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .nav-location-button {
+    padding: 6px 10px;
+  }
+
+  .location-text {
+    max-width: 80px;
+  }
+}
+
 /* Nav Divider */
 .nav-divider {
   width: 1px;

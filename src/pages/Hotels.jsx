@@ -7,6 +7,7 @@ import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
 import ToastContainer, { showToast } from '../components/ToastContainer';
 import ratehawkService from '../services/ratehawk.service';
+import { useLocation } from '../context/LocationContext';
 import './Hotels.css';
 
 const Hotels = () => {
@@ -16,10 +17,12 @@ const Hotels = () => {
   const [error, setError] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [useFallback, setUseFallback] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState(null);
+
+  // Get user location from context
+  const { userLocation } = useLocation();
 
   // Extract search parameters from URL
-  const urlLocation = searchParams.get('location') || 'Paris';
+  const urlLocation = searchParams.get('location') || '';
   const urlDestId = searchParams.get('dest_id');
   const urlSearchType = searchParams.get('search_type') || 'CITY';
   const checkIn = searchParams.get('checkIn') || getDefaultCheckIn();
@@ -41,28 +44,22 @@ const Hotels = () => {
     return date.toISOString().split('T')[0];
   }
 
-  // Initialize location from URL params or use default
-  useEffect(() => {
-    if (urlDestId) {
-      // Use location from URL (from EnhancedSearch)
-      setSelectedLocation({
-        dest_id: urlDestId,
-        search_type: urlSearchType,
-        label: urlLocation,
-        name: urlLocation.split(',')[0] // Get city name from label
-      });
-    } else if (!selectedLocation) {
-      // Default to Paris if no URL params
-      setSelectedLocation({
-        dest_id: '2734', // Paris Region ID
-        search_type: 'City',
-        label: 'Paris, Île-de-France, France',
-        name: 'Paris'
-      });
-    }
-  }, [urlDestId, urlLocation, urlSearchType]);
+  // Derive location directly from URL params or user location (no intermediate state)
+  const selectedLocation = urlDestId ? {
+    dest_id: urlDestId,
+    search_type: urlSearchType,
+    label: urlLocation,
+    name: urlLocation.split(',')[0]
+  } : (userLocation && userLocation.city) ? {
+    dest_id: userLocation.city,
+    search_type: 'REGION',
+    label: userLocation.displayName,
+    name: userLocation.city,
+    useUserLocation: true
+  } : null;
 
-  const currentLocation = selectedLocation?.name || selectedLocation?.label || 'Paris';
+  const currentLocation = selectedLocation?.name || selectedLocation?.label || '';
+  const hasSearchParams = !!urlDestId || (selectedLocation?.useUserLocation && userLocation);
 
   // Fetch hotels from RateHawk API
   useEffect(() => {
@@ -115,7 +112,7 @@ const Hotels = () => {
     if (selectedLocation && checkIn && checkOut) {
       fetchHotels();
     }
-  }, [selectedLocation, checkIn, checkOut, adults, children, rooms]);
+  }, [urlDestId, urlLocation, urlSearchType, userLocation, checkIn, checkOut, adults, children, rooms]);
 
   const loadFallbackData = () => {
     setHotels([
@@ -240,7 +237,7 @@ const Hotels = () => {
         <div className="hotels-results-container">
           <div className="container">
             {/* API Status Banner */}
-            {!loading && (
+            {!loading && hasSearchParams && (
               <div style={{
                 padding: '12px 20px',
                 marginBottom: '20px',
@@ -263,20 +260,28 @@ const Hotels = () => {
             <div className="hotels-results-header">
               <div>
                 <p className="hotels-breadcrumb">
-                  Home › Hotels in {currentLocation}
+                  Home › Hotels{currentLocation ? ` in ${currentLocation}` : ''}
                 </p>
                 <h1 className="hotels-title">
-                  {loading ? 'Searching hotels...' : `${hotels.length} Hotels Found in ${currentLocation}`}
-                  {checkIn && checkOut && (
+                  {!hasSearchParams ? 'Search for Hotels' :
+                   loading ? 'Searching hotels...' : `${hotels.length} Hotels Found in ${currentLocation}`}
+                  {hasSearchParams && checkIn && checkOut && (
                     <span className="hotels-dates">
                       {' '}for {formatDate(checkIn)} - {formatDate(checkOut)}
                     </span>
                   )}
                 </h1>
-                <p className="hotels-search-info">
-                  {rooms} {rooms === '1' ? 'Room' : 'Rooms'} • {adults} {adults === '1' ? 'Adult' : 'Adults'}
-                  {children !== '0' && ` • ${children} ${children === '1' ? 'Child' : 'Children'}`}
-                </p>
+                {hasSearchParams && (
+                  <p className="hotels-search-info">
+                    {rooms} {rooms === '1' ? 'Room' : 'Rooms'} • {adults} {adults === '1' ? 'Adult' : 'Adults'}
+                    {children !== '0' && ` • ${children} ${children === '1' ? 'Child' : 'Children'}`}
+                  </p>
+                )}
+                {!hasSearchParams && (
+                  <p className="hotels-search-info">
+                    Use the search above to find hotels
+                  </p>
+                )}
               </div>
 
               {/* Sort */}
@@ -391,10 +396,18 @@ const Hotels = () => {
             </div>
 
             {/* No Results */}
-            {!loading && hotels.length === 0 && (
+            {!loading && hotels.length === 0 && hasSearchParams && (
               <div className="no-results">
                 <h3>No hotels found</h3>
                 <p>Try adjusting your search criteria</p>
+              </div>
+            )}
+
+            {/* No Search Yet */}
+            {!loading && !hasSearchParams && (
+              <div className="no-results">
+                <h3>Enter your destination</h3>
+                <p>Use the search form above to find available hotels</p>
               </div>
             )}
           </div>

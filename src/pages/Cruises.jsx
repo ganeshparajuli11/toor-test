@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import ratehawkService from '../services/ratehawk.service';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Anchor, MapPin, Calendar, Users, Star, Heart, Share2 } from 'lucide-react';
 import Header from '../components/Header';
@@ -7,7 +6,90 @@ import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
 import ToastContainer, { showToast } from '../components/ToastContainer';
+import { useLocation } from '../context/LocationContext';
 import './Cruises.css';
+
+// Demo cruise data for display
+const DEMO_CRUISES = [
+  {
+    id: 1,
+    name: 'Caribbean Paradise Cruise',
+    cruiseLine: 'Royal Caribbean',
+    destination: 'Caribbean',
+    duration: '7 Nights',
+    ports: 5,
+    rating: 4.8,
+    reviews: 2456,
+    price: 1299,
+    image: 'https://images.unsplash.com/photo-1548574505-5e239809ee19?w=600',
+    features: ['All-Inclusive', 'Pool', 'Spa', 'Entertainment']
+  },
+  {
+    id: 2,
+    name: 'Mediterranean Explorer',
+    cruiseLine: 'MSC Cruises',
+    destination: 'Mediterranean',
+    duration: '10 Nights',
+    ports: 7,
+    rating: 4.7,
+    reviews: 1823,
+    price: 1899,
+    image: 'https://images.unsplash.com/photo-1599640842225-85d111c60e6b?w=600',
+    features: ['Fine Dining', 'Excursions', 'Casino', 'Shows']
+  },
+  {
+    id: 3,
+    name: 'Alaskan Adventure',
+    cruiseLine: 'Princess Cruises',
+    destination: 'Alaska',
+    duration: '7 Nights',
+    ports: 4,
+    rating: 4.9,
+    reviews: 3102,
+    price: 1599,
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
+    features: ['Glacier Views', 'Wildlife Tours', 'Luxury Cabins', 'Fine Dining']
+  },
+  {
+    id: 4,
+    name: 'Norwegian Fjords Journey',
+    cruiseLine: 'Viking Ocean',
+    destination: 'Norway',
+    duration: '12 Nights',
+    ports: 8,
+    rating: 4.9,
+    reviews: 1567,
+    price: 2499,
+    image: 'https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=600',
+    features: ['Scenic Routes', 'Cultural Tours', 'Nordic Spa', 'Gourmet Cuisine']
+  },
+  {
+    id: 5,
+    name: 'Greek Islands Discovery',
+    cruiseLine: 'Celebrity Cruises',
+    destination: 'Greece',
+    duration: '8 Nights',
+    ports: 6,
+    rating: 4.8,
+    reviews: 2089,
+    price: 1799,
+    image: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=600',
+    features: ['Island Hopping', 'Beach Access', 'Rooftop Bar', 'Spa']
+  },
+  {
+    id: 6,
+    name: 'South Pacific Paradise',
+    cruiseLine: 'Holland America',
+    destination: 'South Pacific',
+    duration: '14 Nights',
+    ports: 9,
+    rating: 4.7,
+    reviews: 987,
+    price: 2899,
+    image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600',
+    features: ['Tropical Islands', 'Snorkeling', 'Live Music', 'Premium Dining']
+  }
+];
 
 const Cruises = () => {
   const [searchParams] = useSearchParams();
@@ -15,121 +97,57 @@ const Cruises = () => {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
 
+  // Get user location from context
+  const { userLocation } = useLocation();
+
   // Extract search parameters
-  const destination = searchParams.get('destination') || 'Various Destinations';
-  const departureDate = searchParams.get('departureDate');
+  const urlDestination = searchParams.get('destination') || '';
+  const departureDate = searchParams.get('departure');
   const duration = searchParams.get('duration') || '7';
   const adults = searchParams.get('adults') || 2;
   const children = searchParams.get('children') || 0;
 
-  // Fetch cruises from API or use fallback
+  // Use URL params or user's location for nearby cruises
+  const destination = urlDestination || (userLocation?.city ? `${userLocation.city} Region` : '');
+
+  // Check if search params exist
+  const hasSearchParams = !!destination;
+  const hasUrlSearchParams = !!urlDestination;
+
+  // Filter demo cruises based on search params
   useEffect(() => {
-    const fetchCruises = async () => {
-      setLoading(true);
-      try {
-        const results = await ratehawkService.searchCruises({
-          destination,
-          departureDate,
-          duration,
-          adults,
-          children
-        });
+    setLoading(true);
 
-        if (results && results.length > 0) {
-          setCruises(results);
-          showToast(`Found ${results.length} cruises via RateHawk!`, 'success');
+    // Simulate loading delay
+    const timer = setTimeout(() => {
+      let filteredCruises = [...DEMO_CRUISES];
+
+      // Filter by destination if search params exist
+      if (hasSearchParams && destination) {
+        const searchTerm = destination.toLowerCase();
+        filteredCruises = DEMO_CRUISES.filter(cruise =>
+          cruise.destination.toLowerCase().includes(searchTerm) ||
+          cruise.name.toLowerCase().includes(searchTerm)
+        );
+
+        // If no exact matches, show all cruises
+        if (filteredCruises.length === 0) {
+          filteredCruises = DEMO_CRUISES;
+          showToast(`Showing all available cruises for "${destination}"`, 'info');
         } else {
-          throw new Error('No API results');
+          showToast(`Found ${filteredCruises.length} cruises for ${destination}!`, 'success');
         }
-      } catch (error) {
-        // Fallback demo data
-        setCruises([
-          {
-            id: 1,
-            name: 'Caribbean Paradise Cruise',
-            cruiseLine: 'Royal Ocean Lines',
-            destination: destination,
-            image: 'https://images.unsplash.com/photo-1545969734-706fc936d8db?w=400&h=300&fit=crop',
-            duration: `${duration} Days`,
-            ports: 5,
-            rating: 4.8,
-            reviews: 342,
-            price: 899,
-            features: ['All Meals', 'Entertainment', 'Pool', 'Spa']
-          },
-          {
-            id: 2,
-            name: 'Mediterranean Explorer',
-            cruiseLine: 'Luxury Seas',
-            destination: destination,
-            image: 'https://images.unsplash.com/photo-1560264418-c4445382edbc?w=400&h=300&fit=crop',
-            duration: `${duration} Days`,
-            ports: 7,
-            rating: 4.9,
-            reviews: 456,
-            price: 1299,
-            features: ['All Meals', 'Shore Excursions', 'Casino', 'Fine Dining']
-          },
-          {
-            id: 3,
-            name: 'Alaska Wilderness Voyage',
-            cruiseLine: 'Adventure Cruises',
-            destination: destination,
-            image: 'https://images.unsplash.com/photo-1554672408-730838453273?w=400&h=300&fit=crop',
-            duration: `${duration} Days`,
-            ports: 4,
-            rating: 4.7,
-            reviews: 289,
-            price: 1099,
-            features: ['All Meals', 'Glacier Viewing', 'Wildlife Tours', 'Spa']
-          },
-          {
-            id: 4,
-            name: 'South Pacific Dream',
-            cruiseLine: 'Island Voyages',
-            destination: destination,
-            image: 'https://images.unsplash.com/photo-1563729147818-22cc0b7d15d9?w=400&h=300&fit=crop',
-            duration: `${duration} Days`,
-            ports: 6,
-            rating: 4.6,
-            reviews: 234,
-            price: 1499,
-            features: ['All Meals', 'Water Sports', 'Private Beach', 'Pool']
-          },
-          {
-            id: 5,
-            name: 'Baltic Sea Adventure',
-            cruiseLine: 'Nordic Cruises',
-            destination: destination,
-            image: 'https://images.unsplash.com/photo-1548625149-720da0e44640?w=400&h=300&fit=crop',
-            duration: `${duration} Days`,
-            ports: 8,
-            rating: 4.8,
-            reviews: 312,
-            price: 1199,
-            features: ['All Meals', 'Cultural Tours', 'Entertainment', 'Spa']
-          },
-          {
-            id: 6,
-            name: 'Tropical Island Hopper',
-            cruiseLine: 'Sunshine Cruises',
-            destination: destination,
-            image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop',
-            duration: `${duration} Days`,
-            ports: 5,
-            rating: 4.5,
-            reviews: 198,
-            price: 799,
-            features: ['All Meals', 'Beach Access', 'Pool', 'Entertainment']
-          }
-        ]);
-      } finally {
-        setLoading(false);
+      } else {
+        // Show all cruises when no search params
+        filteredCruises = DEMO_CRUISES;
       }
-    };
 
-    fetchCruises();
-  }, [destination, duration]);
+      setCruises(filteredCruises);
+      setLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [destination, duration, departureDate, adults, children, hasSearchParams]);
 
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -186,17 +204,24 @@ const Cruises = () => {
             <div className="cruises-results-header">
               <div>
                 <p className="cruises-breadcrumb">
-                  Home › Cruises › {destination}
+                  Home › Cruises{hasSearchParams ? ` › ${destination}` : ''}
                 </p>
                 <h1 className="cruises-title">
-                  {loading ? 'Loading...' : `${cruises.length} Cruises Found`}
+                  {!hasSearchParams ? 'Search for Cruises' :
+                   loading ? 'Searching cruises...' : `${cruises.length} Cruises Found`}
                 </h1>
-                <p className="cruises-search-info">
-                  {destination} • {duration} {duration === '1' ? 'Day' : 'Days'}
-                  {departureDate && ` • Departs ${formatDate(departureDate)}`}
-                  {' '}• {adults} {adults === '1' ? 'Passenger' : 'Passengers'}
-                  {children !== '0' && ` + ${children} ${children === '1' ? 'Child' : 'Children'}`}
-                </p>
+                {hasSearchParams ? (
+                  <p className="cruises-search-info">
+                    {destination} • {duration} {duration === '1' ? 'Day' : 'Days'}
+                    {departureDate && ` • Departs ${formatDate(departureDate)}`}
+                    {' '}• {adults} {adults === '1' ? 'Passenger' : 'Passengers'}
+                    {children !== '0' && ` + ${children} ${children === '1' ? 'Child' : 'Children'}`}
+                  </p>
+                ) : (
+                  <p className="cruises-search-info">
+                    Use the search above to find cruises
+                  </p>
+                )}
               </div>
 
               {/* Sort */}
@@ -301,7 +326,10 @@ const Cruises = () => {
                           <span className="price-amount">${cruise.price}</span>
                           <span className="price-period">per person</span>
                         </div>
-                        <Link to={`/cruise/${cruise.id}`} className="cruise-card-button">View Details</Link>
+                        <Link
+                          to={`/cruise/${cruise.id}?name=${encodeURIComponent(cruise.name)}&cruiseLine=${encodeURIComponent(cruise.cruiseLine)}&destination=${encodeURIComponent(cruise.destination)}&duration=${encodeURIComponent(cruise.duration)}&ports=${cruise.ports}&rating=${cruise.rating}&reviews=${cruise.reviews}&price=${cruise.price}&image=${encodeURIComponent(cruise.image)}`}
+                          className="cruise-card-button"
+                        >View Details</Link>
                       </div>
                     </div>
                   </div>
@@ -310,10 +338,18 @@ const Cruises = () => {
             </div>
 
             {/* No Results */}
-            {!loading && cruises.length === 0 && (
+            {!loading && cruises.length === 0 && hasSearchParams && (
               <div className="no-results">
                 <h3>No cruises found</h3>
                 <p>Try adjusting your search criteria</p>
+              </div>
+            )}
+
+            {/* No Search Yet */}
+            {!loading && !hasSearchParams && (
+              <div className="no-results">
+                <h3>Enter your destination</h3>
+                <p>Use the search form above to find available cruises</p>
               </div>
             )}
           </div>

@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import EnhancedSearch from '../components/EnhancedSearch';
 import SEO from '../components/SEO';
 import useTravelData from '../hooks/useTravelData';
+import { useLocation } from '../context/LocationContext';
 import './index.css';
 
 /**
@@ -52,13 +53,16 @@ ErrorMessage.displayName = 'ErrorMessage';
  * Integrates with API for dynamic data fetching
  */
 const TravelBookingPage = () => {
-  // Fetch data from API with custom hooks
-  const { data: hotels, loading: hotelsLoading, error: hotelsError, refetch: refetchHotels } = useTravelData('hotels');
-  const { data: flights, loading: flightsLoading, error: flightsError, refetch: refetchFlights } = useTravelData('flights');
-  const { data: cruises, loading: cruisesLoading, error: cruisesError, refetch: refetchCruises } = useTravelData('cruises');
-  const { data: cars, loading: carsLoading, error: carsError, refetch: refetchCars } = useTravelData('cars');
-  const { data: articles, loading: articlesLoading, error: articlesError, refetch: refetchArticles } = useTravelData('articles');
-  const { data: team, loading: teamLoading, error: teamError, refetch: refetchTeam } = useTravelData('team');
+  // Get user location from context
+  const { userLocation } = useLocation();
+
+  // Fetch data from API with custom hooks - pass user location for personalized results
+  const { data: hotels, loading: hotelsLoading, error: hotelsError, refetch: refetchHotels } = useTravelData('hotels', userLocation);
+  const { data: flights, loading: flightsLoading, error: flightsError, refetch: refetchFlights } = useTravelData('flights', userLocation);
+  const { data: cruises, loading: cruisesLoading, error: cruisesError, refetch: refetchCruises } = useTravelData('cruises', userLocation);
+  const { data: cars, loading: carsLoading, error: carsError, refetch: refetchCars } = useTravelData('cars', userLocation);
+  const { data: articles, loading: articlesLoading, error: articlesError, refetch: refetchArticles } = useTravelData('articles', userLocation);
+  const { data: team, loading: teamLoading, error: teamError, refetch: refetchTeam } = useTravelData('team', userLocation);
 
   return (
     <>
@@ -100,7 +104,9 @@ const TravelBookingPage = () => {
         {/* Recommended Hotels */}
         <section className="section">
           <div className="section-header">
-            <h2 className="section-title">Recommended Hotels</h2>
+            <h2 className="section-title">
+              {userLocation?.city ? `Hotels in ${userLocation.city}` : 'Recommended Hotels'}
+            </h2>
             <div className="section-nav">
               <button className="section-nav-btn prev" aria-label="Previous hotels">
                 <ChevronLeft size={20} />
@@ -225,7 +231,9 @@ const TravelBookingPage = () => {
         {/* Recommended Flights */}
         <section className="section">
           <div className="section-header">
-            <h2 className="section-title">Recommended Flights</h2>
+            <h2 className="section-title">
+              {userLocation?.city ? `Flights from ${userLocation.city}` : 'Recommended Flights'}
+            </h2>
             <div className="section-nav">
               <button className="section-nav-btn prev" aria-label="Previous flights">
                 <ChevronLeft size={20} />
@@ -281,7 +289,9 @@ const TravelBookingPage = () => {
         {/* Recommended Cruise */}
         <section className="section">
           <div className="section-header">
-            <h2 className="section-title">Recommended Cruise</h2>
+            <h2 className="section-title">
+              {userLocation?.city ? `Cruises near ${userLocation.city}` : 'Recommended Cruises'}
+            </h2>
             <div className="section-nav">
               <button className="section-nav-btn prev" aria-label="Previous cruises">
                 <ChevronLeft size={20} />
@@ -343,7 +353,9 @@ const TravelBookingPage = () => {
         {/* Recommended Cars */}
         <section className="section">
           <div className="section-header">
-            <h2 className="section-title">Recommended Cars</h2>
+            <h2 className="section-title">
+              {userLocation?.city ? `Car Rentals in ${userLocation.city}` : 'Recommended Cars'}
+            </h2>
             <div className="section-nav">
               <button className="section-nav-btn prev" aria-label="Previous cars">
                 <ChevronLeft size={20} />

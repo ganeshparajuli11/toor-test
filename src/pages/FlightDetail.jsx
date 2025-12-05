@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plane, Clock, Calendar, Users, Briefcase, Coffee, Wifi,
   Monitor, Award, ChevronRight, Check, AlertCircle, MapPin
@@ -12,46 +12,57 @@ import './FlightDetail.css';
 
 const FlightDetail = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [selectedClass, setSelectedClass] = useState('economy');
+  const [selectedClass, setSelectedClass] = useState(searchParams.get('class') || 'economy');
 
-  // Mock flight data (in real app, fetch based on id)
+  // Get flight data from URL params (passed from listing page)
+  const urlAirline = searchParams.get('airline');
+  const urlFrom = searchParams.get('from');
+  const urlTo = searchParams.get('to');
+  const urlDepartureTime = searchParams.get('departureTime');
+  const urlArrivalTime = searchParams.get('arrivalTime');
+  const urlDuration = searchParams.get('duration');
+  const urlStops = searchParams.get('stops');
+  const urlPrice = searchParams.get('price');
+
+  // Use URL params if available, otherwise use fallback
   const flight = {
     id: id,
-    airline: 'Emirates',
-    flightNumber: 'EK 205',
-    from: 'New York (JFK)',
-    to: 'Dubai (DXB)',
-    departureTime: '10:30 AM',
-    arrivalTime: '6:45 PM',
+    airline: urlAirline || 'Emirates',
+    flightNumber: `${(urlAirline || 'EM').substring(0, 2).toUpperCase()} ${id}`,
+    from: urlFrom || 'New York (JFK)',
+    to: urlTo || 'Dubai (DXB)',
+    departureTime: urlDepartureTime || '10:30 AM',
+    arrivalTime: urlArrivalTime || '6:45 PM',
     departureDate: 'Jan 15, 2025',
     arrivalDate: 'Jan 16, 2025',
-    duration: '12h 15m',
-    stops: 'Non-stop',
+    duration: urlDuration || '12h 15m',
+    stops: urlStops || 'Non-stop',
     aircraft: 'Boeing 777-300ER',
-    price: 850,
+    price: parseInt(urlPrice) || 850,
     logo: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=100&h=100&fit=crop',
     classes: {
       economy: {
-        price: 850,
+        price: parseInt(urlPrice) || 850,
         seats: 12,
         baggage: '23kg',
         features: ['Standard seat', 'In-flight meals', 'Entertainment system']
       },
       premiumEconomy: {
-        price: 1250,
+        price: Math.round((parseInt(urlPrice) || 850) * 1.5),
         seats: 8,
         baggage: '32kg',
         features: ['Extra legroom', 'Premium meals', 'Priority boarding', 'Enhanced entertainment']
       },
       business: {
-        price: 3500,
+        price: Math.round((parseInt(urlPrice) || 850) * 4),
         seats: 4,
         baggage: '40kg',
         features: ['Lie-flat seat', 'Gourmet dining', 'Lounge access', 'Priority everything']
       },
       first: {
-        price: 7500,
+        price: Math.round((parseInt(urlPrice) || 850) * 8),
         seats: 2,
         baggage: '50kg',
         features: ['Private suite', 'On-demand dining', 'Chauffeur service', 'Luxury amenities']

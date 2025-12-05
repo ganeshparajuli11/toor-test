@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapPin, Heart, Share2, Award, Tag } from 'lucide-react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -9,7 +8,7 @@ import SEO from '../components/SEO';
 import ImageGallery from '../components/ImageGallery';
 import AmenitiesList from '../components/AmenitiesList';
 import ReviewsSection from '../components/ReviewsSection';
-import { getApiUrl, API_ENDPOINTS } from '../config/api';
+import ratehawkService from '../services/ratehawk.service';
 import './PropertyDetail.css';
 
 /**
@@ -67,14 +66,14 @@ const PropertyDetail = () => {
     mapEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d387191.0360!2d-74.25987!3d40.697670!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c24fa5d33f083b%3A0xc80b8f06e177fe62!2sNew%20York%2C%20NY%2C%20USA!5e0!3m2!1sen!2s!4v1234567890123!5m2!1sen!2s',
   };
 
-  // Fetch property data
+  // Fetch property data from RateHawk
   useEffect(() => {
     const fetchProperty = async () => {
       setLoading(true);
       try {
-        const url = getApiUrl(API_ENDPOINTS.PROPERTY_DETAILS, { id });
-        const response = await axios.get(url);
-        setProperty(response.data.data || response.data);
+        const hotelData = await ratehawkService.getHotelDetails(id);
+        console.log('Hotel details:', hotelData);
+        setProperty(hotelData);
       } catch (error) {
         console.warn('API Error, using fallback data:', error.message);
         setProperty(fallbackProperty);
@@ -109,8 +108,8 @@ const PropertyDetail = () => {
     <>
       {/* SEO Meta Tags */}
       <SEO
-        title={`${propertyData.name} - $${propertyData.price}/night | TOUR`}
-        description={propertyData.description[0]}
+        title={`${propertyData.name} - ${propertyData.price ? `$${propertyData.price}/night` : ''} | TOOR`}
+        description={Array.isArray(propertyData.description) ? propertyData.description[0] : propertyData.description}
         keywords={`${propertyData.name}, hotel booking, ${propertyData.location}`}
         canonical={`/property/${id}`}
       />
@@ -212,20 +211,22 @@ const PropertyDetail = () => {
                 {/* Description */}
                 <div className="property-description">
                   <div className="property-description-text">
-                    {propertyData.description.map((paragraph, index) => (
+                    {(Array.isArray(propertyData.description) ? propertyData.description : [propertyData.description]).map((paragraph, index) => (
                       <p key={index}>{paragraph}</p>
                     ))}
                   </div>
 
                   {/* Tags */}
-                  <div className="property-tags">
-                    {propertyData.tags.map((tag, index) => (
-                      <div key={index} className="property-tag">
-                        {index === 0 ? <Award size={16} /> : <Tag size={16} />}
-                        <span>{tag}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {propertyData.tags && propertyData.tags.length > 0 && (
+                    <div className="property-tags">
+                      {propertyData.tags.map((tag, index) => (
+                        <div key={index} className="property-tag">
+                          {index === 0 ? <Award size={16} /> : <Tag size={16} />}
+                          <span>{tag}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Amenities */}
@@ -239,21 +240,23 @@ const PropertyDetail = () => {
                 />
 
                 {/* Location/Map */}
-                <div className="property-location-section">
-                  <h2 className="property-location-title">Location/Map</h2>
-                  <div className="property-map">
-                    <iframe
-                      src={propertyData.mapEmbedUrl}
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      allowFullScreen=""
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title="Property location map"
-                    />
+                {propertyData.mapEmbedUrl && (
+                  <div className="property-location-section">
+                    <h2 className="property-location-title">Location/Map</h2>
+                    <div className="property-map">
+                      <iframe
+                        src={propertyData.mapEmbedUrl}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        allowFullScreen=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title="Property location map"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
 

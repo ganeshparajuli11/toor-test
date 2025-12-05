@@ -357,26 +357,123 @@ class RateHawkService {
   transformHotelDetails(response) {
     const hotel = response.hotel || response;
 
+    // Handle images - convert to array of URLs
+    let images = [];
+    if (hotel.images && hotel.images.length > 0) {
+      images = hotel.images.map(img => {
+        if (typeof img === 'string') {
+          return img.replace('{size}', '1024x768');
+        }
+        return img.url ? img.url.replace('{size}', '1024x768') : img;
+      });
+    } else if (hotel.photos && hotel.photos.length > 0) {
+      images = hotel.photos.map(photo => {
+        if (typeof photo === 'string') {
+          return photo.replace('{size}', '1024x768');
+        }
+        return photo.url ? photo.url.replace('{size}', '1024x768') : photo;
+      });
+    }
+
+    // Default images if none found
+    if (images.length === 0) {
+      images = [
+        'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
+        'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400',
+        'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400',
+      ];
+    }
+
+    // Handle description - ensure it's an array
+    let description = [];
+    if (hotel.description) {
+      if (Array.isArray(hotel.description)) {
+        description = hotel.description;
+      } else if (typeof hotel.description === 'string') {
+        description = [hotel.description];
+      }
+    }
+    if (description.length === 0) {
+      description = ['No description available for this property.'];
+    }
+
+    // Handle amenities - extract names if objects
+    let amenities = [];
+    if (hotel.amenities && Array.isArray(hotel.amenities)) {
+      amenities = hotel.amenities.map(a => typeof a === 'string' ? a : (a.name || a.title || ''));
+    } else if (hotel.amenity_groups && Array.isArray(hotel.amenity_groups)) {
+      hotel.amenity_groups.forEach(group => {
+        if (group.amenities) {
+          amenities.push(...group.amenities.map(a => typeof a === 'string' ? a : (a.name || a)));
+        }
+      });
+    }
+
+    // Build location string
+    const locationParts = [];
+    if (hotel.address) locationParts.push(hotel.address);
+    if (hotel.city) locationParts.push(hotel.city);
+    if (hotel.country) locationParts.push(hotel.country);
+    const location = locationParts.join(', ') || 'Location not available';
+
     return {
       id: hotel.id,
-      name: hotel.name,
-      location: `${hotel.city}, ${hotel.country}`,
+      name: hotel.name || 'Hotel',
+      location: location,
       address: hotel.address,
-      rating: hotel.star_rating || hotel.review_score / 2,
-      description: hotel.description,
-      amenities: hotel.amenities || [],
-      photos: hotel.photos || [],
+      rating: hotel.star_rating || (hotel.review_score ? hotel.review_score / 2 : 4.0),
+      reviewCount: hotel.reviews_count || hotel.review_count || 0,
+      price: hotel.min_price || 0,
+      description: description,
+      images: images,
+      amenities: amenities.length > 0 ? amenities : ['Free WiFi', 'Air Conditioning'],
+      tags: hotel.kind ? [hotel.kind] : [],
+      overallRating: hotel.star_rating || (hotel.review_score ? hotel.review_score / 2 : 4.0),
+      totalReviews: hotel.reviews_count || hotel.review_count || 0,
+      ratingBreakdown: {
+        'Staff/service': 4.5,
+        'Location': 4.2,
+        'Amenities': 4.3,
+        'Hospitality': 4.4,
+        'Cleanliness': 4.5,
+      },
+      mapEmbedUrl: hotel.latitude && hotel.longitude
+        ? `https://maps.google.com/maps?q=${hotel.latitude},${hotel.longitude}&z=15&output=embed`
+        : null,
+      coordinates: {
+        latitude: hotel.latitude,
+        longitude: hotel.longitude
+      },
       policies: hotel.policies || {},
       contact: {
         phone: hotel.phone,
         email: hotel.email
       },
-      coordinates: {
-        latitude: hotel.latitude,
-        longitude: hotel.longitude
-      },
       rateHawkData: hotel
     };
+  }
+
+  /**
+   * Get hotel details by ID
+   * @param {string} hotelId - Hotel ID
+   */
+  async getHotelDetails(hotelId) {
+    try {
+      const response = await api.post('/proxy/ratehawk/hotel/info/', {
+        id: hotelId,
+        language: 'en'
+      });
+
+      const hotel = response.data?.data;
+      if (!hotel) {
+        throw new Error('Hotel not found');
+      }
+
+      return this.transformHotelDetails(hotel);
+    } catch (error) {
+      console.error('Get hotel details error:', error);
+      throw error;
+    }
   }
 
   /**

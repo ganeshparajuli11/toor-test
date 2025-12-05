@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation as useRouterLocation } from "react-router-dom";
 import {
   ChevronDown,
   Menu,
@@ -10,8 +10,10 @@ import {
   LogOut,
   Globe,
   Phone,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useLocation } from "../context/LocationContext";
 import "./Header.css";
 
 const Header = () => {
@@ -26,10 +28,11 @@ const Header = () => {
   const languageDropdownRef = useRef(null);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const routerLocation = useRouterLocation();
+  const { userLocation, setShowLocationModal } = useLocation();
 
   const isActive = (path) => {
-    return location.pathname === path;
+    return routerLocation.pathname === path;
   };
 
   const menuItems = [
@@ -264,6 +267,18 @@ const Header = () => {
                   </div>
                 )}
               </div>
+
+              {/* Location Button */}
+              <button
+                className="nav-location-button"
+                onClick={() => setShowLocationModal(true)}
+                aria-label="Change location"
+              >
+                <MapPin size={16} />
+                <span className="location-text">
+                  {userLocation?.city || 'Set Location'}
+                </span>
+              </button>
 
               {/* Contact Phone Button */}
               <Link
