@@ -235,7 +235,6 @@ const Cruises = () => {
                         src={cruise.image}
                         alt={cruise.name}
                         className="cruise-card-image"
-                        loading="lazy"
                       />
                       <div className="cruise-card-badge">
                         <Anchor size={14} />

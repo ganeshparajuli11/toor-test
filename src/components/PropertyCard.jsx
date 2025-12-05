@@ -80,7 +80,6 @@ const PropertyCard = memo(({ property }) => {
             src={image}
             alt={name}
             className="property-card-image"
-            loading="lazy"
           />
 
           <button

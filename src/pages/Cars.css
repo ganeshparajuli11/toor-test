@@ -114,6 +114,8 @@
   height: 100%;
   object-fit: cover;
   transition: transform var(--transition-base);
+  display: block;
+  background-color: #f0f0f0;
 }
 
 .car-card:hover .car-card-image {

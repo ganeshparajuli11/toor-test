@@ -86,6 +86,13 @@ const Hotels = () => {
 
         const results = await ratehawkService.searchHotels(params);
 
+        // Print backend data to console
+        console.log('Backend API Response:', results);
+        // Log image URLs specifically
+        if (results && results.length > 0) {
+          console.log('Image URLs:', results.map(h => ({ id: h.id, name: h.name, image: h.image })));
+        }
+
         if (results && results.length > 0) {
           setHotels(results);
           showToast(`Found ${results.length} real hotels in ${currentLocation}!`, 'success');
@@ -302,13 +309,14 @@ const Hotels = () => {
               ) : hotels.length > 0 ? (
                 // Hotel cards
                 hotels.map((hotel) => (
+                 
                   <div key={hotel.id} className="hotel-card">
+                  
                     <div className="hotel-card-image-wrapper">
                       <img
                         src={hotel.image}
                         alt={hotel.name}
                         className="hotel-card-image"
-                        loading="lazy"
                       />
                       <div className="hotel-card-rating">
                         <Star size={14} fill="currentColor" />

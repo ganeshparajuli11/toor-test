@@ -239,6 +239,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  background-color: #f0f0f0;
 }
 
 .status-badge {

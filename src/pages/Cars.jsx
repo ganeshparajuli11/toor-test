@@ -258,7 +258,6 @@ const Cars = () => {
                         src={car.image}
                         alt={car.name}
                         className="car-card-image"
-                        loading="lazy"
                       />
                       <div className="car-card-category">{car.category}</div>
                       <div className="car-card-provider">{car.provider}</div>

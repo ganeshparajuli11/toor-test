@@ -361,7 +361,11 @@ const AdminHotels = () => {
         {filteredHotels.map((hotel) => (
           <div key={hotel.id} className="hotel-card">
             <div className="hotel-card-image-wrapper">
-              <img src={hotel.image} alt={hotel.name} className="hotel-card-image" />
+              <img
+                src={hotel.image}
+                alt={hotel.name}
+                className="hotel-card-image"
+              />
               <span className={`status-badge ${getStatusClass(hotel.status)}`}>
                 {hotel.status}
               </span>

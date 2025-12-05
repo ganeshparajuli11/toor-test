@@ -102,6 +102,16 @@
   cursor: pointer;
 }
 
+.enhanced-search-input.input-warning {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+}
+
+.enhanced-search-input.input-warning:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
 /* Location Dropdown */
 .location-dropdown {
   position: absolute;

@@ -207,6 +207,10 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
           toast.error('Please enter a destination');
           return;
         }
+        if (!hotelLocationData?.dest_id) {
+          toast.error('Please select a location from the dropdown suggestions');
+          return;
+        }
         if (!checkInDate || !checkOutDate) {
           toast.error('Please select check-in and check-out dates');
           return;
@@ -325,8 +329,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                   type="text"
                   value={hotelLocation}
                   onChange={(e) => handleLocationInput(e.target.value, 'hotel')}
-                  placeholder="Type to search any city..."
-                  className="enhanced-search-input"
+                  placeholder="Type and select from dropdown..."
+                  className={`enhanced-search-input ${hotelLocation && !hotelLocationData ? 'input-warning' : ''}`}
                 />
                 {showLocationDropdown && activeLocationField === 'hotel' && (
                   <div className="location-dropdown">
