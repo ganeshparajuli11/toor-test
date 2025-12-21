@@ -475,6 +475,11 @@
   color: #1e7e34;
 }
 
+.payment-status-demo {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
 .booking-card-details {
   display: flex;
   flex-wrap: wrap;

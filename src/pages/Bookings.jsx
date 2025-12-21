@@ -12,15 +12,18 @@ import {
   Hotel,
   Ship,
   Car,
-  Search
+  Search,
+  DollarSign,
+  CheckCircle,
+  Clock,
+  RefreshCw
 } from 'lucide-react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
-import { getApiUrl, API_ENDPOINTS } from '../config/api';
+import api from '../services/api.service';
 import './Bookings.css';
 
 /**
@@ -40,6 +43,12 @@ const Bookings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [processingId, setProcessingId] = useState(null);
+  const [userStats, setUserStats] = useState({
+    totalBookings: 0,
+    confirmedBookings: 0,
+    pendingBookings: 0,
+    totalSpent: 0
+  });
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -49,105 +58,42 @@ const Bookings = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Fallback booking data
-  const fallbackBookings = [
-    {
-      id: 1,
-      type: 'hotel',
-      name: 'Effoftel By Sayaji Jaipur',
-      location: 'Amer, Jaipur',
-      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400',
-      checkIn: '2023-08-18',
-      checkOut: '2023-08-20',
-      nights: 2,
-      guests: { adults: 9, children: 4 },
-      rooms: 3,
-      status: 'confirmed',
-      paymentStatus: 'full',
-      price: 96633,
-      bookingDate: '2023-08-10'
+  // No fallback data - only show real user bookings
+
+  // Transform booking data to display format
+  const transformBooking = (booking) => ({
+    id: booking.id,
+    type: booking.type || 'hotel',
+    name: booking.title || 'Hotel Booking',
+    location: booking.subtitle || 'Location',
+    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
+    checkIn: booking.details?.find(d => d.label === 'Check-in')?.value || 'N/A',
+    checkOut: booking.details?.find(d => d.label === 'Check-out')?.value || 'N/A',
+    nights: parseInt(booking.details?.find(d => d.label === 'Nights')?.value) || 1,
+    guests: {
+      adults: parseInt(booking.details?.find(d => d.label === 'Guests')?.value?.match(/\d+/)?.[0]) || 2,
+      children: 0
     },
-    {
-      id: 2,
-      type: 'hotel',
-      name: 'Taj Lake Palace Udaipur',
-      location: 'Lake Pichola, Udaipur',
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
-      checkIn: '2023-09-15',
-      checkOut: '2023-09-18',
-      nights: 3,
-      guests: { adults: 2, children: 0 },
-      rooms: 1,
-      status: 'confirmed',
-      paymentStatus: 'partial',
-      price: 125000,
-      bookingDate: '2023-08-15'
-    },
-    {
-      id: 3,
-      type: 'flight',
-      name: 'Air India - Delhi to Mumbai',
-      location: 'IGI Airport, Delhi',
-      image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400',
-      checkIn: '2023-10-05',
-      checkOut: '2023-10-05',
-      nights: null,
-      guests: { adults: 2, children: 1 },
-      rooms: null,
-      status: 'pending',
-      paymentStatus: 'free',
-      price: 15000,
-      bookingDate: '2023-09-25'
-    },
-    {
-      id: 4,
-      type: 'cruise',
-      name: 'Royal Caribbean - Mediterranean',
-      location: 'Barcelona, Spain',
-      image: 'https://images.unsplash.com/photo-1563220116-f6a9333ca3e8?w=400',
-      checkIn: '2023-11-20',
-      checkOut: '2023-11-27',
-      nights: 7,
-      guests: { adults: 4, children: 2 },
-      rooms: 2,
-      status: 'confirmed',
-      paymentStatus: 'full',
-      price: 250000,
-      bookingDate: '2023-09-01'
-    },
-    {
-      id: 5,
-      type: 'car',
-      name: 'BMW 5 Series - Premium Sedan',
-      location: 'Mumbai Airport',
-      image: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400',
-      checkIn: '2023-08-25',
-      checkOut: '2023-08-28',
-      nights: 3,
-      guests: { adults: 4, children: 0 },
-      rooms: null,
-      status: 'cancelled',
-      paymentStatus: 'partial',
-      price: 12000,
-      bookingDate: '2023-08-18'
-    },
-    {
-      id: 6,
-      type: 'hotel',
-      name: 'ITC Grand Chola Chennai',
-      location: 'Guindy, Chennai',
-      image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400',
-      checkIn: '2023-12-01',
-      checkOut: '2023-12-05',
-      nights: 4,
-      guests: { adults: 2, children: 1 },
-      rooms: 1,
-      status: 'confirmed',
-      paymentStatus: 'free',
-      price: 85000,
-      bookingDate: '2023-10-15'
-    }
-  ];
+    rooms: parseInt(booking.details?.find(d => d.label === 'Rooms')?.value?.match(/\d+/)?.[0]) || 1,
+    status: booking.status || 'confirmed',
+    paymentStatus: booking.isDemo ? 'demo' : 'full',
+    price: booking.totalPrice || 0,
+    bookingDate: booking.createdAt || new Date().toISOString(),
+    isDemo: booking.isDemo
+  });
+
+  // Calculate user stats from bookings
+  const calculateUserStats = (bookingsList) => {
+    const stats = {
+      totalBookings: bookingsList.length,
+      confirmedBookings: bookingsList.filter(b => b.status === 'confirmed').length,
+      pendingBookings: bookingsList.filter(b => b.status === 'pending').length,
+      totalSpent: bookingsList
+        .filter(b => b.status === 'confirmed')
+        .reduce((sum, b) => sum + (b.price || 0), 0)
+    };
+    setUserStats(stats);
+  };
 
   // Fetch bookings data
   useEffect(() => {
@@ -156,25 +102,23 @@ const Bookings = () => {
     const fetchBookings = async () => {
       setLoading(true);
       try {
-        const url = getApiUrl(API_ENDPOINTS.USER_BOOKINGS, { id: user.id });
-        const response = await axios.get(url, {
-          params: {
-            filter: selectedFilter,
-            sort: sortBy,
-            page: currentPage
+        // Try to fetch from backend API first
+        const response = await api.get('/bookings');
+        const bookingsData = response.data.data || [];
+
+        // Filter bookings for current user (by email)
+        const userBookings = bookingsData.filter(booking => {
+          if (user?.email && booking.guest?.email) {
+            return booking.guest.email.toLowerCase() === user.email.toLowerCase();
           }
+          return false;
         });
 
-        const bookingsData = response.data.data || response.data;
-        setBookings(bookingsData.bookings || bookingsData);
-        setTotalPages(bookingsData.totalPages || 1);
-      } catch (error) {
-        console.warn('API Error, using fallback data:', error.message);
+        // Transform backend data to match the expected format
+        const transformedBookings = userBookings.map(transformBooking);
 
-        // Apply filters to fallback data
-        let filteredBookings = [...fallbackBookings];
-
-        // Filter by type
+        // Apply type filter
+        let filteredBookings = [...transformedBookings];
         if (selectedFilter !== 'all') {
           filteredBookings = filteredBookings.filter(b => b.type === selectedFilter);
         }
@@ -196,6 +140,49 @@ const Bookings = () => {
         });
 
         setBookings(filteredBookings);
+        calculateUserStats(transformedBookings); // Calculate stats from all user bookings
+        setTotalPages(1);
+      } catch (error) {
+        console.warn('API Error, fetching from local storage:', error.message);
+
+        // Get only real user bookings from localStorage (no fake fallback data)
+        const localBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+
+        // Filter bookings for current user (by email if available)
+        const userBookings = localBookings.filter(booking => {
+          if (user?.email && booking.guest?.email) {
+            return booking.guest.email.toLowerCase() === user.email.toLowerCase();
+          }
+          return false;
+        });
+
+        // Transform localStorage bookings
+        const transformedBookings = userBookings.map(transformBooking);
+
+        // Apply type filter
+        let filteredBookings = [...transformedBookings];
+        if (selectedFilter !== 'all') {
+          filteredBookings = filteredBookings.filter(b => b.type === selectedFilter);
+        }
+
+        // Sort bookings
+        filteredBookings.sort((a, b) => {
+          switch (sortBy) {
+            case 'latest':
+              return new Date(b.bookingDate) - new Date(a.bookingDate);
+            case 'oldest':
+              return new Date(a.bookingDate) - new Date(b.bookingDate);
+            case 'price-high':
+              return b.price - a.price;
+            case 'price-low':
+              return a.price - b.price;
+            default:
+              return 0;
+          }
+        });
+
+        setBookings(filteredBookings);
+        calculateUserStats(transformedBookings);
         setTotalPages(1);
       } finally {
         setLoading(false);
@@ -229,14 +216,14 @@ const Bookings = () => {
 
   // Handle cancel booking
   const handleCancelBooking = async (bookingId) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) {
       return;
     }
 
     setProcessingId(bookingId);
     try {
-      const url = getApiUrl(API_ENDPOINTS.CANCEL_BOOKING, { id: bookingId });
-      await axios.post(url);
+      // Cancel through backend API
+      await api.post(`/bookings/${bookingId}/cancel`);
 
       // Update booking status locally
       setBookings(bookings.map(booking =>
@@ -245,11 +232,24 @@ const Bookings = () => {
           : booking
       ));
 
+      // Update stats
+      setUserStats(prev => ({
+        ...prev,
+        confirmedBookings: prev.confirmedBookings - 1
+      }));
+
       toast.success('Booking cancelled successfully');
     } catch (error) {
       console.warn('Cancel API Error:', error.message);
 
-      // Update locally anyway for demo
+      // Try to update localStorage as fallback
+      const localBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+      const updatedBookings = localBookings.map(b =>
+        b.id === bookingId ? { ...b, status: 'cancelled' } : b
+      );
+      localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+
+      // Update locally
       setBookings(bookings.map(booking =>
         booking.id === bookingId
           ? { ...booking, status: 'cancelled' }
@@ -301,6 +301,8 @@ const Bookings = () => {
         return 'payment-status-partial';
       case 'free':
         return 'payment-status-free';
+      case 'demo':
+        return 'payment-status-demo';
       default:
         return '';
     }
@@ -315,6 +317,8 @@ const Bookings = () => {
         return 'Partially Paid';
       case 'free':
         return 'Free Reservation';
+      case 'demo':
+        return 'Demo Payment';
       default:
         return '';
     }
@@ -431,6 +435,86 @@ const Bookings = () => {
             {/* Account Tab Content */}
             {activeTab === 'account' && (
               <div className="account-content">
+                {/* User Stats Cards */}
+                <div className="user-stats-section" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px',
+                  marginBottom: '24px'
+                }}>
+                  <div className="user-stat-card" style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px'
+                  }}>
+                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '10px' }}>
+                      <Calendar size={24} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{userStats.totalBookings}</div>
+                      <div style={{ fontSize: '14px', opacity: 0.9 }}>Total Bookings</div>
+                    </div>
+                  </div>
+
+                  <div className="user-stat-card" style={{
+                    background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px'
+                  }}>
+                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '10px' }}>
+                      <CheckCircle size={24} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{userStats.confirmedBookings}</div>
+                      <div style={{ fontSize: '14px', opacity: 0.9 }}>Confirmed</div>
+                    </div>
+                  </div>
+
+                  <div className="user-stat-card" style={{
+                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px'
+                  }}>
+                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '10px' }}>
+                      <Clock size={24} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{userStats.pendingBookings}</div>
+                      <div style={{ fontSize: '14px', opacity: 0.9 }}>Pending</div>
+                    </div>
+                  </div>
+
+                  <div className="user-stat-card" style={{
+                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px'
+                  }}>
+                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '10px' }}>
+                      <DollarSign size={24} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>${userStats.totalSpent.toLocaleString()}</div>
+                      <div style={{ fontSize: '14px', opacity: 0.9 }}>Total Spent</div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="account-section">
                   <h2 className="account-section-title">Account Information</h2>
                   <div className="account-info-grid">

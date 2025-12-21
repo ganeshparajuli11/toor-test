@@ -12,8 +12,10 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
+import logo from '../assets/logo.png';
 import { useAuth } from "../contexts/AuthContext";
 import { useLocation } from "../context/LocationContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import "./Header.css";
 
 const Header = () => {
@@ -21,8 +23,9 @@ const Header = () => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("EN");
-  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+
+  const { language, currency, setLanguage, setCurrency, t } = useLanguage();
+
   const profileDropdownRef = useRef(null);
   const dropdownRef = useRef(null);
   const languageDropdownRef = useRef(null);
@@ -36,22 +39,22 @@ const Header = () => {
   };
 
   const menuItems = [
-    { name: "HOME", path: "/", hasDropdown: false },
-    { name: "HOTELS", path: "/hotels", hasDropdown: false },
-    { name: "FLIGHTS", path: "/flights", hasDropdown: false },
-    { name: "CRUISE", path: "/cruises", hasDropdown: false },
-    { name: "CARS", path: "/cars", hasDropdown: false },
-    { name: "BLOG", path: "/blog", hasDropdown: false },
+    { name: t("HOME"), path: "/", hasDropdown: false },
+    { name: t("HOTELS"), path: "/hotels", hasDropdown: false },
+    { name: t("FLIGHTS"), path: "/flights", hasDropdown: false },
+    { name: t("CRUISE"), path: "/cruises", hasDropdown: false },
+    { name: t("CARS"), path: "/cars", hasDropdown: false },
+    { name: t("BLOG"), path: "/blog", hasDropdown: false },
     {
-      name: "PAGES",
+      name: t("PAGES"),
       path: "#",
       hasDropdown: true,
       dropdownItems: [
-        { name: "About Us", path: "/about" },
-        { name: "Contact", path: "/contact" },
-        { name: "FAQ", path: "/faq" },
-        { name: "Terms & Conditions", path: "/terms" },
-        { name: "Privacy Policy", path: "/privacy" },
+        { name: t("About Us"), path: "/about" },
+        { name: t("Contact"), path: "/contact" },
+        { name: t("FAQ"), path: "/faq" },
+        { name: t("Terms & Conditions"), path: "/terms" },
+        { name: t("Privacy Policy"), path: "/privacy" },
       ],
     },
   ];
@@ -86,9 +89,9 @@ const Header = () => {
     navigate("/");
   };
 
-  const handleLanguageChange = (lang, currency) => {
-    setSelectedLanguage(lang);
-    setSelectedCurrency(currency);
+  const handleLanguageChange = (lang, curr) => {
+    setLanguage(lang);
+    setCurrency(curr);
     setIsLanguageDropdownOpen(false);
   };
 
@@ -100,25 +103,8 @@ const Header = () => {
           <div className="nav-content">
             {/* Logo */}
             <Link to="/" className="nav-logo">
-              <div className="logo-icon">
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 32 32"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <circle
-                    cx="16"
-                    cy="16"
-                    r="15"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  />
-                  <path d="M12 10L20 16L12 22V10Z" fill="currentColor" />
-                </svg>
-              </div>
-              <span className="logo-text">TOOR</span>
+              <img src={logo} alt="Zanafly" className="nav-logo-img" />
+              <span className="logo-text">Zanafly</span>
             </Link>
 
             {/* Desktop Menu */}
@@ -182,13 +168,12 @@ const Header = () => {
                 >
                   <Globe size={18} />
                   <span className="language-text">
-                    {selectedLanguage} | {selectedCurrency}
+                    {language} | {currency}
                   </span>
                   <ChevronDown
                     size={14}
-                    className={`language-chevron ${
-                      isLanguageDropdownOpen ? "open" : ""
-                    }`}
+                    className={`language-chevron ${isLanguageDropdownOpen ? "open" : ""
+                      }`}
                   />
                 </button>
 
@@ -320,9 +305,8 @@ const Header = () => {
                     <span className="profile-name">{user?.name}</span>
                     <ChevronDown
                       size={14}
-                      className={`profile-chevron ${
-                        isProfileDropdownOpen ? "open" : ""
-                      }`}
+                      className={`profile-chevron ${isProfileDropdownOpen ? "open" : ""
+                        }`}
                     />
                   </button>
 
@@ -350,7 +334,7 @@ const Header = () => {
                         onClick={() => setIsProfileDropdownOpen(false)}
                       >
                         <User size={16} />
-                        <span>My Profile</span>
+                        <span>{t("My Profile")}</span>
                       </Link>
                       <Link
                         to="/bookings"
@@ -358,7 +342,7 @@ const Header = () => {
                         onClick={() => setIsProfileDropdownOpen(false)}
                       >
                         <Calendar size={16} />
-                        <span>My Bookings</span>
+                        <span>{t("My Bookings")}</span>
                       </Link>
                       <Link
                         to="/settings"
@@ -366,7 +350,7 @@ const Header = () => {
                         onClick={() => setIsProfileDropdownOpen(false)}
                       >
                         <Settings size={16} />
-                        <span>Settings</span>
+                        <span>{t("Settings")}</span>
                       </Link>
                       <div className="profile-dropdown-divider"></div>
                       <button
@@ -374,7 +358,7 @@ const Header = () => {
                         onClick={handleLogout}
                       >
                         <LogOut size={16} />
-                        <span>Logout</span>
+                        <span>{t("Logout")}</span>
                       </button>
                     </div>
                   )}
@@ -382,10 +366,10 @@ const Header = () => {
               ) : (
                 <div className="nav-auth-links">
                   <Link to="/login" className="nav-auth-link">
-                    LOGIN
+                    {t("LOGIN")}
                   </Link>
                   <Link to="/signup" className="nav-auth-link">
-                    SIGNUP
+                    {t("SIGNUP")}
                   </Link>
                 </div>
               )}

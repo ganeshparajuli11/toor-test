@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -15,124 +15,72 @@ import {
   Calendar
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api.service';
 import './AdminPayments.css';
 
 const AdminPayments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMethod, setFilterMethod] = useState('all');
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState({
+    totalTransactions: 0,
+    totalAmount: 0,
+    completedAmount: 0,
+    demoTransactions: 0,
+    realTransactions: 0
+  });
 
-  // Mock data - will be replaced with Stripe API data
-  const [payments] = useState([
-    {
-      id: 'PAY001',
-      transactionId: 'ch_3Nqz4R2eZvKYlo2C0Wc',
-      bookingRef: 'BK001',
-      customer: 'John Doe',
-      email: 'john.doe@example.com',
-      amount: 1250.00,
-      currency: 'USD',
-      status: 'Succeeded',
-      paymentMethod: 'Visa •••• 4242',
-      cardBrand: 'visa',
-      date: '2025-11-23 14:30',
-      description: 'Hotel Booking - Le Grand Hotel',
-      fee: 36.25,
-      net: 1213.75,
-      refundable: true,
-      threeDSecure: true
-    },
-    {
-      id: 'PAY002',
-      transactionId: 'ch_3Nqz4S2eZvKYlo2C1Xd',
-      bookingRef: 'BK002',
-      customer: 'Sarah Smith',
-      email: 'sarah.smith@example.com',
-      amount: 890.00,
-      currency: 'USD',
-      status: 'Pending',
-      paymentMethod: 'Mastercard •••• 5555',
-      cardBrand: 'mastercard',
-      date: '2025-11-23 15:45',
-      description: 'Flight Booking - Tokyo',
-      fee: 25.81,
-      net: 864.19,
-      refundable: true,
-      threeDSecure: true
-    },
-    {
-      id: 'PAY003',
-      transactionId: 'ch_3Nqz4T2eZvKYlo2C2Ye',
-      bookingRef: 'BK003',
-      customer: 'Mike Johnson',
-      email: 'mike.j@example.com',
-      amount: 2100.00,
-      currency: 'USD',
-      status: 'Succeeded',
-      paymentMethod: 'Amex •••• 8431',
-      cardBrand: 'amex',
-      date: '2025-11-22 09:15',
-      description: 'Hotel Booking - Burj Al Arab',
-      fee: 60.90,
-      net: 2039.10,
-      refundable: true,
-      threeDSecure: true
-    },
-    {
-      id: 'PAY004',
-      transactionId: 'ch_3Nqz4U2eZvKYlo2C3Zf',
-      bookingRef: 'BK004',
-      customer: 'Emily Brown',
-      email: 'emily.brown@example.com',
-      amount: 3500.00,
-      currency: 'USD',
-      status: 'Succeeded',
-      paymentMethod: 'Visa •••• 1234',
-      cardBrand: 'visa',
-      date: '2025-11-21 16:20',
-      description: 'Cruise Booking - Caribbean',
-      fee: 101.50,
-      net: 3398.50,
-      refundable: true,
-      threeDSecure: true
-    },
-    {
-      id: 'PAY005',
-      transactionId: 'ch_3Nqz4V2eZvKYlo2C4Ag',
-      bookingRef: 'BK005',
-      customer: 'David Wilson',
-      email: 'david.w@example.com',
-      amount: 780.00,
-      currency: 'USD',
-      status: 'Refunded',
-      paymentMethod: 'Visa •••• 9876',
-      cardBrand: 'visa',
-      date: '2025-11-20 11:30',
-      description: 'Hotel Booking - The Savoy',
-      fee: -22.62,
-      net: 0,
-      refundable: false,
-      threeDSecure: true
-    },
-    {
-      id: 'PAY006',
-      transactionId: 'ch_3Nqz4W2eZvKYlo2C5Bh',
-      bookingRef: 'BK006',
-      customer: 'Lisa Anderson',
-      email: 'lisa.a@example.com',
-      amount: 1580.00,
-      currency: 'USD',
-      status: 'Failed',
-      paymentMethod: 'Visa •••• 4321',
-      cardBrand: 'visa',
-      date: '2025-11-23 10:00',
-      description: 'Hotel Booking - Plaza Hotel',
-      fee: 0,
-      net: 0,
-      refundable: false,
-      threeDSecure: false
+  // Fetch payments from backend
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const fetchPayments = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/bookings/payments');
+      const paymentsData = response.data.data || [];
+
+      // Transform payments data
+      const transformedPayments = paymentsData.map(payment => ({
+        id: payment.id,
+        transactionId: payment.id,
+        bookingRef: payment.bookingId,
+        customer: payment.customerName || 'Guest',
+        email: payment.customerEmail || 'N/A',
+        amount: payment.amount || 0,
+        currency: payment.currency || 'USD',
+        status: payment.status === 'completed' ? 'Succeeded' : payment.status === 'refunded' ? 'Refunded' : 'Pending',
+        paymentMethod: payment.isDemo ? 'Demo Card •••• 4242' : 'Stripe Card',
+        cardBrand: payment.isDemo ? 'demo' : 'stripe',
+        date: payment.createdAt ? new Date(payment.createdAt).toLocaleString() : 'N/A',
+        description: `${payment.type?.charAt(0).toUpperCase()}${payment.type?.slice(1) || 'Hotel'} Booking - ${payment.itemName || 'Booking'}`,
+        fee: payment.isDemo ? 0 : (payment.amount * 0.029 + 0.30).toFixed(2), // Stripe fee: 2.9% + $0.30
+        net: payment.isDemo ? payment.amount : (payment.amount - (payment.amount * 0.029 + 0.30)).toFixed(2),
+        refundable: payment.status === 'completed',
+        threeDSecure: !payment.isDemo,
+        isDemo: payment.isDemo || false
+      }));
+
+      setPayments(transformedPayments);
+      setSummary(response.data.summary || {
+        totalTransactions: transformedPayments.length,
+        totalAmount: transformedPayments.reduce((sum, p) => sum + p.amount, 0),
+        completedAmount: transformedPayments.filter(p => p.status === 'Succeeded').reduce((sum, p) => sum + p.amount, 0),
+        demoTransactions: transformedPayments.filter(p => p.isDemo).length,
+        realTransactions: transformedPayments.filter(p => !p.isDemo).length
+      });
+
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      toast.error('Failed to fetch payments');
+      setPayments([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
   const getStatusClass = (status) => {
     switch (status.toLowerCase()) {
@@ -176,7 +124,9 @@ const AdminPayments = () => {
       payment.email.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === 'all' || payment.status.toLowerCase() === filterStatus;
-    const matchesMethod = filterMethod === 'all' || payment.cardBrand.toLowerCase() === filterMethod;
+    const matchesMethod = filterMethod === 'all' ||
+      (filterMethod === 'demo' && payment.isDemo) ||
+      (filterMethod === 'stripe' && !payment.isDemo);
 
     return matchesSearch && matchesStatus && matchesMethod;
   });
@@ -188,19 +138,68 @@ const AdminPayments = () => {
     .filter(p => p.status === 'Succeeded')
     .reduce((sum, p) => sum + p.amount, 0);
   const totalFees = payments
-    .filter(p => p.status === 'Succeeded')
-    .reduce((sum, p) => sum + p.fee, 0);
-  const netRevenue = payments
-    .filter(p => p.status === 'Succeeded')
-    .reduce((sum, p) => sum + p.net, 0);
+    .filter(p => p.status === 'Succeeded' && !p.isDemo)
+    .reduce((sum, p) => sum + parseFloat(p.fee || 0), 0);
+  const netRevenue = totalRevenue - totalFees;
 
-  const handleRefund = (paymentId) => {
+  const handleRefund = async (paymentId, bookingId) => {
+    if (!window.confirm('Are you sure you want to refund this payment?')) return;
+
     toast.loading('Processing refund...');
-    setTimeout(() => {
+    try {
+      await api.post(`/bookings/${bookingId}/cancel`);
       toast.dismiss();
       toast.success('Refund processed successfully!');
-    }, 2000);
+      fetchPayments();
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to process refund');
+    }
   };
+
+  const handleExport = () => {
+    const headers = ['Transaction ID', 'Customer', 'Email', 'Booking Ref', 'Amount', 'Fee', 'Net', 'Status', 'Method', 'Date'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredPayments.map(p => [
+        p.transactionId,
+        p.customer,
+        p.email,
+        p.bookingRef,
+        p.amount,
+        p.fee,
+        p.net,
+        p.status,
+        p.isDemo ? 'Demo' : 'Stripe',
+        p.date
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payments-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast.success('Payments exported successfully');
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-payments">
+        <div className="payments-header">
+          <div>
+            <h1 className="payments-title">Payments Management</h1>
+            <p className="payments-subtitle">Loading payments...</p>
+          </div>
+        </div>
+        <div className="loading-spinner" style={{ textAlign: 'center', padding: '60px' }}>
+          <RefreshCw size={40} style={{ animation: 'spin 1s linear infinite' }} />
+          <p>Loading payments...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-payments">
@@ -209,10 +208,25 @@ const AdminPayments = () => {
           <h1 className="payments-title">Payments Management</h1>
           <p className="payments-subtitle">Track transactions, refunds, and payment analytics</p>
         </div>
-        <button className="export-btn">
-          <Download size={20} />
-          Export Data
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={fetchPayments} style={{
+            padding: '10px 16px',
+            background: '#f0f0f0',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+          <button className="export-btn" onClick={handleExport}>
+            <Download size={20} />
+            Export Data
+          </button>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -252,9 +266,8 @@ const AdminPayments = () => {
               className="filter-select"
             >
               <option value="all">All Methods</option>
-              <option value="visa">Visa</option>
-              <option value="mastercard">Mastercard</option>
-              <option value="amex">Amex</option>
+              <option value="stripe">Stripe</option>
+              <option value="demo">Demo</option>
             </select>
           </div>
         </div>
@@ -303,7 +316,7 @@ const AdminPayments = () => {
             <TrendingUp size={20} />
           </div>
           <div>
-            <div className="stat-value">${totalFees.toLocaleString()}</div>
+            <div className="stat-value">${totalFees.toFixed(2)}</div>
             <div className="stat-label">Total Fees</div>
           </div>
         </div>
@@ -312,20 +325,27 @@ const AdminPayments = () => {
             <DollarSign size={20} />
           </div>
           <div>
-            <div className="stat-value">${netRevenue.toLocaleString()}</div>
+            <div className="stat-value">${netRevenue.toFixed(2)}</div>
             <div className="stat-label">Net Revenue</div>
           </div>
         </div>
       </div>
 
-      {/* Stripe Integration Alert */}
-      <div className="integration-alert">
-        <AlertCircle size={20} />
-        <div>
-          <strong>Stripe Integration with 3-D Secure</strong>
-          <p>This section will be connected to Stripe API for real-time payment processing and transaction management.</p>
+      {/* Demo Mode Banner */}
+      {summary.demoTransactions > 0 && (
+        <div className="integration-alert" style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white'
+        }}>
+          <AlertCircle size={20} />
+          <div>
+            <strong>Demo Payments Active</strong>
+            <p style={{ margin: 0, opacity: 0.9 }}>
+              You have {summary.demoTransactions} demo payment(s). Configure Stripe in Admin Settings for real payments.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Payments Table */}
       <div className="payments-table-container">
@@ -349,7 +369,19 @@ const AdminPayments = () => {
           <tbody>
             {filteredPayments.map((payment) => (
               <tr key={payment.id}>
-                <td className="transaction-id">{payment.transactionId}</td>
+                <td className="transaction-id">
+                  {payment.transactionId.substring(0, 20)}...
+                  {payment.isDemo && (
+                    <span style={{
+                      fontSize: '10px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      marginLeft: '6px'
+                    }}>DEMO</span>
+                  )}
+                </td>
                 <td>
                   <div className="customer-info">
                     <div className="customer-name">{payment.customer}</div>
@@ -359,8 +391,8 @@ const AdminPayments = () => {
                 <td className="booking-ref">{payment.bookingRef}</td>
                 <td className="description">{payment.description}</td>
                 <td className="amount">${payment.amount.toFixed(2)}</td>
-                <td className="fee">${payment.fee.toFixed(2)}</td>
-                <td className="net">${payment.net.toFixed(2)}</td>
+                <td className="fee">${parseFloat(payment.fee).toFixed(2)}</td>
+                <td className="net">${parseFloat(payment.net).toFixed(2)}</td>
                 <td>
                   <div className={`payment-method ${getCardBrandClass(payment.cardBrand)}`}>
                     <CreditCard size={14} />
@@ -392,14 +424,18 @@ const AdminPayments = () => {
                 </td>
                 <td>
                   <div className="action-buttons">
-                    <button className="action-btn view" title="View Details">
+                    <button
+                      className="action-btn view"
+                      title="View Details"
+                      onClick={() => toast.info(`Transaction: ${payment.transactionId}\nAmount: $${payment.amount}\nCustomer: ${payment.customer}`)}
+                    >
                       <Eye size={16} />
                     </button>
                     {payment.refundable && payment.status === 'Succeeded' && (
                       <button
                         className="action-btn refund"
                         title="Refund Payment"
-                        onClick={() => handleRefund(payment.id)}
+                        onClick={() => handleRefund(payment.id, payment.bookingRef)}
                       >
                         <RefreshCw size={16} />
                       </button>
@@ -415,6 +451,11 @@ const AdminPayments = () => {
       {filteredPayments.length === 0 && (
         <div className="no-results">
           <p>No payments found matching your criteria</p>
+          {payments.length === 0 && (
+            <p style={{ color: '#666', marginTop: '10px' }}>
+              Payments will appear here when customers complete bookings.
+            </p>
+          )}
         </div>
       )}
     </div>

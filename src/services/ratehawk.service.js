@@ -2,27 +2,91 @@ import api from './api.service';
 
 /**
  * RateHawk (ETG) API v3 Service
- *
- * This service handles all interactions with the RateHawk API
- * via the backend proxy.
+ * Enhanced with better error handling, retry logic, and image processing
  */
 
+// Image size templates for RateHawk
+const IMAGE_SIZES = {
+  thumbnail: '240x240',
+  small: '320x240',
+  medium: '640x480',
+  large: '1024x768',
+  xlarge: '1920x1080'
+};
+
+// Default fallback images
+const FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=600&fit=crop'
+];
+
 class RateHawkService {
+  constructor() {
+    this.retryAttempts = 3;
+    this.retryDelay = 1000;
+  }
+
   /**
-   * Search for hotels
-   * @param {Object} params - Search parameters
+   * Process RateHawk image URL - replace {size} placeholder
+   * @param {string} url - Image URL with potential {size} placeholder
+   * @param {string} size - Desired size (thumbnail, small, medium, large, xlarge)
+   * @returns {string} - Processed URL
    */
+  processImageUrl(url, size = 'large') {
+    if (!url || typeof url !== 'string') {
+      return this.getRandomFallbackImage();
+    }
+
+    // Replace {size} placeholder with actual dimensions
+    let processedUrl = url.replace(/\{size\}/g, IMAGE_SIZES[size] || IMAGE_SIZES.large);
+
+    // Handle t{size} format (common in RateHawk)
+    processedUrl = processedUrl.replace(/t\{size\}/g, IMAGE_SIZES[size] || IMAGE_SIZES.large);
+
+    // Ensure HTTPS
+    if (processedUrl.startsWith('http://')) {
+      processedUrl = processedUrl.replace('http://', 'https://');
+    }
+
+    return processedUrl;
+  }
+
   /**
-   * Search for hotels (Async)
-   * @param {Object} params - Search parameters
+   * Get random fallback image
    */
+  getRandomFallbackImage() {
+    return FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
+  }
+
   /**
-   * Search for hotels (Async)
+   * Retry wrapper for API calls
+   */
+  async withRetry(fn, attempts = this.retryAttempts) {
+    let lastError;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        console.warn(`Attempt ${i + 1} failed:`, error.message);
+        if (i < attempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, this.retryDelay * (i + 1)));
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Search for hotels using clean /api/hotels/search endpoint
    * @param {Object} params - Search parameters
    */
   async searchHotels(params) {
     try {
-      // Format guests for RateHawk API: [{ adults: 2, children: [] }]
+      // Format guests for API
       const guests = [];
       const roomCount = params.rooms || 1;
       const adultsPerRoom = Math.ceil((params.guests || 2) / roomCount);
@@ -41,62 +105,35 @@ class RateHawkService {
         guests: guests,
         currency: params.currency || 'USD',
         language: 'en',
-        residency: 'us' // Default residency
+        residency: 'us'
       };
 
-      console.log('Starting RateHawk search...', searchParams);
-      const startResponse = await api.post('/proxy/ratehawk/search/serp/region/', searchParams);
+      console.log('[RateHawk Service] Starting hotel search...', searchParams);
 
-      // Check if results are returned immediately (synchronous response)
-      if (startResponse.data?.data?.hotels && startResponse.data.data.hotels.length > 0) {
-        console.log('Received synchronous search results');
-        const enrichedHotels = await this.enrichHotelsWithDetails(startResponse.data.data.hotels);
-        return this.transformHotelSearchResults({ hotels: enrichedHotels });
+      // Use new clean endpoint
+      const response = await this.withRetry(() =>
+        api.post('/hotels/search', searchParams)
+      );
+
+      console.log('[RateHawk Service] Search response:', response.data);
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Search failed');
       }
 
-      if (!startResponse.data?.data?.search_id) {
-        // If no hotels AND no search_id, it's an error or empty result
-        console.warn('No search_id and no hotels returned from start request');
+      const hotels = response.data.hotels || [];
+      console.log(`[RateHawk Service] Found ${hotels.length} hotels`);
+
+      if (hotels.length === 0) {
         return [];
       }
 
-      const searchId = startResponse.data.data.search_id;
-
-      // 2. Poll for results (Loop up to 5 times)
-      let attempts = 0;
-      const maxAttempts = 10;
-
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
-
-        const resultsResponse = await api.post('/proxy/ratehawk/search/serp/get/', {
-          search_id: searchId,
-          limit: 10, // Limit to 10 for faster detail fetching
-          sort: 'price',
-          currency: params.currency || 'USD'
-        });
-
-        const status = resultsResponse.data?.status;
-        const hotels = resultsResponse.data?.data?.hotels;
-
-        // If we have hotels, fetch their details and return
-        if (hotels && hotels.length > 0) {
-          const enrichedHotels = await this.enrichHotelsWithDetails(hotels);
-          return this.transformHotelSearchResults({ hotels: enrichedHotels });
-        }
-
-        // If status is completed but no hotels, return empty
-        if (status === 'completed' && (!hotels || hotels.length === 0)) {
-          return [];
-        }
-
-        attempts++;
-      }
-
-      return [];
+      // Enrich top hotels with full details
+      const enrichedHotels = await this.enrichHotelsWithDetails(hotels);
+      return enrichedHotels;
     } catch (error) {
-      console.error('Hotel search error:', error);
-      return [];
+      console.error('[RateHawk Service] Hotel search error:', error);
+      throw error;
     }
   }
 
@@ -106,34 +143,77 @@ class RateHawkService {
    */
   async enrichHotelsWithDetails(hotels) {
     try {
-      // Limit to top 10 to avoid rate limits or slow loading
-      const topHotels = hotels.slice(0, 10);
+      const topHotels = hotels.slice(0, 15);
 
       const detailsPromises = topHotels.map(async (hotel) => {
         try {
-          // Fetch static content (name, images, etc.)
-          const infoResponse = await api.post('/proxy/ratehawk/hotel/info/', {
+          // Use new clean endpoint
+          const infoResponse = await api.post('/hotels/info', {
             id: hotel.id,
             language: 'en'
           });
-          const info = infoResponse.data?.data;
 
-          // Merge info into the hotel object
-          return { ...hotel, ...info, id: hotel.id }; // Ensure ID is preserved
+          if (infoResponse.data?.success && infoResponse.data?.hotel) {
+            const info = infoResponse.data.hotel;
+            // Merge hotel info with search result, preserving best_offer from search
+            return {
+              id: hotel.id,
+              hid: hotel.hid || info.hid,
+              name: info.name || hotel.name,
+              location: info.address ? `${info.address}, ${info.city || ''}` : hotel.name,
+              address: info.address,
+              city: info.city,
+              country: info.country,
+              rating: info.star_rating || 4,
+              reviewScore: info.review_score || 8.5,
+              reviews: info.reviews_count || 0,
+              price: parseFloat(hotel.best_offer?.total_price) || 0,
+              currency: hotel.best_offer?.currency || 'USD',
+              description: info.description || `Experience luxury at ${info.name}`,
+              image: info.images?.[0] || this.getRandomFallbackImage(),
+              images: info.images || [this.getRandomFallbackImage()],
+              amenities: info.amenities || ['Free WiFi', 'Air Conditioning'],
+              best_offer: hotel.best_offer,
+              total_rates: hotel.total_rates
+            };
+          }
+          return this.transformBasicHotel(hotel);
         } catch (err) {
-          console.warn(`Failed to fetch details for hotel ${hotel.id}`, err);
-          return hotel; // Return basic hotel object if details fail
+          console.warn(`Failed to fetch details for hotel ${hotel.id}:`, err.message);
+          return this.transformBasicHotel(hotel);
         }
       });
 
       return await Promise.all(detailsPromises);
     } catch (error) {
       console.error('Enrich hotels error:', error);
-      return hotels;
+      return hotels.map(h => this.transformBasicHotel(h));
     }
   }
 
-  // ... (getHotelRooms, createBooking, getBooking, cancelBooking methods remain same)
+  /**
+   * Transform basic hotel data (when full details not available)
+   * @private
+   */
+  transformBasicHotel(hotel) {
+    return {
+      id: hotel.id,
+      hid: hotel.hid,
+      name: hotel.name || hotel.id,
+      location: 'Location',
+      rating: 4,
+      reviewScore: 8.0,
+      reviews: 0,
+      price: parseFloat(hotel.best_offer?.total_price) || 0,
+      currency: hotel.best_offer?.currency || 'USD',
+      description: `Experience ${hotel.name}`,
+      image: this.getRandomFallbackImage(),
+      images: [this.getRandomFallbackImage()],
+      amenities: ['Free WiFi'],
+      best_offer: hotel.best_offer,
+      total_rates: hotel.total_rates
+    };
+  }
 
   /**
    * Get regions/cities/hotels for autocomplete
@@ -141,37 +221,53 @@ class RateHawkService {
    */
   async searchRegions(query) {
     try {
-      const response = await api.post('/proxy/ratehawk/search/multicomplete/', {
-        query,
-        language: 'en'
-      });
+      // Use new clean endpoint
+      const response = await this.withRetry(() =>
+        api.post('/hotels/autocomplete', {
+          query,
+          language: 'en'
+        })
+      );
 
-      const data = response.data?.data || {};
-      const regions = data.regions || [];
-      const hotels = data.hotels || [];
+      console.log('[RateHawk Service] Autocomplete response:', response.data);
 
-      // Merge and format
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Autocomplete failed');
+      }
+
+      const regions = response.data.regions || [];
+      const hotels = response.data.hotels || [];
+
+      console.log(`[RateHawk Service] Found ${regions.length} regions and ${hotels.length} hotels for "${query}"`);
+
       return [
-        ...regions.map(r => ({ ...r, type: 'Region', label: `${r.name}, ${r.country_code || ''}` })),
-        ...hotels.map(h => ({ ...h, type: 'Hotel', label: h.name, id: h.region_id, hotel_id: h.id })) // Map hotel to region_id for search, keep hotel_id
+        ...regions.map(r => ({
+          id: r.id,
+          name: r.name,
+          type: r.type || 'City',
+          country_code: r.country_code,
+          label: r.label
+        })),
+        ...hotels.map(h => ({
+          id: h.region_id, // Use region_id for searches
+          hotel_id: h.id || h.hid,
+          name: h.name,
+          type: 'Hotel',
+          label: h.label
+        }))
       ];
     } catch (error) {
-      console.error('Region search error:', error);
+      console.error('[RateHawk Service] Region search error:', error);
       return [];
     }
   }
 
   /**
-   * Search for transfers (cars)
-   * Note: RateHawk Transfers API endpoint structure is assumed based on standard patterns
-   * as specific documentation was not fully available.
-   * @param {Object} params - Search parameters
+   * Search for transfers
    */
   async searchTransfers(params) {
     try {
       console.log('Starting RateHawk transfer search...', params);
-      // Attempt to hit a likely endpoint for transfers
-      // This might fail if the endpoint is different, in which case we catch and return empty
       const response = await api.post('/proxy/ratehawk/transfer/search/', {
         start_point: params.pickupLocation,
         end_point: params.dropoffLocation,
@@ -183,21 +279,17 @@ class RateHawkService {
 
       return this.transformTransferResults(response.data?.data);
     } catch (error) {
-      console.warn('Transfer search failed (API might not be enabled or endpoint differs):', error.message);
+      console.warn('Transfer search failed:', error.message);
       return [];
     }
   }
 
   /**
    * Search for flights
-   * @param {Object} params - Search parameters
    */
   async searchFlights(params) {
     try {
       console.log('Starting RateHawk flight search...', params);
-      // Placeholder endpoint for flights - RateHawk B2B Flight API
-      // Note: This endpoint is hypothetical as specific flight docs were not provided.
-      // Standard pattern would be /flight/search/ or similar.
       const response = await api.post('/proxy/ratehawk/flight/search/', {
         from: params.from,
         to: params.to,
@@ -214,37 +306,38 @@ class RateHawkService {
 
       return response.data?.data || [];
     } catch (error) {
-      console.warn('Flight search failed (API might not be enabled or endpoint differs):', error.message);
+      console.warn('Flight search failed:', error.message);
       return [];
     }
   }
 
   /**
-   * Search for cruises
-   * Note: RateHawk primarily focuses on Hotels and Transfers.
-   * Cruises are likely not supported via API.
-   * @param {Object} params - Search parameters
+   * Search for cruises (not supported by RateHawk)
    */
   async searchCruises(params) {
-    // Return empty to trigger fallback to demo data
     return [];
   }
 
   /**
    * Get recommended hotels for homepage
+   * @param {string} city - City name to search for hotels (default: Paris)
    */
-  async getRecommendedHotels() {
+  async getRecommendedHotels(city = 'Paris') {
     try {
-      // Search for hotels in a popular destination (e.g., Paris)
-      // Paris ID: paris_fr (approximate, might need real ID from autocomplete)
-      // We'll use a hardcoded search for "Paris" region ID if known, or search for it first
+      console.log(`Fetching recommended hotels for: ${city}`);
+      const regions = await this.searchRegions(city);
 
-      // For stability, we'll try a region search first or use a known ID
-      // Let's try searching for "Paris" first to get the ID
-      const regions = await this.searchRegions('Paris');
-      const parisRegion = regions.find(r => r.type === 'City') || regions[0];
+      // Prefer City type, then any region type
+      const targetRegion = regions.find(r => r.type === 'City')
+        || regions.find(r => r.type !== 'Hotel')
+        || regions[0];
 
-      if (!parisRegion) return [];
+      if (!targetRegion) {
+        console.warn(`No region found for ${city}, using fallback`);
+        return [];
+      }
+
+      console.log(`Found region: ${targetRegion.label} (ID: ${targetRegion.id}, Type: ${targetRegion.type})`);
 
       const today = new Date();
       const nextWeek = new Date(today);
@@ -252,13 +345,26 @@ class RateHawkService {
       const weekAfter = new Date(nextWeek);
       weekAfter.setDate(nextWeek.getDate() + 3);
 
-      return await this.searchHotels({
-        destination: parisRegion.id,
+      const hotels = await this.searchHotels({
+        destination: targetRegion.id,
         checkIn: nextWeek.toISOString().split('T')[0],
         checkOut: weekAfter.toISOString().split('T')[0],
         guests: 2,
         rooms: 1
       });
+
+      console.log(`Got ${hotels.length} hotels for homepage`);
+
+      // Transform for homepage display format
+      return hotels.slice(0, 8).map(hotel => ({
+        id: hotel.id,
+        name: hotel.name,
+        location: hotel.location || city,
+        price: hotel.price || 0,
+        rating: hotel.rating || 4.0,
+        img: hotel.image,
+        amenities: hotel.amenities || []
+      }));
     } catch (error) {
       console.error('Get recommended hotels error:', error);
       return [];
@@ -276,11 +382,11 @@ class RateHawkService {
       id: transfer.id,
       name: transfer.vehicle_class_name || 'Standard Car',
       category: transfer.vehicle_class || 'Standard',
-      image: transfer.image_url || '',
+      image: this.processImageUrl(transfer.image_url),
       passengers: transfer.capacity || 4,
       luggage: transfer.luggage_capacity || 2,
-      transmission: 'Automatic', // Assumption
-      fuelType: 'Petrol', // Assumption
+      transmission: 'Automatic',
+      fuelType: 'Petrol',
       provider: 'RateHawk Transfer',
       rating: 4.5,
       reviews: 0,
@@ -290,7 +396,39 @@ class RateHawkService {
   }
 
   /**
-   * Transform RateHawk hotel search results to our app format
+   * Extract and process images from hotel data
+   * @private
+   */
+  extractImages(hotel) {
+    let images = [];
+
+    // Try different image sources
+    if (hotel.images && Array.isArray(hotel.images) && hotel.images.length > 0) {
+      images = hotel.images.map(img => {
+        if (typeof img === 'string') return this.processImageUrl(img);
+        if (img.url) return this.processImageUrl(img.url);
+        return null;
+      }).filter(Boolean);
+    }
+
+    if (images.length === 0 && hotel.photos && Array.isArray(hotel.photos)) {
+      images = hotel.photos.map(photo => {
+        if (typeof photo === 'string') return this.processImageUrl(photo);
+        if (photo.url) return this.processImageUrl(photo.url);
+        return null;
+      }).filter(Boolean);
+    }
+
+    if (images.length === 0 && hotel.thumbnail) {
+      images = [this.processImageUrl(hotel.thumbnail)];
+    }
+
+    // Return first image or fallback
+    return images.length > 0 ? images : [this.getRandomFallbackImage()];
+  }
+
+  /**
+   * Transform RateHawk hotel search results to app format
    * @private
    */
   transformHotelSearchResults(response) {
@@ -299,50 +437,63 @@ class RateHawkService {
     }
 
     return response.hotels.map(hotel => {
-      // Extract price from rates if min_price is missing
+      // Extract price from rates - RateHawk returns rates[].payment_options.payment_types[].show_amount
       let price = hotel.min_price;
+      let currency = 'USD';
+
       if (!price && hotel.rates && Array.isArray(hotel.rates) && hotel.rates.length > 0) {
-        // Try to find the lowest price in rates
         const amounts = hotel.rates.map(r => {
           const payment = r.payment_options?.payment_types?.[0];
-          return payment ? parseFloat(payment.show_amount || payment.amount) : Infinity;
+          if (payment) {
+            currency = payment.show_currency_code || 'USD';
+            return parseFloat(payment.show_amount || payment.amount) || Infinity;
+          }
+          return Infinity;
         });
         if (amounts.length > 0) {
-          price = Math.min(...amounts);
+          price = Math.min(...amounts.filter(a => a !== Infinity));
         }
-        if (price === Infinity) price = 0;
+        if (!price || price === Infinity) price = 0;
       }
 
-      // Handle image extraction (RateHawk can return 'images' as strings or 'photos' as objects)
-      let imageUrl = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop';
-
-      if (hotel.images && hotel.images.length > 0) {
-        // 'images' is usually an array of URL strings
-        imageUrl = hotel.images[0];
-      } else if (hotel.photos && hotel.photos.length > 0) {
-        // 'photos' is usually an array of objects with 'url'
-        imageUrl = hotel.photos[0].url || hotel.photos[0];
-      } else if (hotel.thumbnail) {
-        imageUrl = hotel.thumbnail;
+      // For per-night price, divide by number of nights if daily_prices available
+      if (hotel.rates?.[0]?.daily_prices?.length > 0) {
+        const dailyPrices = hotel.rates[0].daily_prices;
+        const avgDaily = dailyPrices.reduce((sum, p) => sum + parseFloat(p), 0) / dailyPrices.length;
+        if (avgDaily > 0) {
+          price = Math.round(avgDaily);
+        }
       }
 
-      // Fix RateHawk image URL templates if present (e.g. {size} -> 1024x768)
-      if (imageUrl && typeof imageUrl === 'string') {
-        imageUrl = imageUrl.replace('{size}', '1024x768');
-      }
+      // Process images
+      const images = this.extractImages(hotel);
+      const mainImage = images[0];
+
+      // Build location string
+      const locationParts = [];
+      if (hotel.address) locationParts.push(hotel.address);
+      else if (hotel.city) locationParts.push(hotel.city);
+      if (hotel.country) locationParts.push(hotel.country);
+      const location = locationParts.join(', ') || 'Dubai, UAE'; // Default for Dubai search
 
       return {
-        id: hotel.id,
-        name: hotel.name || hotel.id, // Fallback to ID if name missing
-        location: hotel.address || (hotel.city ? `${hotel.city}, ${hotel.country}` : 'Unknown Location'),
+        id: hotel.id || hotel.hid,
+        name: hotel.name || hotel.id,
+        location: location,
         address: hotel.address,
-        rating: hotel.star_rating || (hotel.review_score ? hotel.review_score / 2 : 0),
+        rating: hotel.star_rating || (hotel.review_score ? hotel.review_score / 2 : 4.0),
+        reviewScore: hotel.review_score || 8.5,
+        reviews: hotel.reviews_count || hotel.review_count || 0,
         totalRooms: hotel.room_count || 0,
-        availableRooms: hotel.available_rooms || 1,
-        price: price || 0, // Changed from pricePerNight to price to match UI
+        availableRooms: hotel.rates?.length || 1,
+        price: price || 0,
+        currency: currency,
+        description: hotel.description || `Experience luxury at ${hotel.name || 'this property'}`,
+        starRating: hotel.star_rating || 4,
         status: 'Active',
-        amenities: hotel.amenities || [],
-        image: imageUrl,
+        amenities: hotel.amenities || ['Free WiFi', 'Air Conditioning', 'Pool'],
+        image: mainImage,
+        images: images,
         bookings: 0,
         revenue: 0,
         rateHawkData: hotel
@@ -351,40 +502,16 @@ class RateHawkService {
   }
 
   /**
-   * Transform hotel details to our app format
+   * Transform hotel details to app format
    * @private
    */
   transformHotelDetails(response) {
     const hotel = response.hotel || response;
 
-    // Handle images - convert to array of URLs
-    let images = [];
-    if (hotel.images && hotel.images.length > 0) {
-      images = hotel.images.map(img => {
-        if (typeof img === 'string') {
-          return img.replace('{size}', '1024x768');
-        }
-        return img.url ? img.url.replace('{size}', '1024x768') : img;
-      });
-    } else if (hotel.photos && hotel.photos.length > 0) {
-      images = hotel.photos.map(photo => {
-        if (typeof photo === 'string') {
-          return photo.replace('{size}', '1024x768');
-        }
-        return photo.url ? photo.url.replace('{size}', '1024x768') : photo;
-      });
-    }
+    // Process all images
+    const images = this.extractImages(hotel);
 
-    // Default images if none found
-    if (images.length === 0) {
-      images = [
-        'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
-        'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400',
-        'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400',
-      ];
-    }
-
-    // Handle description - ensure it's an array
+    // Handle description
     let description = [];
     if (hotel.description) {
       if (Array.isArray(hotel.description)) {
@@ -397,7 +524,7 @@ class RateHawkService {
       description = ['No description available for this property.'];
     }
 
-    // Handle amenities - extract names if objects
+    // Handle amenities
     let amenities = [];
     if (hotel.amenities && Array.isArray(hotel.amenities)) {
       amenities = hotel.amenities.map(a => typeof a === 'string' ? a : (a.name || a.title || ''));
@@ -459,19 +586,23 @@ class RateHawkService {
    */
   async getHotelDetails(hotelId) {
     try {
-      const response = await api.post('/proxy/ratehawk/hotel/info/', {
-        id: hotelId,
-        language: 'en'
-      });
+      // Use new clean endpoint
+      const response = await this.withRetry(() =>
+        api.post('/hotels/info', {
+          id: hotelId,
+          language: 'en'
+        })
+      );
 
-      const hotel = response.data?.data;
-      if (!hotel) {
+      console.log('[RateHawk Service] Hotel info response:', response.data);
+
+      if (!response.data?.success || !response.data?.hotel) {
         throw new Error('Hotel not found');
       }
 
-      return this.transformHotelDetails(hotel);
+      return this.transformHotelDetails(response.data.hotel);
     } catch (error) {
-      console.error('Get hotel details error:', error);
+      console.error('[RateHawk Service] Get hotel details error:', error);
       throw error;
     }
   }
@@ -481,7 +612,6 @@ class RateHawkService {
    */
   async testConnection() {
     try {
-      // Try a simple region search as a connection test
       await this.searchRegions('test');
       return { success: true, message: 'Connection successful' };
     } catch (error) {
@@ -490,7 +620,7 @@ class RateHawkService {
   }
 }
 
-// Create a singleton instance
+// Create singleton instance
 const ratehawkService = new RateHawkService();
 
 export default ratehawkService;

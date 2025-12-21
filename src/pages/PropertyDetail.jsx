@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { MapPin, Heart, Share2, Award, Tag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
@@ -17,9 +17,18 @@ import './PropertyDetail.css';
  */
 const PropertyDetail = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Get search params passed from Hotels page
+  const checkIn = searchParams.get('checkIn');
+  const checkOut = searchParams.get('checkOut');
+  const adults = searchParams.get('adults') || 2;
+  const children = searchParams.get('children') || 0;
+  const rooms = searchParams.get('rooms') || 1;
+  const priceFromSearch = searchParams.get('price');
 
   // Fallback property data
   const fallbackProperty = {
@@ -73,17 +82,28 @@ const PropertyDetail = () => {
       try {
         const hotelData = await ratehawkService.getHotelDetails(id);
         console.log('Hotel details:', hotelData);
+
+        // Use price from search params if available (since hotel/info doesn't return price)
+        if (priceFromSearch && parseFloat(priceFromSearch) > 0) {
+          hotelData.price = parseFloat(priceFromSearch);
+        }
+
         setProperty(hotelData);
       } catch (error) {
         console.warn('API Error, using fallback data:', error.message);
-        setProperty(fallbackProperty);
+        // Include price in fallback if available from search
+        const fallbackWithPrice = { ...fallbackProperty };
+        if (priceFromSearch && parseFloat(priceFromSearch) > 0) {
+          fallbackWithPrice.price = parseFloat(priceFromSearch);
+        }
+        setProperty(fallbackWithPrice);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProperty();
-  }, [id]);
+  }, [id, priceFromSearch]);
 
   // Loading skeleton
   if (loading && !property) {
@@ -144,9 +164,14 @@ const PropertyDetail = () => {
               <div className="property-actions">
                 <div className="property-price-container">
                   <div className="property-price">
-                    ${propertyData.price}
-                    <span className="property-price-unit">/night</span>
+                    {propertyData.price > 0 ? `$${propertyData.price}` : 'Price on request'}
+                    {propertyData.price > 0 && <span className="property-price-unit">/night</span>}
                   </div>
+                  {checkIn && checkOut && (
+                    <div className="property-dates-info" style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                      {new Date(checkIn).toLocaleDateString()} - {new Date(checkOut).toLocaleDateString()}
+                    </div>
+                  )}
                 </div>
                 <div className="property-action-buttons">
                   <button
@@ -164,7 +189,7 @@ const PropertyDetail = () => {
                     <Share2 size={20} />
                   </button>
                   <Link
-                    to={`/booking/${id}`}
+                    to={`/property/${id}/book?checkIn=${checkIn || ''}&checkOut=${checkOut || ''}&adults=${adults}&children=${children}&rooms=${rooms}&price=${propertyData.price || 0}&name=${encodeURIComponent(propertyData.name)}&location=${encodeURIComponent(propertyData.location)}`}
                     className="property-book-button"
                     onClick={() => toast.success('Redirecting to booking...')}
                   >

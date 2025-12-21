@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
   TrendingDown,
@@ -8,74 +9,93 @@ import {
   Hotel,
   Plane,
   ShoppingCart,
-  Eye
+  Ship,
+  Car,
+  Eye,
+  RefreshCw
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '../../services/api.service';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
-  // Mock data - will be replaced with real API data later
-  const [stats] = useState({
-    totalRevenue: { value: '$124,592', change: '+12.5%', trend: 'up' },
-    totalBookings: { value: '1,429', change: '+8.2%', trend: 'up' },
-    totalUsers: { value: '856', change: '+15.3%', trend: 'up' },
-    pendingBookings: { value: '23', change: '-5.1%', trend: 'down' }
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalRevenue: { value: '$0', change: '0%', trend: 'up' },
+    totalBookings: { value: '0', change: '0%', trend: 'up' },
+    totalUsers: { value: '0', change: '0%', trend: 'up' },
+    pendingBookings: { value: '0', change: '0%', trend: 'down' }
+  });
+  const [recentBookings, setRecentBookings] = useState([]);
+  const [bookingsByType, setBookingsByType] = useState({
+    hotel: 0,
+    flight: 0,
+    cruise: 0,
+    car: 0
   });
 
-  const [recentBookings] = useState([
-    {
-      id: 'BK001',
-      user: 'John Doe',
-      type: 'Hotel',
-      destination: 'Paris, France',
-      amount: '$1,250',
-      status: 'Confirmed',
-      date: '2025-11-20'
-    },
-    {
-      id: 'BK002',
-      user: 'Sarah Smith',
-      type: 'Flight',
-      destination: 'Tokyo, Japan',
-      amount: '$890',
-      status: 'Pending',
-      date: '2025-11-21'
-    },
-    {
-      id: 'BK003',
-      user: 'Mike Johnson',
-      type: 'Hotel',
-      destination: 'Dubai, UAE',
-      amount: '$2,100',
-      status: 'Confirmed',
-      date: '2025-11-22'
-    },
-    {
-      id: 'BK004',
-      user: 'Emily Brown',
-      type: 'Cruise',
-      destination: 'Caribbean',
-      amount: '$3,500',
-      status: 'Confirmed',
-      date: '2025-11-22'
-    },
-    {
-      id: 'BK005',
-      user: 'David Wilson',
-      type: 'Hotel',
-      destination: 'London, UK',
-      amount: '$780',
-      status: 'Cancelled',
-      date: '2025-11-23'
-    }
-  ]);
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
 
-  const [topDestinations] = useState([
-    { name: 'Paris, France', bookings: 245, revenue: '$125,400' },
-    { name: 'Tokyo, Japan', bookings: 189, revenue: '$98,200' },
-    { name: 'Dubai, UAE', bookings: 167, revenue: '$156,800' },
-    { name: 'New York, USA', bookings: 143, revenue: '$89,500' },
-    { name: 'London, UK', bookings: 128, revenue: '$76,300' }
-  ]);
+  const fetchDashboardStats = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/bookings/stats');
+      const data = response.data;
+
+      // Update stats
+      setStats({
+        totalRevenue: {
+          value: `$${(data.totalRevenue || 0).toLocaleString()}`,
+          change: `${data.revenueGrowth > 0 ? '+' : ''}${data.revenueGrowth || 0}%`,
+          trend: data.revenueGrowth >= 0 ? 'up' : 'down'
+        },
+        totalBookings: {
+          value: (data.totalBookings || 0).toString(),
+          change: `${data.bookingGrowth > 0 ? '+' : ''}${data.bookingGrowth || 0}%`,
+          trend: data.bookingGrowth >= 0 ? 'up' : 'down'
+        },
+        totalUsers: {
+          value: (data.confirmedBookings || 0).toString(),
+          change: '+0%',
+          trend: 'up'
+        },
+        pendingBookings: {
+          value: (data.pendingBookings || 0).toString(),
+          change: '0%',
+          trend: 'down'
+        }
+      });
+
+      // Update recent bookings
+      if (data.recentBookings) {
+        const transformedBookings = data.recentBookings.map(booking => ({
+          id: booking.id,
+          user: booking.guest ? `${booking.guest.firstName} ${booking.guest.lastName}` : 'Guest',
+          type: (booking.type || 'hotel').charAt(0).toUpperCase() + (booking.type || 'hotel').slice(1),
+          destination: booking.subtitle || booking.title || 'N/A',
+          amount: `$${(booking.totalPrice || 0).toLocaleString()}`,
+          status: (booking.status || 'pending').charAt(0).toUpperCase() + (booking.status || 'pending').slice(1),
+          date: booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : 'N/A',
+          isDemo: booking.isDemo || false
+        }));
+        setRecentBookings(transformedBookings);
+      }
+
+      // Update bookings by type
+      if (data.bookingsByType) {
+        setBookingsByType(data.bookingsByType);
+      }
+
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      // Keep default values on error
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusClass = (status) => {
     switch (status.toLowerCase()) {
@@ -97,11 +117,30 @@ const AdminDashboard = () => {
       case 'flight':
         return <Plane size={16} />;
       case 'cruise':
-        return <ShoppingCart size={16} />;
+        return <Ship size={16} />;
+      case 'car':
+        return <Car size={16} />;
       default:
         return <Calendar size={16} />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="admin-dashboard">
+        <div className="dashboard-header">
+          <div>
+            <h1 className="dashboard-title">Dashboard</h1>
+            <p className="dashboard-subtitle">Loading dashboard data...</p>
+          </div>
+        </div>
+        <div style={{ textAlign: 'center', padding: '60px' }}>
+          <RefreshCw size={40} style={{ animation: 'spin 1s linear infinite' }} />
+          <p>Loading stats...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-dashboard">
@@ -110,9 +149,9 @@ const AdminDashboard = () => {
           <h1 className="dashboard-title">Dashboard</h1>
           <p className="dashboard-subtitle">Welcome back! Here's what's happening today.</p>
         </div>
-        <button className="dashboard-export-btn">
-          <TrendingUp size={20} />
-          Export Report
+        <button className="dashboard-export-btn" onClick={fetchDashboardStats}>
+          <RefreshCw size={20} />
+          Refresh Stats
         </button>
       </div>
 
@@ -162,7 +201,7 @@ const AdminDashboard = () => {
           </div>
           <div className="stat-card-body">
             <h3 className="stat-value">{stats.totalUsers.value}</h3>
-            <p className="stat-label">Total Users</p>
+            <p className="stat-label">Confirmed Bookings</p>
           </div>
         </div>
 
@@ -189,70 +228,128 @@ const AdminDashboard = () => {
         <div className="dashboard-card recent-bookings">
           <div className="card-header">
             <h2 className="card-title">Recent Bookings</h2>
-            <button className="card-action-btn">View All</button>
+            <button className="card-action-btn" onClick={() => navigate('/admin/bookings')}>View All</button>
           </div>
           <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Booking ID</th>
-                  <th>Customer</th>
-                  <th>Type</th>
-                  <th>Destination</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentBookings.map((booking) => (
-                  <tr key={booking.id}>
-                    <td className="booking-id">{booking.id}</td>
-                    <td>{booking.user}</td>
-                    <td>
-                      <div className="booking-type">
-                        {getTypeIcon(booking.type)}
-                        <span>{booking.type}</span>
-                      </div>
-                    </td>
-                    <td>{booking.destination}</td>
-                    <td className="amount">{booking.amount}</td>
-                    <td>
-                      <span className={`status-badge ${getStatusClass(booking.status)}`}>
-                        {booking.status}
-                      </span>
-                    </td>
-                    <td>{booking.date}</td>
-                    <td>
-                      <button className="action-btn">
-                        <Eye size={16} />
-                      </button>
-                    </td>
+            {recentBookings.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Booking ID</th>
+                    <th>Customer</th>
+                    <th>Type</th>
+                    <th>Destination</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentBookings.map((booking) => (
+                    <tr key={booking.id}>
+                      <td className="booking-id">
+                        {booking.id}
+                        {booking.isDemo && (
+                          <span style={{
+                            fontSize: '9px',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            padding: '2px 4px',
+                            borderRadius: '3px',
+                            marginLeft: '4px'
+                          }}>DEMO</span>
+                        )}
+                      </td>
+                      <td>{booking.user}</td>
+                      <td>
+                        <div className="booking-type">
+                          {getTypeIcon(booking.type)}
+                          <span>{booking.type}</span>
+                        </div>
+                      </td>
+                      <td>{booking.destination}</td>
+                      <td className="amount">{booking.amount}</td>
+                      <td>
+                        <span className={`status-badge ${getStatusClass(booking.status)}`}>
+                          {booking.status}
+                        </span>
+                      </td>
+                      <td>{booking.date}</td>
+                      <td>
+                        <button className="action-btn" onClick={() => toast.info(`Booking: ${booking.id}`)}>
+                          <Eye size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                <Calendar size={48} style={{ opacity: 0.3, marginBottom: '10px' }} />
+                <p>No bookings yet</p>
+                <p style={{ fontSize: '13px' }}>Bookings will appear here when customers make reservations.</p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Top Destinations */}
+        {/* Bookings by Type */}
         <div className="dashboard-card top-destinations">
           <div className="card-header">
-            <h2 className="card-title">Top Destinations</h2>
-            <button className="card-action-btn">View All</button>
+            <h2 className="card-title">Bookings by Type</h2>
+            <button className="card-action-btn" onClick={() => navigate('/admin/bookings')}>View All</button>
           </div>
           <div className="destinations-list">
-            {topDestinations.map((destination, index) => (
-              <div key={index} className="destination-item">
-                <div className="destination-rank">#{index + 1}</div>
-                <div className="destination-info">
-                  <h4 className="destination-name">{destination.name}</h4>
-                  <p className="destination-bookings">{destination.bookings} bookings</p>
-                </div>
-                <div className="destination-revenue">{destination.revenue}</div>
+            <div className="destination-item">
+              <div className="destination-rank" style={{ background: '#3b82f6' }}>
+                <Hotel size={16} />
               </div>
-            ))}
+              <div className="destination-info">
+                <h4 className="destination-name">Hotels</h4>
+                <p className="destination-bookings">{bookingsByType.hotel} bookings</p>
+              </div>
+              <div className="destination-revenue">
+                {((bookingsByType.hotel / (Object.values(bookingsByType).reduce((a, b) => a + b, 0) || 1)) * 100).toFixed(0)}%
+              </div>
+            </div>
+            <div className="destination-item">
+              <div className="destination-rank" style={{ background: '#10b981' }}>
+                <Plane size={16} />
+              </div>
+              <div className="destination-info">
+                <h4 className="destination-name">Flights</h4>
+                <p className="destination-bookings">{bookingsByType.flight} bookings</p>
+              </div>
+              <div className="destination-revenue">
+                {((bookingsByType.flight / (Object.values(bookingsByType).reduce((a, b) => a + b, 0) || 1)) * 100).toFixed(0)}%
+              </div>
+            </div>
+            <div className="destination-item">
+              <div className="destination-rank" style={{ background: '#8b5cf6' }}>
+                <Ship size={16} />
+              </div>
+              <div className="destination-info">
+                <h4 className="destination-name">Cruises</h4>
+                <p className="destination-bookings">{bookingsByType.cruise} bookings</p>
+              </div>
+              <div className="destination-revenue">
+                {((bookingsByType.cruise / (Object.values(bookingsByType).reduce((a, b) => a + b, 0) || 1)) * 100).toFixed(0)}%
+              </div>
+            </div>
+            <div className="destination-item">
+              <div className="destination-rank" style={{ background: '#f59e0b' }}>
+                <Car size={16} />
+              </div>
+              <div className="destination-info">
+                <h4 className="destination-name">Car Rentals</h4>
+                <p className="destination-bookings">{bookingsByType.car} bookings</p>
+              </div>
+              <div className="destination-revenue">
+                {((bookingsByType.car / (Object.values(bookingsByType).reduce((a, b) => a + b, 0) || 1)) * 100).toFixed(0)}%
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -122,7 +122,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
   z-index: 100;
 }
@@ -148,6 +148,63 @@
 .location-suggestion span {
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
+}
+
+/* Location Groups (Destinations & Hotels) */
+.location-group {
+  padding: 0.5rem 0;
+}
+
+.location-group:not(:last-child) {
+  border-bottom: 1px solid var(--color-gray-200, #e5e7eb);
+}
+
+.location-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.location-group-header svg {
+  color: #9ca3af;
+}
+
+.location-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.location-icon.destination {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #2563eb;
+}
+
+.location-icon.hotel {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #d97706;
+}
+
+.location-name {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #1a1a2e;
+}
+
+.location-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 2px;
 }
 
 /* Guest Selector Dropdown */

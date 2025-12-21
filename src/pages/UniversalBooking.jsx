@@ -97,6 +97,187 @@ const CheckoutForm = ({ totalPrice, onSuccess }) => {
   );
 };
 
+// Demo Payment Form (for testing without Stripe)
+const DemoPaymentForm = ({ totalPrice, onSuccess, formData }) => {
+  const [processing, setProcessing] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [cardName, setCardName] = useState('');
+
+  const handleDemoPayment = async (e) => {
+    e.preventDefault();
+
+    // Basic validation
+    if (!cardNumber || !expiry || !cvc || !cardName) {
+      toast.error('Please fill in all card details');
+      return;
+    }
+
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
+      toast.error('Please fill in all personal information');
+      return;
+    }
+
+    setProcessing(true);
+    toast.loading('Processing payment...');
+
+    // Simulate payment processing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    toast.dismiss();
+
+    // Simulate successful payment
+    const demoPaymentIntent = {
+      id: `demo_pi_${Date.now()}`,
+      status: 'succeeded',
+      amount: totalPrice * 100,
+      currency: 'usd',
+      created: Date.now(),
+      isDemo: true
+    };
+
+    setProcessing(false);
+    onSuccess(demoPaymentIntent);
+  };
+
+  // Format card number with spaces
+  const formatCardNumber = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = (matches && matches[0]) || '';
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    return parts.length ? parts.join(' ') : value;
+  };
+
+  // Format expiry date
+  const formatExpiry = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (v.length >= 2) {
+      return v.substring(0, 2) + '/' + v.substring(2, 4);
+    }
+    return v;
+  };
+
+  return (
+    <form onSubmit={handleDemoPayment} id="demo-payment-form">
+      <div className="demo-mode-banner" style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        marginBottom: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+      }}>
+        <AlertCircle size={20} />
+        <div>
+          <strong>Demo Mode</strong>
+          <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>
+            Use any test card details. Try: 4242 4242 4242 4242
+          </p>
+        </div>
+      </div>
+
+      <div className="form-group form-group-full">
+        <label className="form-label">Cardholder Name</label>
+        <input
+          type="text"
+          value={cardName}
+          onChange={(e) => setCardName(e.target.value)}
+          className="form-input"
+          placeholder="John Doe"
+          required
+        />
+      </div>
+
+      <div className="form-group form-group-full">
+        <label className="form-label">Card Number</label>
+        <div className="input-with-icon">
+          <CreditCard size={20} />
+          <input
+            type="text"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+            className="form-input"
+            placeholder="4242 4242 4242 4242"
+            maxLength={19}
+            required
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div className="form-group">
+          <label className="form-label">Expiry Date</label>
+          <input
+            type="text"
+            value={expiry}
+            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+            className="form-input"
+            placeholder="MM/YY"
+            maxLength={5}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">CVC</label>
+          <input
+            type="text"
+            value={cvc}
+            onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').substring(0, 4))}
+            className="form-input"
+            placeholder="123"
+            maxLength={4}
+            required
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        className="submit-btn"
+        disabled={processing}
+        style={{
+          width: '100%',
+          padding: '16px 24px',
+          fontSize: '16px',
+          fontWeight: '600',
+          color: 'white',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: processing ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          marginTop: '20px',
+          opacity: processing ? 0.7 : 1,
+          transition: 'all 0.2s ease'
+        }}
+      >
+        {processing ? 'Processing...' : `Pay $${totalPrice} (Demo)`}
+        <ChevronRight size={20} />
+      </button>
+
+      <p style={{
+        textAlign: 'center',
+        fontSize: '12px',
+        color: '#666',
+        marginTop: '12px'
+      }}>
+        This is a demo payment. No real charges will be made.
+      </p>
+    </form>
+  );
+};
+
 const UniversalBooking = () => {
   const { type, id } = useParams();
   const [searchParams] = useSearchParams();
@@ -121,18 +302,49 @@ const UniversalBooking = () => {
     specialRequests: ''
   });
 
-  // Mock booking details
+  // Get booking details from URL params or use defaults
   const getBookingDetails = () => {
+    // Extract hotel params from URL
+    const checkIn = searchParams.get('checkIn');
+    const checkOut = searchParams.get('checkOut');
+    const adults = searchParams.get('adults') || 2;
+    const children = searchParams.get('children') || 0;
+    const rooms = searchParams.get('rooms') || 1;
+    const price = parseFloat(searchParams.get('price')) || 0;
+    const hotelName = searchParams.get('name') || 'Hotel';
+    const hotelLocation = searchParams.get('location') || '';
+
+    // Calculate number of nights
+    const calculateNights = () => {
+      if (!checkIn || !checkOut) return 1;
+      const start = new Date(checkIn);
+      const end = new Date(checkOut);
+      const diffTime = Math.abs(end - start);
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+    };
+
+    const nights = calculateNights();
+    const totalPrice = price * nights;
+
+    // Format date for display
+    const formatDate = (dateStr) => {
+      if (!dateStr) return 'Not selected';
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
     const baseDetails = {
       hotel: {
-        title: 'Luxury Beach Resort',
-        subtitle: 'Deluxe Ocean View Room',
-        price: 299,
+        title: decodeURIComponent(hotelName),
+        subtitle: hotelLocation ? decodeURIComponent(hotelLocation) : 'Standard Room',
+        price: totalPrice || 299,
+        pricePerNight: price,
+        nights: nights,
         details: [
-          { label: 'Check-in', value: 'Jan 15, 2025' },
-          { label: 'Check-out', value: 'Jan 18, 2025' },
-          { label: 'Guests', value: '2 Adults' },
-          { label: 'Nights', value: '3' }
+          { label: 'Check-in', value: formatDate(checkIn) },
+          { label: 'Check-out', value: formatDate(checkOut) },
+          { label: 'Guests', value: `${adults} Adult${adults > 1 ? 's' : ''}${children > 0 ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}` },
+          { label: 'Rooms', value: `${rooms} Room${rooms > 1 ? 's' : ''}` },
+          { label: 'Nights', value: `${nights}` }
         ]
       },
       flight: {
@@ -184,8 +396,46 @@ const UniversalBooking = () => {
     });
   };
 
-  const handlePaymentSuccess = (paymentIntent) => {
-    toast.success('Booking confirmed! Redirecting...');
+  const handlePaymentSuccess = async (paymentIntent) => {
+    const isDemo = paymentIntent.isDemo;
+    const bookingId = `BK${Date.now().toString().slice(-8)}`;
+
+    // Create booking object
+    const booking = {
+      id: bookingId,
+      paymentId: paymentIntent.id,
+      type: type,
+      itemId: id,
+      ...bookingDetails,
+      totalPrice,
+      taxesAndFees,
+      guest: formData,
+      status: 'confirmed',
+      createdAt: new Date().toISOString(),
+      isDemo
+    };
+
+    try {
+      // Save booking to backend
+      await api.post('/bookings', booking);
+      console.log('Booking saved to backend:', bookingId);
+    } catch (error) {
+      console.warn('Failed to save booking to backend, using localStorage:', error.message);
+      // Fallback to localStorage if backend fails
+      const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+      existingBookings.push(booking);
+      localStorage.setItem('bookings', JSON.stringify(existingBookings));
+    }
+
+    if (isDemo) {
+      toast.success(
+        `Demo booking confirmed! Booking ID: ${bookingId}`,
+        { duration: 4000 }
+      );
+    } else {
+      toast.success('Payment successful! Booking confirmed.');
+    }
+
     setTimeout(() => {
       navigate('/bookings');
     }, 2000);
@@ -314,10 +564,11 @@ const UniversalBooking = () => {
                       <CheckoutForm totalPrice={totalPrice} onSuccess={handlePaymentSuccess} />
                     </Elements>
                   ) : (
-                    <div className="alert info">
-                      <AlertCircle size={18} />
-                      Loading payment system... (Ensure Stripe Key is configured in Admin)
-                    </div>
+                    <DemoPaymentForm
+                      totalPrice={totalPrice}
+                      onSuccess={handlePaymentSuccess}
+                      formData={formData}
+                    />
                   )}
                 </div>
               </div>
@@ -344,12 +595,20 @@ const UniversalBooking = () => {
                   <div className="summary-divider"></div>
 
                   <div className="summary-pricing">
+                    {bookingDetails.pricePerNight > 0 && bookingDetails.nights > 1 && (
+                      <div className="pricing-row">
+                        <span>${bookingDetails.pricePerNight} × {bookingDetails.nights} nights</span>
+                        <span>${bookingDetails.price}</span>
+                      </div>
+                    )}
+                    {(!bookingDetails.pricePerNight || bookingDetails.nights <= 1) && (
+                      <div className="pricing-row">
+                        <span>Base Price</span>
+                        <span>${bookingDetails.price}</span>
+                      </div>
+                    )}
                     <div className="pricing-row">
-                      <span>Base Price</span>
-                      <span>${bookingDetails.price}</span>
-                    </div>
-                    <div className="pricing-row">
-                      <span>Taxes & Fees</span>
+                      <span>Taxes & Fees (15%)</span>
                       <span>${taxesAndFees}</span>
                     </div>
                   </div>

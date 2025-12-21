@@ -9,10 +9,10 @@ import ratehawkService from '../services/ratehawk.service';
  */
 const FALLBACK_DATA = {
   hotels: [
-    { id: 1, name: 'Seaside Resort', location: 'Maldives', price: 850, rating: 4.8, img: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400' },
-    { id: 2, name: 'Mountain Lodge', location: 'Switzerland', price: 720, rating: 4.9, img: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400' },
-    { id: 3, name: 'Urban Hotel', location: 'New York', price: 650, rating: 4.7, img: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400' },
-    { id: 4, name: 'Beach Villa', location: 'Bali', price: 920, rating: 4.9, img: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400' }
+    { id: 1, name: 'Seaside Resort', location: 'Maldives', price: 850, rating: 4.8, image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400', images: ['https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800', 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800'] },
+    { id: 2, name: 'Mountain Lodge', location: 'Switzerland', price: 720, rating: 4.9, image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400', images: ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800', 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800'] },
+    { id: 3, name: 'Urban Hotel', location: 'New York', price: 650, rating: 4.7, image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400', images: ['https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800', 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800'] },
+    { id: 4, name: 'Beach Villa', location: 'Bali', price: 920, rating: 4.9, image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400', images: ['https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800', 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=800'] }
   ],
   flights: [], // Using RateHawk API - no fallback data
   cruises: [], // RateHawk does not support cruises - coming soon

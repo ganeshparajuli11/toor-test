@@ -68,18 +68,23 @@ export const AuthProvider = ({ children }) => {
    * Signup function
    * In production, this would call your API endpoint
    */
-  const signup = async (name, email, password) => {
+  const signup = async (name, email, password, phoneNumber = '') => {
     try {
       // TODO: Replace with actual API call
-      // const response = await axios.post(API_ENDPOINTS.SIGNUP, { name, email, password });
+      // const response = await axios.post(API_ENDPOINTS.SIGNUP, { name, email, password, phoneNumber });
 
-      // Demo user data for now
+      // Store user data with all provided information
       const userData = {
         id: Date.now(),
         name: name,
         email: email,
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=06b6d4&color=fff`,
-        phone: '',
+        phone: phoneNumber,
+        location: '',
+        bio: '',
+        dateOfBirth: '',
+        gender: '',
+        nationality: '',
         createdAt: new Date().toISOString(),
       };
 
@@ -113,6 +118,38 @@ export const AuthProvider = ({ children }) => {
     toast.success('Profile updated successfully');
   };
 
+  /**
+   * Social login (Google/Facebook)
+   * Creates or logs in user from OAuth provider data
+   */
+  const socialLogin = async (oauthUser) => {
+    try {
+      // Create user data from OAuth response
+      const userData = {
+        id: oauthUser.id || Date.now(),
+        name: oauthUser.name,
+        email: oauthUser.email,
+        avatar: oauthUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(oauthUser.name)}&background=06b6d4&color=fff`,
+        phone: '',
+        location: '',
+        bio: '',
+        dateOfBirth: '',
+        gender: '',
+        nationality: '',
+        provider: oauthUser.provider, // 'google' or 'facebook'
+        createdAt: new Date().toISOString(),
+      };
+
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      return { success: true, user: userData };
+    } catch (error) {
+      console.error('Social login error:', error);
+      toast.error('Social login failed. Please try again.');
+      return { success: false, error: error.message };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -121,6 +158,7 @@ export const AuthProvider = ({ children }) => {
     signup,
     logout,
     updateProfile,
+    socialLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

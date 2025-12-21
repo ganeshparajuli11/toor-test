@@ -13,7 +13,9 @@
       "Bash(unzip:*)",
       "Bash(sed:*)",
       "WebFetch(domain:docs.emergingtravel.com)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:www.postman.com)",
+      "Bash(lsof:*)"
     ],
     "deny": [],
     "ask": []

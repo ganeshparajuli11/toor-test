@@ -23,6 +23,7 @@ import FlightDetail from './pages/FlightDetail';
 import CruiseDetail from './pages/CruiseDetail';
 import CarDetail from './pages/CarDetail';
 import UniversalBooking from './pages/UniversalBooking';
+import OAuthCallback from './pages/OAuthCallback';
 
 // Location context and modal
 import { LocationProvider } from './context/LocationContext';
@@ -44,60 +45,65 @@ import ProtectedRoute from './components/admin/ProtectedRoute';
 
 import './App.css';
 
+import { LanguageProvider } from './contexts/LanguageContext';
+
 function App() {
   return (
-    <LocationProvider>
-      <LocationModal />
-      <Routes>
-        <Route path="/" element={<TravelBookingPage />} />
-      <Route path="/properties" element={<PropertyList />} />
-      <Route path="/hotels" element={<Hotels />} />
-      <Route path="/flights" element={<Flights />} />
-      <Route path="/cruises" element={<Cruises />} />
-      <Route path="/cars" element={<Cars />} />
-      <Route path="/blog" element={<Blog />} />
-      <Route path="/blog/:id" element={<BlogDetail />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/faq" element={<FAQ />} />
-      <Route path="/terms" element={<Terms />} />
-      <Route path="/privacy" element={<Privacy />} />
-      <Route path="/property/:id" element={<PropertyDetail />} />
-      <Route path="/booking/:id" element={<BookingDetail />} />
-      <Route path="/bookings" element={<Bookings />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/flight/:id" element={<FlightDetail />} />
-      <Route path="/cruise/:id" element={<CruiseDetail />} />
-      <Route path="/car/:id" element={<CarDetail />} />
-      <Route path="/:type/:id/book" element={<UniversalBooking />} />
+    <LanguageProvider>
+      <LocationProvider>
+        <LocationModal />
+        <Routes>
+          <Route path="/" element={<TravelBookingPage />} />
+          <Route path="/properties" element={<PropertyList />} />
+          <Route path="/hotels" element={<Hotels />} />
+          <Route path="/flights" element={<Flights />} />
+          <Route path="/cruises" element={<Cruises />} />
+          <Route path="/cars" element={<Cars />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:id" element={<BlogDetail />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/property/:id" element={<PropertyDetail />} />
+          <Route path="/booking/:id" element={<BookingDetail />} />
+          <Route path="/bookings" element={<Bookings />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/auth/:provider/callback" element={<OAuthCallback />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/flight/:id" element={<FlightDetail />} />
+          <Route path="/cruise/:id" element={<CruiseDetail />} />
+          <Route path="/car/:id" element={<CarDetail />} />
+          <Route path="/:type/:id/book" element={<UniversalBooking />} />
 
-      {/* Admin Routes */}
-      <Route path="/admin/login" element={<AdminLogin />} />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<AdminDashboard />} />
-        <Route path="bookings" element={<AdminBookings />} />
-        <Route path="users" element={<AdminUsers />} />
-        <Route path="hotels" element={<AdminHotels />} />
-        <Route path="cars" element={<AdminCars />} />
-        <Route path="cruises" element={<AdminCruises />} />
-        <Route path="payments" element={<AdminPayments />} />
-        <Route path="settings" element={<AdminSettings />} />
-        <Route path="test-api" element={<TestAPI />} />
-      </Route>
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="bookings" element={<AdminBookings />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="hotels" element={<AdminHotels />} />
+            <Route path="cars" element={<AdminCars />} />
+            <Route path="cruises" element={<AdminCruises />} />
+            <Route path="payments" element={<AdminPayments />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="test-api" element={<TestAPI />} />
+          </Route>
 
-        <Route path="*" element={<div style={{ padding: '2rem', textAlign: 'center' }}><h1>404 - Page Not Found</h1></div>} />
-      </Routes>
-    </LocationProvider>
+          <Route path="*" element={<div style={{ padding: '2rem', textAlign: 'center' }}><h1>404 - Page Not Found</h1></div>} />
+        </Routes>
+      </LocationProvider>
+    </LanguageProvider>
   );
 }
 

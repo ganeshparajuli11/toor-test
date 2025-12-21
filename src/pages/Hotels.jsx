@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { MapPin, Star, Wifi, Coffee, Tv, Wind, Heart, Share2 } from 'lucide-react';
+import { MapPin, Star, Wifi, Coffee, Tv, Wind, Heart, Share2, Loader2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import EnhancedSearch from '../components/EnhancedSearch';
 import ToastContainer, { showToast } from '../components/ToastContainer';
+import ImageSlider from '../components/ImageSlider';
 import ratehawkService from '../services/ratehawk.service';
 import { useLocation } from '../context/LocationContext';
 import './Hotels.css';
+
+// Default popular destinations to show when no search
+const DEFAULT_DESTINATIONS = [
+  { dest_id: '2621', label: 'New York, United States', search_type: 'City' },
+  { dest_id: '6053839', label: 'Dubai, UAE', search_type: 'City' },
+  { dest_id: '2734', label: 'Paris, France', search_type: 'City' },
+  { dest_id: '2114', label: 'London, United Kingdom', search_type: 'City' },
+];
 
 const Hotels = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,8 +26,10 @@ const Hotels = () => {
   const [error, setError] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [useFallback, setUseFallback] = useState(false);
+  const [searchProgress, setSearchProgress] = useState(0);
+  const [isDefaultSearch, setIsDefaultSearch] = useState(false);
+  const [defaultDestination, setDefaultDestination] = useState(DEFAULT_DESTINATIONS[0]);
 
-  // Get user location from context
   const { userLocation } = useLocation();
 
   // Extract search parameters from URL
@@ -31,7 +42,6 @@ const Hotels = () => {
   const children = searchParams.get('children') || 0;
   const rooms = searchParams.get('rooms') || 1;
 
-  // Helper functions for default dates (7 days from now for check-in, 10 days for check-out)
   function getDefaultCheckIn() {
     const date = new Date();
     date.setDate(date.getDate() + 7);
@@ -44,7 +54,6 @@ const Hotels = () => {
     return date.toISOString().split('T')[0];
   }
 
-  // Derive location directly from URL params or user location (no intermediate state)
   const selectedLocation = urlDestId ? {
     dest_id: urlDestId,
     search_type: urlSearchType,
@@ -63,17 +72,24 @@ const Hotels = () => {
 
   // Fetch hotels from RateHawk API
   useEffect(() => {
-    const fetchHotels = async () => {
-      if (!selectedLocation) return;
-
+    const fetchHotels = async (location, isDefault = false) => {
       setLoading(true);
       setError(null);
       setUseFallback(false);
+      setSearchProgress(0);
+      setIsDefaultSearch(isDefault);
+
+      // Animate progress bar
+      const progressInterval = setInterval(() => {
+        setSearchProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 15;
+        });
+      }, 500);
 
       try {
-        // Format dates for API if needed, but service handles standard YYYY-MM-DD
         const params = {
-          destination: selectedLocation.dest_id,
+          destination: location.dest_id,
           checkIn: checkIn.split('T')[0],
           checkOut: checkOut.split('T')[0],
           guests: parseInt(adults),
@@ -82,19 +98,24 @@ const Hotels = () => {
         };
 
         const results = await ratehawkService.searchHotels(params);
+        setSearchProgress(100);
 
-        // Print backend data to console
         console.log('Backend API Response:', results);
-        // Log image URLs specifically
         if (results && results.length > 0) {
-          console.log('Image URLs:', results.map(h => ({ id: h.id, name: h.name, image: h.image })));
+          console.log('Hotels with images:', results.map(h => ({
+            id: h.id,
+            name: h.name,
+            image: h.image,
+            imagesCount: h.images?.length || 0,
+            firstImage: h.images?.[0]?.substring(0, 60)
+          })));
         }
 
         if (results && results.length > 0) {
           setHotels(results);
-          showToast(`Found ${results.length} real hotels in ${currentLocation}!`, 'success');
+          const locationName = isDefault ? location.label : currentLocation;
+          showToast(`Found ${results.length} hotels in ${locationName}!`, 'success');
         } else {
-          // If no results, maybe fallback or just empty
           setHotels([]);
           showToast('No hotels found for these dates. Try different dates.', 'info');
         }
@@ -105,14 +126,21 @@ const Hotels = () => {
         loadFallbackData();
         showToast('Using demo data. Please check your RateHawk API credentials.', 'info');
       } finally {
-        setLoading(false);
+        clearInterval(progressInterval);
+        setSearchProgress(100);
+        setTimeout(() => setLoading(false), 300);
       }
     };
 
+    // If user searched for a specific location
     if (selectedLocation && checkIn && checkOut) {
-      fetchHotels();
+      fetchHotels(selectedLocation, false);
     }
-  }, [urlDestId, urlLocation, urlSearchType, userLocation, checkIn, checkOut, adults, children, rooms]);
+    // If no search params, load default suggested hotels
+    else if (!urlDestId && checkIn && checkOut) {
+      fetchHotels(defaultDestination, true);
+    }
+  }, [urlDestId, urlLocation, urlSearchType, userLocation, checkIn, checkOut, adults, children, rooms, defaultDestination]);
 
   const loadFallbackData = () => {
     setHotels([
@@ -122,8 +150,10 @@ const Hotels = () => {
         location: currentLocation,
         image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop',
         rating: 4.8,
+        reviewScore: 9.2,
         reviews: 245,
         price: 120,
+        currency: 'USD',
         amenities: ['Free WiFi', 'Breakfast', 'Pool', 'AC'],
         description: 'Luxury hotel with stunning views and excellent service'
       },
@@ -133,8 +163,10 @@ const Hotels = () => {
         location: currentLocation,
         image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&h=300&fit=crop',
         rating: 4.6,
+        reviewScore: 8.8,
         reviews: 189,
         price: 95,
+        currency: 'USD',
         amenities: ['Free WiFi', 'Beach Access', 'Restaurant', 'AC'],
         description: 'Beautiful beachfront property perfect for relaxation'
       },
@@ -144,8 +176,10 @@ const Hotels = () => {
         location: currentLocation,
         image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&h=300&fit=crop',
         rating: 4.5,
+        reviewScore: 8.5,
         reviews: 312,
         price: 80,
+        currency: 'USD',
         amenities: ['Free WiFi', 'Parking', 'Breakfast', 'Gym'],
         description: 'Conveniently located in the heart of the city'
       },
@@ -155,8 +189,10 @@ const Hotels = () => {
         location: currentLocation,
         image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&h=300&fit=crop',
         rating: 4.9,
+        reviewScore: 9.5,
         reviews: 156,
         price: 150,
+        currency: 'USD',
         amenities: ['Free WiFi', 'Spa', 'Restaurant', 'Hiking'],
         description: 'Peaceful mountain retreat with breathtaking scenery'
       },
@@ -166,8 +202,10 @@ const Hotels = () => {
         location: currentLocation,
         image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&h=300&fit=crop',
         rating: 4.7,
+        reviewScore: 9.0,
         reviews: 203,
         price: 110,
+        currency: 'USD',
         amenities: ['Free WiFi', 'Bar', 'Rooftop', 'AC'],
         description: 'Stylish boutique hotel with modern amenities'
       },
@@ -177,8 +215,10 @@ const Hotels = () => {
         location: currentLocation,
         image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400&h=300&fit=crop',
         rating: 4.4,
+        reviewScore: 8.2,
         reviews: 178,
         price: 75,
+        currency: 'USD',
         amenities: ['Free WiFi', 'Garden', 'Parking', 'Breakfast'],
         description: 'Tranquil garden setting with comfortable accommodations'
       }
@@ -233,21 +273,24 @@ const Hotels = () => {
           <EnhancedSearch initialTab="hotel" showTabs={false} />
         </div>
 
+        {/* Loading Progress Bar */}
+        {loading && (
+          <div className="hotels-progress-container">
+            <div
+              className="hotels-progress-bar"
+              style={{ width: `${searchProgress}%` }}
+            />
+          </div>
+        )}
+
         {/* Results Section */}
         <div className="hotels-results-container">
           <div className="container">
             {/* API Status Banner */}
             {!loading && hasSearchParams && (
-              <div style={{
-                padding: '12px 20px',
-                marginBottom: '20px',
-                borderRadius: '8px',
-                backgroundColor: useFallback ? '#fff3cd' : '#d1e7dd',
-                border: `1px solid ${useFallback ? '#ffc107' : '#28a745'}`,
-                color: '#000'
-              }}>
-                <strong>{useFallback ? '⚠️ Demo Mode' : '✓ Live RateHawk API'}</strong>
-                <span style={{ marginLeft: '10px' }}>
+              <div className={`hotels-status-banner ${useFallback ? 'warning' : 'success'} fade-in`}>
+                <strong>{useFallback ? 'Demo Mode' : 'Live RateHawk API'}</strong>
+                <span>
                   {useFallback
                     ? 'Using demo data. Configure RateHawk API keys in Admin Settings.'
                     : `Showing real hotel data from RateHawk API for ${currentLocation}`
@@ -257,27 +300,55 @@ const Hotels = () => {
             )}
 
             {/* Results Header */}
-            <div className="hotels-results-header">
+            <div className="hotels-results-header fade-in">
               <div>
                 <p className="hotels-breadcrumb">
-                  Home › Hotels{currentLocation ? ` in ${currentLocation}` : ''}
+                  Home &rsaquo; Hotels{(currentLocation || isDefaultSearch) ? ` in ${currentLocation || defaultDestination.label}` : ''}
                 </p>
                 <h1 className="hotels-title">
-                  {!hasSearchParams ? 'Search for Hotels' :
-                   loading ? 'Searching hotels...' : `${hotels.length} Hotels Found in ${currentLocation}`}
-                  {hasSearchParams && checkIn && checkOut && (
+                  {loading ? (
+                    <span className="loading-text">
+                      <Loader2 className="spinner" size={24} />
+                      Searching hotels...
+                    </span>
+                  ) : isDefaultSearch ? (
+                    `Suggested Hotels in ${defaultDestination.label}`
+                  ) : hasSearchParams ? (
+                    `${hotels.length} Hotels Found in ${currentLocation}`
+                  ) : (
+                    'Search for Hotels'
+                  )}
+                  {(hasSearchParams || isDefaultSearch) && checkIn && checkOut && !loading && (
                     <span className="hotels-dates">
                       {' '}for {formatDate(checkIn)} - {formatDate(checkOut)}
                     </span>
                   )}
                 </h1>
-                {hasSearchParams && (
+                {(hasSearchParams || isDefaultSearch) && (
                   <p className="hotels-search-info">
-                    {rooms} {rooms === '1' ? 'Room' : 'Rooms'} • {adults} {adults === '1' ? 'Adult' : 'Adults'}
-                    {children !== '0' && ` • ${children} ${children === '1' ? 'Child' : 'Children'}`}
+                    {rooms} {rooms === '1' ? 'Room' : 'Rooms'} &bull; {adults} {adults === '1' ? 'Adult' : 'Adults'}
+                    {children !== '0' && ` &bull; ${children} ${children === '1' ? 'Child' : 'Children'}`}
                   </p>
                 )}
-                {!hasSearchParams && (
+                {isDefaultSearch && !loading && (
+                  <>
+                    <p className="hotels-suggestion-hint">
+                      Or explore hotels in popular destinations:
+                    </p>
+                    <div className="destination-switcher">
+                      {DEFAULT_DESTINATIONS.map((dest) => (
+                        <button
+                          key={dest.dest_id}
+                          className={`destination-btn ${defaultDestination.dest_id === dest.dest_id ? 'active' : ''}`}
+                          onClick={() => setDefaultDestination(dest)}
+                        >
+                          {dest.label.split(',')[0]}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {!hasSearchParams && !isDefaultSearch && (
                   <p className="hotels-search-info">
                     Use the search above to find hotels
                   </p>
@@ -300,26 +371,43 @@ const Hotels = () => {
             {/* Hotels Grid */}
             <div className="hotels-grid">
               {loading ? (
-                // Skeleton loaders
+                // Skeleton loaders with staggered animation
                 [...Array(6)].map((_, i) => (
-                  <div key={i} className="hotel-card skeleton">
-                    <div className="hotel-card-image skeleton-image"></div>
+                  <div
+                    key={i}
+                    className="hotel-card skeleton"
+                    style={{ animationDelay: `${i * 0.1}s` }}
+                  >
+                    <div className="hotel-card-image-wrapper">
+                      <div className="skeleton-image"></div>
+                    </div>
                     <div className="hotel-card-content">
-                      <div className="skeleton-text"></div>
-                      <div className="skeleton-text short"></div>
-                      <div className="skeleton-text"></div>
+                      <div className="skeleton-text" style={{ width: '70%' }}></div>
+                      <div className="skeleton-text" style={{ width: '50%' }}></div>
+                      <div className="skeleton-text" style={{ width: '90%' }}></div>
+                      <div className="skeleton-amenities">
+                        <div className="skeleton-tag"></div>
+                        <div className="skeleton-tag"></div>
+                        <div className="skeleton-tag"></div>
+                      </div>
+                      <div className="skeleton-footer">
+                        <div className="skeleton-price"></div>
+                        <div className="skeleton-button"></div>
+                      </div>
                     </div>
                   </div>
                 ))
               ) : hotels.length > 0 ? (
-                // Hotel cards
-                hotels.map((hotel) => (
-                 
-                  <div key={hotel.id} className="hotel-card">
-                  
+                // Hotel cards with staggered animation
+                hotels.map((hotel, index) => (
+                  <div
+                    key={hotel.id}
+                    className="hotel-card fade-in-up"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
                     <div className="hotel-card-image-wrapper">
-                      <img
-                        src={hotel.image}
+                      <ImageSlider
+                        images={hotel.images}
                         alt={hotel.name}
                         className="hotel-card-image"
                       />
@@ -329,9 +417,8 @@ const Hotels = () => {
                       </div>
                       <div className="card-action-buttons">
                         <button
-                          className={`card-action-button favorite-button ${favorites.includes(hotel.id) ? 'active' : ''
-                            }`}
-                          onClick={() => toggleFavorite(hotel.id)}
+                          className={`card-action-button favorite-button ${favorites.includes(hotel.id) ? 'active' : ''}`}
+                          onClick={(e) => { e.preventDefault(); toggleFavorite(hotel.id); }}
                           aria-label="Add to favorites"
                         >
                           <Heart
@@ -341,7 +428,7 @@ const Hotels = () => {
                         </button>
                         <button
                           className="card-action-button share-button"
-                          onClick={() => handleShare(hotel)}
+                          onClick={(e) => { e.preventDefault(); handleShare(hotel); }}
                           aria-label="Share"
                         >
                           <Share2 size={18} />
@@ -357,8 +444,8 @@ const Hotels = () => {
                       <p className="hotel-card-description">{hotel.description}</p>
 
                       <div className="hotel-card-amenities">
-                        {hotel.amenities.slice(0, 4).map((amenity, index) => (
-                          <span key={index} className="hotel-amenity">
+                        {(hotel.amenities || []).slice(0, 4).map((amenity, i) => (
+                          <span key={i} className="hotel-amenity">
                             {amenity === 'Free WiFi' && <Wifi size={14} />}
                             {amenity === 'Breakfast' && <Coffee size={14} />}
                             {amenity === 'AC' && <Wind size={14} />}
@@ -370,46 +457,49 @@ const Hotels = () => {
 
                       <div className="hotel-card-footer">
                         <div className="hotel-card-reviews">
-                          <span className="review-score">Excellent</span>
-                          <span className="review-count">{hotel.reviews} reviews</span>
+                          <span className="review-score">
+                            {hotel.reviewScore >= 9 ? 'Exceptional' :
+                             hotel.reviewScore >= 8 ? 'Excellent' :
+                             hotel.reviewScore >= 7 ? 'Very Good' :
+                             hotel.reviewScore >= 6 ? 'Good' :
+                             hotel.reviewScore > 0 ? 'Fair' : 'No rating'}
+                          </span>
+                          <span className="review-count">
+                            {hotel.reviewScore > 0 && <strong>{hotel.reviewScore.toFixed(1)}</strong>}
+                            {hotel.reviews > 0 ? ` (${hotel.reviews} reviews)` : ''}
+                          </span>
                         </div>
                         <div className="hotel-card-price-wrapper">
                           <div className="hotel-card-price">
                             <span className="price-label">From</span>
                             <span className="price-amount">
-                              {hotel.currency && hotel.currency !== 'USD' ? hotel.currency : '$'}{hotel.price}
+                              {hotel.currency && hotel.currency !== 'USD' ? hotel.currency : '$'}{hotel.price || 'N/A'}
                             </span>
                             <span className="price-period">/night</span>
                           </div>
-                          <Link to={`/property/${hotel.id}`} className="hotel-card-button">View Details</Link>
+                          <Link
+                            to={`/property/${hotel.id}?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}&rooms=${rooms}&price=${hotel.price || 0}&name=${encodeURIComponent(hotel.name)}&location=${encodeURIComponent(hotel.location)}&rating=${hotel.rating}&reviews=${hotel.reviews}&reviewScore=${hotel.reviewScore || 0}&image=${encodeURIComponent(hotel.image)}`}
+                            className="hotel-card-button"
+                          >
+                            View Details
+                          </Link>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))
+              ) : hasSearchParams ? (
+                <div className="no-results fade-in">
+                  <h3>No hotels found</h3>
+                  <p>Try adjusting your search criteria or dates</p>
+                </div>
               ) : (
-                <div className="no-results">
-                  <h3>No hotels to display</h3>
-                  <p>Hotels array is empty. Check console for details.</p>
+                <div className="no-results fade-in">
+                  <h3>Enter your destination</h3>
+                  <p>Use the search form above to find available hotels</p>
                 </div>
               )}
             </div>
-
-            {/* No Results */}
-            {!loading && hotels.length === 0 && hasSearchParams && (
-              <div className="no-results">
-                <h3>No hotels found</h3>
-                <p>Try adjusting your search criteria</p>
-              </div>
-            )}
-
-            {/* No Search Yet */}
-            {!loading && !hasSearchParams && (
-              <div className="no-results">
-                <h3>Enter your destination</h3>
-                <p>Use the search form above to find available hotels</p>
-              </div>
-            )}
           </div>
         </div>
 

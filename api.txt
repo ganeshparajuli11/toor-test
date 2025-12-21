@@ -1,0 +1,115 @@
+Suggest hotel and region
+#affiliate
+
+https://api.worldota.net/api/b2b/v3/search/multicomplete/
+
+The call searches for a region or hotel by a part of its name.
+
+Request example 
+curl --user '<KEY_ID>:<API_KEY>' 'https://api.worldota.net/api/b2b/v3/search/multicomplete/' \
+--header 'Content-Type: application/json' \
+--data '{
+  "query": "Ber",
+  "language": "en"
+}'
+
+Request body 
+Expand this
+|
+Collapse this
+ language String optional
+ query String required
+Response 
+Expand this
+|
+Collapse this
+ hotels Object
+ regions Object
+Response example 
+{
+  "data": {
+    "hotels": [
+      {
+        "id": "gostinitsa_berlin",
+        "hid": 8066022,
+        "name": "Berlin Hotel",
+        "region_id": 1798
+      },
+      {
+        "id": "bergs_hotel_2",
+        "hid": 9974510,
+        "name": "Bergs Spa and Сonference Hotel",
+        "region_id": 5580
+      },
+      {
+        "id": "rp_bergamo_hotel",
+        "hid": 10575679,
+        "name": "Bergamo Eco Hotel",
+        "region_id": 6057804
+      },
+      {
+        "id": "hotel_dacha_na_berezovoy",
+        "hid": 6344433,
+        "name": "Dacha Na Berezovoi Apartments",
+        "region_id": 965821558
+      },
+      {
+        "id": "travel_hotels_bereg_hotel",
+        "hid": 10211188,
+        "name": "Hotel Priboi by Sun City Hotels",
+        "region_id": 299
+      }
+    ],
+    "regions": [
+      {
+        "id": 536,
+        "name": "Berlin",
+        "type": "City",
+        "country_code": "DE"
+      },
+      {
+        "id": 965888340,
+        "name": "Saint-Philbert-de-Grand-Lieu",
+        "type": "City",
+        "country_code": "FR"
+      },
+      {
+        "id": 6340759,
+        "name": "Montalbert",
+        "type": "City",
+        "country_code": "FR"
+      },
+      {
+        "id": 965850065,
+        "name": "Cote d'Azur",
+        "type": "Multi-Region (within a country)",
+        "country_code": "FR"
+      },
+      {
+        "id": 966047519,
+        "name": "Saint-Philbert-sur-Orne, Normandy",
+        "type": "City",
+        "country_code": "FR"
+      }
+    ]
+  },
+  "debug": {
+    "request": {
+      "query": "Ber",
+      "language": "en"
+    },
+    "key_id": 7705,
+    "validation_error": null
+  },
+  "status": "ok",
+  "error": null
+}
+
+Errors 
+The error field has the value specified in the headers below.
+
+invalid_params 
+The query field is required.
+
+core_search_error 
+An internal search error. Has 500 status code.

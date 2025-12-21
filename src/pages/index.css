@@ -278,6 +278,14 @@
   position: relative;
   overflow: hidden;
   height: 12rem;
+  border-radius: var(--radius-lg, 12px) var(--radius-lg, 12px) 0 0;
+}
+
+.card-image-wrapper .image-slider,
+.card-image-wrapper .image-slider-main {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: unset;
 }
 
 .card-image {
@@ -1002,4 +1010,19 @@
   50% {
     opacity: 0.5;
   }
+}
+
+/* ========================================
+   HOTEL SUGGESTIONS SECTION
+   ======================================== */
+.hotel-suggestions-section {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  padding: 3rem 0;
+  margin: 2rem 0;
+}
+
+.hotel-suggestions-section .container {
+  max-width: var(--container-max-width, 1200px);
+  margin: 0 auto;
+  padding: 0 var(--spacing-md, 1rem);
 }

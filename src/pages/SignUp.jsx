@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Facebook } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
-import Input from '../components/Input';
+import { useLanguage } from '../contexts/LanguageContext';
+import useOAuth from '../hooks/useOAuth';
 import Button from '../components/Button';
-import ImageCarousel from '../components/ImageCarousel';
 import SEO from '../components/SEO';
 import './SignUp.css';
 
@@ -18,35 +16,40 @@ const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const { signup } = useAuth();
+  const { t } = useLanguage();
+  const { loginWithGoogle, loginWithFacebook, isGoogleEnabled, isFacebookEnabled, loading: oauthLoading } = useOAuth();
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm();
 
-  // Carousel images
-  const carouselImages = [
-    'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=800&h=1200&fit=crop',
-    'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&h=1200&fit=crop',
-    'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&h=1200&fit=crop',
-  ];
+  const password = watch('password', '');
+
+  const passwordStrength = {
+    hasLength: password.length >= 8,
+    hasUpper: /[A-Z]/.test(password),
+    hasLower: /[a-z]/.test(password),
+    hasNumber: /\d/.test(password),
+  };
+
+  const strengthCount = Object.values(passwordStrength).filter(Boolean).length;
 
   const onSubmit = async (data) => {
     if (!agreedToTerms) {
-      toast.error('Please agree to the Terms and Privacy Policies');
+      toast.error(t('I agree to the') + ' ' + t('Terms of Service'));
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Use auth context signup
       const fullName = `${data.firstName} ${data.lastName}`;
-      const result = await signup(fullName, data.email, data.password);
+      const result = await signup(fullName, data.email, data.password, data.phoneNumber);
 
       if (result.success) {
-        // Redirect to home page
         setTimeout(() => {
           navigate('/');
         }, 1500);
@@ -59,9 +62,25 @@ const SignUp = () => {
   };
 
   const handleSocialLogin = (provider) => {
-    toast.info(`${provider} login integration coming soon!`);
-    // TODO: Implement social login
-    console.log(`${provider} login clicked`);
+    if (provider === 'Google') {
+      if (!isGoogleEnabled) {
+        toast.error('Google sign-in is not configured. Please contact the administrator.');
+        return;
+      }
+      const result = loginWithGoogle();
+      if (!result.success) {
+        toast.error(result.message || 'Failed to initiate Google sign-in');
+      }
+    } else if (provider === 'Facebook') {
+      if (!isFacebookEnabled) {
+        toast.error('Facebook sign-in is not configured. Please contact the administrator.');
+        return;
+      }
+      const result = loginWithFacebook();
+      if (!result.success) {
+        toast.error(result.message || 'Failed to initiate Facebook sign-in');
+      }
+    }
   };
 
   return (
@@ -72,191 +91,265 @@ const SignUp = () => {
         keywords="sign up, register, create account, travel booking, TOOR registration"
         canonical={`${window.location.origin}/signup`}
       />
-      <Header />
-      <main className="signup-page">
-        <div className="container">
-          <div className="signup-content">
-            {/* Left Side - Image Carousel */}
-            <div className="signup-image-section">
-              <ImageCarousel images={carouselImages} />
+
+      <div className="auth-page">
+        {/* Left Panel - Branding */}
+        <div className="auth-brand-panel signup-brand">
+          <div className="brand-content">
+            <Link to="/" className="brand-logo">
+              <img src="/src/assets/logo.png" alt="TOOR" />
+            </Link>
+            <div className="brand-text">
+              <h1>{t('Discover Your Next Adventure')}</h1>
+              <p>{t('Find the best deals on hotels, flights, and more')}</p>
             </div>
-
-            {/* Right Side - Signup Form */}
-            <div className="signup-form-section">
-              <div className="signup-form-wrapper">
-                <h1 className="signup-title">Sign up</h1>
-
-                <form onSubmit={handleSubmit(onSubmit)} className="signup-form">
-                  {/* First Name and Last Name */}
-                  <div className="form-row">
-                    <Input
-                      label="First Name"
-                      placeholder="First Name"
-                      error={errors.firstName?.message}
-                      {...register('firstName', {
-                        required: 'First name is required',
-                        minLength: {
-                          value: 2,
-                          message: 'First name must be at least 2 characters',
-                        },
-                      })}
-                    />
-                    <Input
-                      label="Last Name"
-                      placeholder="Last Name"
-                      error={errors.lastName?.message}
-                      {...register('lastName', {
-                        required: 'Last name is required',
-                        minLength: {
-                          value: 2,
-                          message: 'Last name must be at least 2 characters',
-                        },
-                      })}
-                    />
-                  </div>
-
-                  {/* Email and Phone Number */}
-                  <div className="form-row">
-                    <Input
-                      label="Email address"
-                      type="email"
-                      placeholder="Email address"
-                      error={errors.email?.message}
-                      {...register('email', {
-                        required: 'Email is required',
-                        pattern: {
-                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: 'Invalid email address',
-                        },
-                      })}
-                    />
-                    <Input
-                      label="Phone Number"
-                      type="tel"
-                      placeholder="Phone Number"
-                      error={errors.phoneNumber?.message}
-                      {...register('phoneNumber', {
-                        required: 'Phone number is required',
-                        pattern: {
-                          value: /^[0-9+\s-()]+$/,
-                          message: 'Invalid phone number',
-                        },
-                      })}
-                    />
-                  </div>
-
-                  {/* Password */}
-                  <Input
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter password"
-                    error={errors.password?.message}
-                    icon={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    }
-                    {...register('password', {
-                      required: 'Password is required',
-                      minLength: {
-                        value: 8,
-                        message: 'Password must be at least 8 characters',
-                      },
-                      pattern: {
-                        value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                        message:
-                          'Password must contain at least one uppercase letter, one lowercase letter, and one number',
-                      },
-                    })}
-                  />
-
-                  {/* Terms and Conditions */}
-                  <div className="form-checkbox">
-                    <input
-                      type="checkbox"
-                      id="terms"
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    />
-                    <label htmlFor="terms">
-                      I agree to all the Terms and Privacy Policies
-                    </label>
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    fullWidth
-                    loading={isLoading}
-                    disabled={isLoading}
-                  >
-                    Sign Up
-                  </Button>
-
-                  {/* Divider */}
-                  <div className="form-divider">
-                    <span>Or Sign up with</span>
-                  </div>
-
-                  {/* Social Login Buttons */}
-                  <div className="social-buttons">
-                    <Button
-                      type="button"
-                      variant="social"
-                      fullWidth
-                      icon={<Facebook size={20} />}
-                      onClick={() => handleSocialLogin('Facebook')}
-                    >
-                      Facebook
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="social"
-                      fullWidth
-                      icon={
-                        <svg width="20" height="20" viewBox="0 0 20 20">
-                          <path
-                            fill="#4285F4"
-                            d="M19.6 10.23c0-.82-.1-1.42-.25-2.05H10v3.72h5.5c-.15.96-.74 2.31-2.04 3.22v2.45h3.16c1.89-1.73 2.98-4.3 2.98-7.34z"
-                          />
-                          <path
-                            fill="#34A853"
-                            d="M13.46 15.13c-.83.59-1.96 1-3.46 1-2.64 0-4.88-1.74-5.68-4.15H1.07v2.52C2.72 17.75 6.09 20 10 20c2.7 0 4.96-.89 6.62-2.42l-3.16-2.45z"
-                          />
-                          <path
-                            fill="#FBBC05"
-                            d="M3.99 10c0-.69.12-1.35.32-1.97V5.51H1.07A9.973 9.973 0 000 10c0 1.61.39 3.14 1.07 4.49l3.24-2.52c-.2-.62-.32-1.28-.32-1.97z"
-                          />
-                          <path
-                            fill="#EA4335"
-                            d="M10 3.88c1.88 0 3.13.81 3.85 1.48l2.84-2.76C14.96.99 12.7 0 10 0 6.09 0 2.72 2.25 1.07 5.51l3.24 2.52C5.12 5.62 7.36 3.88 10 3.88z"
-                          />
-                        </svg>
-                      }
-                      onClick={() => handleSocialLogin('Google')}
-                    >
-                      Google
-                    </Button>
-                  </div>
-
-                  {/* Login Link */}
-                  <div className="form-footer">
-                    Already have an account?{' '}
-                    <Link to="/login" className="form-link">
-                      Login
-                    </Link>
-                  </div>
-                </form>
+            <div className="brand-features">
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <span>{t('Best Price Guarantee')}</span>
+              </div>
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <span>{t('Easy Booking')}</span>
+              </div>
+              <div className="feature-item">
+                <div className="feature-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <span>{t('Trusted by Millions')}</span>
               </div>
             </div>
           </div>
+          <div className="brand-image">
+            <img
+              src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&h=800&fit=crop&q=80"
+              alt="Adventure"
+            />
+          </div>
         </div>
-      </main>
-      <Footer />
+
+        {/* Right Panel - Form */}
+        <div className="auth-form-panel">
+          <div className="form-container signup-container">
+            <div className="mobile-logo">
+              <Link to="/">
+                <img src="/src/assets/logo.png" alt="TOOR" />
+              </Link>
+            </div>
+
+            <div className="form-header">
+              <h2>{t('Create account')}</h2>
+              <p>{t('Fill in your details to get started')}</p>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+              {/* Name Fields */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="firstName">{t('First name')}</label>
+                  <div className="input-with-icon">
+                    <User className="field-icon" size={18} />
+                    <input
+                      id="firstName"
+                      type="text"
+                      placeholder="John"
+                      className={errors.firstName ? 'error' : ''}
+                      {...register('firstName', {
+                        required: t('First name') + ' is required',
+                        minLength: { value: 2, message: 'Min 2 characters' },
+                      })}
+                    />
+                  </div>
+                  {errors.firstName && <span className="error-text">{errors.firstName.message}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="lastName">{t('Last name')}</label>
+                  <div className="input-with-icon">
+                    <User className="field-icon" size={18} />
+                    <input
+                      id="lastName"
+                      type="text"
+                      placeholder="Doe"
+                      className={errors.lastName ? 'error' : ''}
+                      {...register('lastName', {
+                        required: t('Last name') + ' is required',
+                        minLength: { value: 2, message: 'Min 2 characters' },
+                      })}
+                    />
+                  </div>
+                  {errors.lastName && <span className="error-text">{errors.lastName.message}</span>}
+                </div>
+              </div>
+
+              {/* Email Field */}
+              <div className="form-group">
+                <label htmlFor="email">{t('Email address')}</label>
+                <div className="input-with-icon">
+                  <Mail className="field-icon" size={18} />
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    className={errors.email ? 'error' : ''}
+                    {...register('email', {
+                      required: t('Email address') + ' is required',
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Invalid email address',
+                      },
+                    })}
+                  />
+                </div>
+                {errors.email && <span className="error-text">{errors.email.message}</span>}
+              </div>
+
+              {/* Phone Field */}
+              <div className="form-group">
+                <label htmlFor="phone">{t('Phone number')}</label>
+                <div className="input-with-icon">
+                  <Phone className="field-icon" size={18} />
+                  <input
+                    id="phone"
+                    type="tel"
+                    placeholder="+1 (555) 000-0000"
+                    className={errors.phoneNumber ? 'error' : ''}
+                    {...register('phoneNumber', {
+                      required: t('Phone number') + ' is required',
+                      pattern: {
+                        value: /^[0-9+\s\-()]+$/,
+                        message: 'Invalid phone number',
+                      },
+                    })}
+                  />
+                </div>
+                {errors.phoneNumber && <span className="error-text">{errors.phoneNumber.message}</span>}
+              </div>
+
+              {/* Password Field */}
+              <div className="form-group">
+                <label htmlFor="password">{t('Password')}</label>
+                <div className="input-with-icon">
+                  <Lock className="field-icon" size={18} />
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={t('Password')}
+                    className={errors.password ? 'error' : ''}
+                    {...register('password', {
+                      required: t('Password') + ' is required',
+                      minLength: { value: 8, message: 'Min 8 characters' },
+                      pattern: {
+                        value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                        message: 'Need uppercase, lowercase & number',
+                      },
+                    })}
+                  />
+                  <button
+                    type="button"
+                    className="toggle-password"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {errors.password && <span className="error-text">{errors.password.message}</span>}
+
+                {/* Password Strength Indicator */}
+                {password && (
+                  <div className="password-strength">
+                    <div className="strength-bar">
+                      <div
+                        className={`strength-fill strength-${strengthCount}`}
+                        style={{ width: `${(strengthCount / 4) * 100}%` }}
+                      />
+                    </div>
+                    <div className="strength-checklist">
+                      <span className={passwordStrength.hasLength ? 'met' : ''}>
+                        <Check size={12} /> 8+
+                      </span>
+                      <span className={passwordStrength.hasUpper ? 'met' : ''}>
+                        <Check size={12} /> A-Z
+                      </span>
+                      <span className={passwordStrength.hasLower ? 'met' : ''}>
+                        <Check size={12} /> a-z
+                      </span>
+                      <span className={passwordStrength.hasNumber ? 'met' : ''}>
+                        <Check size={12} /> 0-9
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Terms Checkbox */}
+              <label className="checkbox-label terms-checkbox">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                />
+                <span className="checkbox-custom"></span>
+                <span>
+                  {t('I agree to the')}{' '}
+                  <Link to="/terms">{t('Terms of Service')}</Link> {t('and')}{' '}
+                  <Link to="/privacy">{t('Privacy Policy')}</Link>
+                </span>
+              </label>
+
+              {/* Submit */}
+              <Button type="submit" fullWidth loading={isLoading} disabled={isLoading}>
+                {t('Create Account')}
+                <ArrowRight size={18} />
+              </Button>
+
+              {/* Divider */}
+              <div className="divider">
+                <span>{t('or sign up with')}</span>
+              </div>
+
+              {/* Social Login */}
+              <div className="social-buttons">
+                <button type="button" className="social-btn" onClick={() => handleSocialLogin('Google')}>
+                  <svg width="18" height="18" viewBox="0 0 18 18">
+                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
+                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" />
+                    <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" />
+                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
+                  </svg>
+                  Google
+                </button>
+                <button type="button" className="social-btn" onClick={() => handleSocialLogin('Facebook')}>
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="#1877F2">
+                    <path d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.255 1.343-3.501 3.4-3.501.984 0 2.014.175 2.014.175v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.496l-.399 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z" />
+                  </svg>
+                  Facebook
+                </button>
+              </div>
+
+              {/* Sign In Link */}
+              <p className="auth-footer">
+                {t('Already have an account?')}{' '}
+                <Link to="/login">{t('Sign In')}</Link>
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
     </>
   );
 };

@@ -1,13 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
-import { Search, MapPin, Calendar, Users, Minus, Plus, X, Plane, Clock } from 'lucide-react';
+import { Search, MapPin, Calendar, Users, Minus, Plus, X, Plane, Clock, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ratehawkService from '../services/ratehawk.service';
+import { useLanguage } from '../contexts/LanguageContext';
 import 'react-datepicker/dist/react-datepicker.css';
 import './EnhancedSearch.css';
 
+// Popular destinations for quick selection - CORRECT RateHawk region IDs
+const POPULAR_DESTINATIONS = [
+  { dest_id: '2734', label: 'Paris, France', search_type: 'City', hotels: 5000 },
+  { dest_id: '2114', label: 'London, United Kingdom', search_type: 'City', hotels: 8000 },
+  { dest_id: '2621', label: 'New York, United States', search_type: 'City', hotels: 6000 },
+  { dest_id: '3593', label: 'Tokyo, Japan', search_type: 'City', hotels: 4000 },
+  { dest_id: '6053839', label: 'Dubai, UAE', search_type: 'City', hotels: 3500 },
+  { dest_id: '513', label: 'Barcelona, Spain', search_type: 'City', hotels: 3000 },
+  { dest_id: '3023', label: 'Rome, Italy', search_type: 'City', hotels: 4000 },
+  { dest_id: '378', label: 'Amsterdam, Netherlands', search_type: 'City', hotels: 2500 },
+];
+
 const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -109,10 +123,10 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // If empty, hide dropdown
+    // If empty, show popular destinations
     if (!value || value.length < 2) {
-      setLocationSuggestions([]);
-      setShowLocationDropdown(false);
+      setLocationSuggestions(POPULAR_DESTINATIONS);
+      setShowLocationDropdown(true);
       return;
     }
 
@@ -120,10 +134,6 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         setLoadingLocations(true);
-
-        // Use RateHawk service for hotel autocomplete
-        // For other tabs (flight, car), we might need different services, 
-        // but for now we'll use RateHawk regions for all or just hotels
 
         // Use RateHawk service for autocomplete on all location fields
         const results = await ratehawkService.searchRegions(value);
@@ -138,18 +148,32 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
             hotel_id: item.hotel_id // For direct hotel selection if needed
           }));
 
-          setLocationSuggestions(suggestions.slice(0, 5));
+          // Show more results (up to 10 - 5 destinations + 5 hotels)
+          setLocationSuggestions(suggestions.slice(0, 10));
           setShowLocationDropdown(true);
         } else {
-          setLocationSuggestions([]);
+          // Show popular destinations as fallback
+          setLocationSuggestions(POPULAR_DESTINATIONS);
+          setShowLocationDropdown(true);
         }
       } catch (error) {
         console.error('Location search error:', error);
-        setLocationSuggestions([]);
+        // Show popular destinations on error
+        setLocationSuggestions(POPULAR_DESTINATIONS);
+        setShowLocationDropdown(true);
       } finally {
         setLoadingLocations(false);
       }
     }, 300); // 300ms debounce
+  };
+
+  // Show popular destinations when field is focused
+  const handleLocationFocus = (field) => {
+    setActiveLocationField(field);
+    if (locationSuggestions.length === 0) {
+      setLocationSuggestions(POPULAR_DESTINATIONS);
+    }
+    setShowLocationDropdown(true);
   };
 
   const selectLocation = (location) => {
@@ -348,13 +372,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field" ref={locationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
-                  <span>Location</span>
+                  <span>{t('Location')}</span>
                 </label>
                 <input
                   type="text"
                   value={hotelLocation}
                   onChange={(e) => handleLocationInput(e.target.value, 'hotel')}
-                  placeholder="Type and select from dropdown..."
+                  onFocus={() => handleLocationFocus('hotel')}
+                  placeholder={t('Where are you going?')}
                   className={`enhanced-search-input ${hotelLocation && !hotelLocationData ? 'input-warning' : ''}`}
                 />
                 {showLocationDropdown && activeLocationField === 'hotel' && (
@@ -364,17 +389,57 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                         <span>Searching...</span>
                       </div>
                     ) : locationSuggestions.length > 0 ? (
-                      locationSuggestions.map((suggestion, index) => (
-                        <div key={index} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
-                          <MapPin size={14} />
-                          <div style={{ flex: 1 }}>
-                            <div>{suggestion.label}</div>
-                            <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                              {suggestion.search_type === 'Hotel' ? 'Hotel' : `${suggestion.hotels || 0} hotels • ${suggestion.search_type}`}
+                      <>
+                        {/* Destinations Section */}
+                        {locationSuggestions.filter(s => s.search_type !== 'Hotel').length > 0 && (
+                          <div className="location-group">
+                            <div className="location-group-header">
+                              <MapPin size={14} />
+                              <span>Destinations</span>
                             </div>
+                            {locationSuggestions
+                              .filter(s => s.search_type !== 'Hotel')
+                              .slice(0, 5)
+                              .map((suggestion, index) => (
+                                <div key={`dest-${index}`} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
+                                  <div className="location-icon destination">
+                                    <MapPin size={14} />
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div className="location-name">{suggestion.label}</div>
+                                    <div className="location-meta">
+                                      {suggestion.hotels || 0} hotels • {suggestion.search_type}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                           </div>
-                        </div>
-                      ))
+                        )}
+
+                        {/* Hotels Section */}
+                        {locationSuggestions.filter(s => s.search_type === 'Hotel').length > 0 && (
+                          <div className="location-group">
+                            <div className="location-group-header">
+                              <Building2 size={14} />
+                              <span>Hotels</span>
+                            </div>
+                            {locationSuggestions
+                              .filter(s => s.search_type === 'Hotel')
+                              .slice(0, 5)
+                              .map((suggestion, index) => (
+                                <div key={`hotel-${index}`} className="location-suggestion" onClick={() => selectLocation(suggestion)}>
+                                  <div className="location-icon hotel">
+                                    <Building2 size={14} />
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div className="location-name">{suggestion.label}</div>
+                                    <div className="location-meta">Hotel</div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="location-suggestion" style={{ opacity: 0.7 }}>
                         <span>No locations found</span>
@@ -387,7 +452,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field">
                 <label className="enhanced-search-label">
                   <Calendar size={18} />
-                  <span>Check In</span>
+                  <span>{t('Check In')}</span>
                 </label>
                 <DatePicker
                   selected={checkInDate}
@@ -396,7 +461,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                   startDate={checkInDate}
                   endDate={checkOutDate}
                   minDate={new Date()}
-                  placeholderText="Select date"
+                  placeholderText={t('Select date')}
                   className="enhanced-search-input"
                   dateFormat="MMM dd, yyyy"
                 />
@@ -405,7 +470,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field">
                 <label className="enhanced-search-label">
                   <Calendar size={18} />
-                  <span>Check Out</span>
+                  <span>{t('Check Out')}</span>
                 </label>
                 <DatePicker
                   selected={checkOutDate}
@@ -414,7 +479,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                   startDate={checkInDate}
                   endDate={checkOutDate}
                   minDate={checkInDate || new Date()}
-                  placeholderText="Select date"
+                  placeholderText={t('Select date')}
                   className="enhanced-search-input"
                   dateFormat="MMM dd, yyyy"
                 />
@@ -423,20 +488,20 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field" ref={guestRef}>
                 <label className="enhanced-search-label">
                   <Users size={18} />
-                  <span>Guests & Rooms</span>
+                  <span>{t('Guests')} & {t('Rooms')}</span>
                 </label>
                 <input
                   type="text"
                   value={getGuestText('hotel')}
                   onFocus={() => setShowGuestSelector(true)}
                   readOnly
-                  placeholder="Select guests"
+                  placeholder={t('Guests')}
                   className="enhanced-search-input cursor-pointer"
                 />
                 {showGuestSelector && (
                   <div className="guest-selector-dropdown">
                     <div className="guest-selector-header">
-                      <span>Select Guests & Rooms</span>
+                      <span>{t('Guests')} & {t('Rooms')}</span>
                       <button type="button" onClick={() => setShowGuestSelector(false)} className="guest-selector-close">
                         <X size={18} />
                       </button>
@@ -444,8 +509,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Adults</div>
-                        <div className="guest-type-desc">Age 18+</div>
+                        <div className="guest-type-label">{t('Adults')}</div>
+                        <div className="guest-type-desc">18+</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('adults', 'decrease', 'hotel')}
@@ -462,8 +527,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Children</div>
-                        <div className="guest-type-desc">Age 0-17</div>
+                        <div className="guest-type-label">{t('Children')}</div>
+                        <div className="guest-type-desc">0-17</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('children', 'decrease', 'hotel')}
@@ -480,8 +545,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Rooms</div>
-                        <div className="guest-type-desc">Number of rooms</div>
+                        <div className="guest-type-label">{t('Rooms')}</div>
+                        <div className="guest-type-desc">#</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('rooms', 'decrease', 'hotel')}
@@ -497,7 +562,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                     </div>
 
                     <button type="button" onClick={() => setShowGuestSelector(false)} className="guest-selector-done">
-                      Done
+                      {t('Apply')}
                     </button>
                   </div>
                 )}
@@ -511,24 +576,25 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field flight-type-selector">
                 <label className="enhanced-search-label">
                   <Plane size={18} />
-                  <span>Trip Type</span>
+                  <span>{t('Round Trip')}</span>
                 </label>
                 <select value={flightType} onChange={(e) => setFlightType(e.target.value)} className="enhanced-search-input">
-                  <option value="roundtrip">Round Trip</option>
-                  <option value="oneway">One Way</option>
+                  <option value="roundtrip">{t('Round Trip')}</option>
+                  <option value="oneway">{t('One Way')}</option>
                 </select>
               </div>
 
               <div className="enhanced-search-field" ref={locationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
-                  <span>From</span>
+                  <span>{t('From')}</span>
                 </label>
                 <input
                   type="text"
                   value={fromLocation}
                   onChange={(e) => handleLocationInput(e.target.value, 'from')}
-                  placeholder="Departure city"
+                  onFocus={() => handleLocationFocus('from')}
+                  placeholder={t('From')}
                   className="enhanced-search-input"
                 />
                 {showLocationDropdown && activeLocationField === 'from' && locationSuggestions.length > 0 && (
@@ -546,13 +612,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field" ref={toLocationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
-                  <span>To</span>
+                  <span>{t('To')}</span>
                 </label>
                 <input
                   type="text"
                   value={toLocation}
                   onChange={(e) => handleLocationInput(e.target.value, 'to')}
-                  placeholder="Destination city"
+                  onFocus={() => handleLocationFocus('to')}
+                  placeholder={t('To')}
                   className="enhanced-search-input"
                 />
                 {showLocationDropdown && activeLocationField === 'to' && locationSuggestions.length > 0 && (
@@ -570,13 +637,13 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field">
                 <label className="enhanced-search-label">
                   <Calendar size={18} />
-                  <span>Departure</span>
+                  <span>{t('Departure')}</span>
                 </label>
                 <DatePicker
                   selected={departureDate}
                   onChange={(date) => setDepartureDate(date)}
                   minDate={new Date()}
-                  placeholderText="Select date"
+                  placeholderText={t('Select date')}
                   className="enhanced-search-input"
                   dateFormat="MMM dd, yyyy"
                 />
@@ -586,13 +653,13 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                 <div className="enhanced-search-field">
                   <label className="enhanced-search-label">
                     <Calendar size={18} />
-                    <span>Return</span>
+                    <span>{t('Return')}</span>
                   </label>
                   <DatePicker
                     selected={returnDate}
                     onChange={(date) => setReturnDate(date)}
                     minDate={departureDate || new Date()}
-                    placeholderText="Select date"
+                    placeholderText={t('Select date')}
                     className="enhanced-search-input"
                     dateFormat="MMM dd, yyyy"
                   />
@@ -602,20 +669,20 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field" ref={guestRef}>
                 <label className="enhanced-search-label">
                   <Users size={18} />
-                  <span>Passengers</span>
+                  <span>{t('Guests')}</span>
                 </label>
                 <input
                   type="text"
                   value={getGuestText('flight')}
                   onFocus={() => setShowGuestSelector(true)}
                   readOnly
-                  placeholder="Select passengers"
+                  placeholder={t('Guests')}
                   className="enhanced-search-input cursor-pointer"
                 />
                 {showGuestSelector && (
                   <div className="guest-selector-dropdown">
                     <div className="guest-selector-header">
-                      <span>Select Passengers</span>
+                      <span>{t('Guests')}</span>
                       <button type="button" onClick={() => setShowGuestSelector(false)} className="guest-selector-close">
                         <X size={18} />
                       </button>
@@ -623,8 +690,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Adults</div>
-                        <div className="guest-type-desc">Age 18+</div>
+                        <div className="guest-type-label">{t('Adults')}</div>
+                        <div className="guest-type-desc">18+</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('adults', 'decrease', 'flight')}
@@ -641,8 +708,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Children</div>
-                        <div className="guest-type-desc">Age 2-17</div>
+                        <div className="guest-type-label">{t('Children')}</div>
+                        <div className="guest-type-desc">2-17</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('children', 'decrease', 'flight')}
@@ -659,8 +726,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Infants</div>
-                        <div className="guest-type-desc">Under 2</div>
+                        <div className="guest-type-label">{t('Infants')}</div>
+                        <div className="guest-type-desc">0-2</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('infants', 'decrease', 'flight')}
@@ -676,23 +743,10 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                     </div>
 
                     <button type="button" onClick={() => setShowGuestSelector(false)} className="guest-selector-done">
-                      Done
+                      {t('Apply')}
                     </button>
                   </div>
                 )}
-              </div>
-
-              <div className="enhanced-search-field">
-                <label className="enhanced-search-label">
-                  <Users size={18} />
-                  <span>Class</span>
-                </label>
-                <select value={flightClass} onChange={(e) => setFlightClass(e.target.value)} className="enhanced-search-input">
-                  <option value="economy">Economy</option>
-                  <option value="premium">Premium Economy</option>
-                  <option value="business">Business</option>
-                  <option value="first">First Class</option>
-                </select>
               </div>
             </>
           )}
@@ -703,13 +757,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field" ref={locationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
-                  <span>Destination</span>
+                  <span>{t('Location')}</span>
                 </label>
                 <input
                   type="text"
                   value={cruiseDestination}
                   onChange={(e) => handleLocationInput(e.target.value, 'cruise')}
-                  placeholder="Where to?"
+                  onFocus={() => handleLocationFocus('cruise')}
+                  placeholder={t('Where are you going?')}
                   className="enhanced-search-input"
                 />
                 {showLocationDropdown && activeLocationField === 'cruise' && locationSuggestions.length > 0 && (
@@ -727,13 +782,13 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field">
                 <label className="enhanced-search-label">
                   <Calendar size={18} />
-                  <span>Departure</span>
+                  <span>{t('Departure')}</span>
                 </label>
                 <DatePicker
                   selected={cruiseDepartureDate}
                   onChange={(date) => setCruiseDepartureDate(date)}
                   minDate={new Date()}
-                  placeholderText="Select date"
+                  placeholderText={t('Select date')}
                   className="enhanced-search-input"
                   dateFormat="MMM dd, yyyy"
                 />
@@ -742,34 +797,34 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field">
                 <label className="enhanced-search-label">
                   <Clock size={18} />
-                  <span>Duration</span>
+                  <span>{t('Days')}</span>
                 </label>
                 <select value={cruiseDuration} onChange={(e) => setCruiseDuration(e.target.value)} className="enhanced-search-input">
-                  <option value="3">3 Days</option>
-                  <option value="5">5 Days</option>
-                  <option value="7">7 Days</option>
-                  <option value="10">10 Days</option>
-                  <option value="14">14 Days</option>
+                  <option value="3">3 {t('Days')}</option>
+                  <option value="5">5 {t('Days')}</option>
+                  <option value="7">7 {t('Days')}</option>
+                  <option value="10">10 {t('Days')}</option>
+                  <option value="14">14 {t('Days')}</option>
                 </select>
               </div>
 
               <div className="enhanced-search-field" ref={guestRef}>
                 <label className="enhanced-search-label">
                   <Users size={18} />
-                  <span>Passengers</span>
+                  <span>{t('Guests')}</span>
                 </label>
                 <input
                   type="text"
                   value={getGuestText('cruise')}
                   onFocus={() => setShowGuestSelector(true)}
                   readOnly
-                  placeholder="Select passengers"
+                  placeholder={t('Guests')}
                   className="enhanced-search-input cursor-pointer"
                 />
                 {showGuestSelector && (
                   <div className="guest-selector-dropdown">
                     <div className="guest-selector-header">
-                      <span>Select Passengers</span>
+                      <span>{t('Guests')}</span>
                       <button type="button" onClick={() => setShowGuestSelector(false)} className="guest-selector-close">
                         <X size={18} />
                       </button>
@@ -777,8 +832,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Adults</div>
-                        <div className="guest-type-desc">Age 18+</div>
+                        <div className="guest-type-label">{t('Adults')}</div>
+                        <div className="guest-type-desc">18+</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('adults', 'decrease', 'cruise')}
@@ -795,8 +850,8 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
 
                     <div className="guest-selector-item">
                       <div>
-                        <div className="guest-type-label">Children</div>
-                        <div className="guest-type-desc">Age 0-17</div>
+                        <div className="guest-type-label">{t('Children')}</div>
+                        <div className="guest-type-desc">0-17</div>
                       </div>
                       <div className="guest-counter">
                         <button type="button" onClick={() => handleGuestChange('children', 'decrease', 'cruise')}
@@ -812,7 +867,7 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                     </div>
 
                     <button type="button" onClick={() => setShowGuestSelector(false)} className="guest-selector-done">
-                      Done
+                      {t('Apply')}
                     </button>
                   </div>
                 )}
@@ -826,13 +881,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field" ref={locationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
-                  <span>Pick-up Location</span>
+                  <span>{t('Pick-up Location')}</span>
                 </label>
                 <input
                   type="text"
                   value={pickupLocation}
                   onChange={(e) => handleLocationInput(e.target.value, 'pickup')}
-                  placeholder="City or Airport"
+                  onFocus={() => handleLocationFocus('pickup')}
+                  placeholder={t('Location')}
                   className="enhanced-search-input"
                 />
                 {showLocationDropdown && activeLocationField === 'pickup' && locationSuggestions.length > 0 && (
@@ -850,13 +906,14 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field" ref={dropoffLocationRef}>
                 <label className="enhanced-search-label">
                   <MapPin size={18} />
-                  <span>Drop-off Location</span>
+                  <span>{t('Drop-off Location')}</span>
                 </label>
                 <input
                   type="text"
                   value={dropoffLocation}
                   onChange={(e) => handleLocationInput(e.target.value, 'dropoff')}
-                  placeholder="Same as pick-up"
+                  onFocus={() => handleLocationFocus('dropoff')}
+                  placeholder={t('Location')}
                   className="enhanced-search-input"
                 />
                 {showLocationDropdown && activeLocationField === 'dropoff' && locationSuggestions.length > 0 && (
@@ -874,13 +931,13 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field">
                 <label className="enhanced-search-label">
                   <Calendar size={18} />
-                  <span>Pick-up Date</span>
+                  <span>{t('Pick-up Date')}</span>
                 </label>
                 <DatePicker
                   selected={pickupDate}
                   onChange={(date) => setPickupDate(date)}
                   minDate={new Date()}
-                  placeholderText="Select date"
+                  placeholderText={t('Select date')}
                   className="enhanced-search-input"
                   showTimeSelect
                   timeFormat="HH:mm"
@@ -892,13 +949,13 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
               <div className="enhanced-search-field">
                 <label className="enhanced-search-label">
                   <Calendar size={18} />
-                  <span>Drop-off Date</span>
+                  <span>{t('Drop-off Date')}</span>
                 </label>
                 <DatePicker
                   selected={dropoffDate}
                   onChange={(date) => setDropoffDate(date)}
                   minDate={pickupDate || new Date()}
-                  placeholderText="Select date"
+                  placeholderText={t('Select date')}
                   className="enhanced-search-input"
                   showTimeSelect
                   timeFormat="HH:mm"
@@ -906,24 +963,12 @@ const EnhancedSearch = ({ initialTab = 'hotel', showTabs = true }) => {
                   dateFormat="MMM dd, yyyy h:mm aa"
                 />
               </div>
-
-              <div className="enhanced-search-field">
-                <label className="enhanced-search-label">
-                  <Users size={18} />
-                  <span>Driver Age</span>
-                </label>
-                <select value={driverAge} onChange={(e) => setDriverAge(e.target.value)} className="enhanced-search-input">
-                  <option value="18-24">18-24 years</option>
-                  <option value="25-29">25-29 years</option>
-                  <option value="30">30+ years</option>
-                </select>
-              </div>
             </>
           )}
 
           <button type="submit" className="enhanced-search-button">
             <Search size={20} />
-            <span>Search</span>
+            <span>{t('Search')}</span>
           </button>
         </form>
       </div>

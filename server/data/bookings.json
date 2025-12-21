@@ -1,0 +1,48 @@
+[
+  {
+    "id": "BK30713888",
+    "paymentId": "demo_pi_1765030713887",
+    "type": "property",
+    "itemId": "best_western_hotel_faubourg_saint_martin_2",
+    "title": "Hotel Litteraire Arthur Rimbaud, BW Signature Collection",
+    "subtitle": "6 Rue Gustave Goublier, Paris",
+    "price": 11940,
+    "pricePerNight": 2985,
+    "nights": 4,
+    "details": [
+      {
+        "label": "Check-in",
+        "value": "Dec 6, 2025"
+      },
+      {
+        "label": "Check-out",
+        "value": "Dec 10, 2025"
+      },
+      {
+        "label": "Guests",
+        "value": "2 Adults"
+      },
+      {
+        "label": "Rooms",
+        "value": "2 Rooms"
+      },
+      {
+        "label": "Nights",
+        "value": "4"
+      }
+    ],
+    "totalPrice": 13731,
+    "taxesAndFees": 1791,
+    "guest": {
+      "firstName": "Ganesh",
+      "lastName": "parajuli",
+      "email": "ganeshparajuli2059@gmail.com",
+      "phone": "9843047262",
+      "specialRequests": "asa"
+    },
+    "status": "confirmed",
+    "createdAt": "2025-12-06T14:18:33.888Z",
+    "isDemo": true,
+    "updatedAt": "2025-12-06T14:18:33.892Z"
+  }
+]

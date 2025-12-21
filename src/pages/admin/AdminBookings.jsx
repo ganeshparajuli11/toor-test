@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -11,103 +11,79 @@ import {
   Hotel,
   Plane,
   Ship,
-  Car
+  Car,
+  RefreshCw
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '../../services/api.service';
 import './AdminBookings.css';
 
 const AdminBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    confirmed: 0,
+    pending: 0,
+    cancelled: 0,
+    totalRevenue: 0
+  });
 
-  // Mock data - will be replaced with real API data
-  const [bookings] = useState([
-    {
-      id: 'BK001',
-      bookingRef: 'HOT-2025-001',
-      customer: 'John Doe',
-      email: 'john.doe@example.com',
-      type: 'Hotel',
-      destination: 'Paris, France',
-      hotelName: 'Le Grand Hotel',
-      checkIn: '2025-12-15',
-      checkOut: '2025-12-20',
-      guests: 2,
-      amount: 1250,
-      status: 'Confirmed',
-      paymentStatus: 'Paid',
-      bookingDate: '2025-11-20',
-      voucherSent: true
-    },
-    {
-      id: 'BK002',
-      bookingRef: 'FLT-2025-002',
-      customer: 'Sarah Smith',
-      email: 'sarah.smith@example.com',
-      type: 'Flight',
-      destination: 'Tokyo, Japan',
-      airline: 'Japan Airlines',
-      departure: '2025-12-10',
-      flightNumber: 'JL-5042',
-      passengers: 1,
-      amount: 890,
-      status: 'Pending',
-      paymentStatus: 'Pending',
-      bookingDate: '2025-11-21',
-      voucherSent: false
-    },
-    {
-      id: 'BK003',
-      bookingRef: 'HOT-2025-003',
-      customer: 'Mike Johnson',
-      email: 'mike.j@example.com',
-      type: 'Hotel',
-      destination: 'Dubai, UAE',
-      hotelName: 'Burj Al Arab',
-      checkIn: '2025-12-25',
-      checkOut: '2025-12-30',
-      guests: 4,
-      amount: 2100,
-      status: 'Confirmed',
-      paymentStatus: 'Paid',
-      bookingDate: '2025-11-22',
-      voucherSent: true
-    },
-    {
-      id: 'BK004',
-      bookingRef: 'CRU-2025-004',
-      customer: 'Emily Brown',
-      email: 'emily.brown@example.com',
-      type: 'Cruise',
-      destination: 'Caribbean',
-      cruiseLine: 'Royal Caribbean',
-      departure: '2026-01-15',
-      duration: '7 nights',
-      passengers: 2,
-      amount: 3500,
-      status: 'Confirmed',
-      paymentStatus: 'Paid',
-      bookingDate: '2025-11-22',
-      voucherSent: true
-    },
-    {
-      id: 'BK005',
-      bookingRef: 'HOT-2025-005',
-      customer: 'David Wilson',
-      email: 'david.w@example.com',
-      type: 'Hotel',
-      destination: 'London, UK',
-      hotelName: 'The Savoy',
-      checkIn: '2025-12-01',
-      checkOut: '2025-12-05',
-      guests: 2,
-      amount: 780,
-      status: 'Cancelled',
-      paymentStatus: 'Refunded',
-      bookingDate: '2025-11-23',
-      voucherSent: false
+  // Fetch bookings from backend
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/bookings');
+      const bookingsData = response.data.data || [];
+
+      // Transform backend data to match the table format
+      const transformedBookings = bookingsData.map(booking => ({
+        id: booking.id,
+        bookingRef: booking.id,
+        customer: booking.guest ? `${booking.guest.firstName} ${booking.guest.lastName}` : 'Guest',
+        email: booking.guest?.email || 'N/A',
+        phone: booking.guest?.phone || 'N/A',
+        type: (booking.type || 'hotel').charAt(0).toUpperCase() + (booking.type || 'hotel').slice(1),
+        destination: booking.subtitle || booking.title || 'N/A',
+        hotelName: booking.title || 'N/A',
+        checkIn: booking.details?.find(d => d.label === 'Check-in')?.value || 'N/A',
+        checkOut: booking.details?.find(d => d.label === 'Check-out')?.value || 'N/A',
+        guests: booking.details?.find(d => d.label === 'Guests')?.value || 'N/A',
+        nights: booking.details?.find(d => d.label === 'Nights')?.value || 'N/A',
+        amount: booking.totalPrice || 0,
+        status: (booking.status || 'pending').charAt(0).toUpperCase() + (booking.status || 'pending').slice(1),
+        paymentStatus: booking.isDemo ? 'Demo' : 'Paid',
+        bookingDate: booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : 'N/A',
+        voucherSent: booking.status === 'confirmed',
+        isDemo: booking.isDemo || false,
+        rawData: booking
+      }));
+
+      setBookings(transformedBookings);
+
+      // Calculate stats
+      setStats({
+        confirmed: transformedBookings.filter(b => b.status === 'Confirmed').length,
+        pending: transformedBookings.filter(b => b.status === 'Pending').length,
+        cancelled: transformedBookings.filter(b => b.status === 'Cancelled').length,
+        totalRevenue: transformedBookings.reduce((sum, b) => sum + b.amount, 0)
+      });
+
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      toast.error('Failed to fetch bookings');
+      // Use empty array on error
+      setBookings([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
   const getStatusClass = (status) => {
     switch (status.toLowerCase()) {
@@ -133,8 +109,61 @@ const AdminBookings = () => {
       case 'car':
         return <Car size={18} />;
       default:
-        return null;
+        return <Hotel size={18} />;
     }
+  };
+
+  const handleStatusChange = async (bookingId, newStatus) => {
+    try {
+      await api.put(`/bookings/${bookingId}`, { status: newStatus.toLowerCase() });
+      toast.success(`Booking status updated to ${newStatus}`);
+      fetchBookings(); // Refresh the list
+    } catch (error) {
+      console.error('Error updating booking:', error);
+      toast.error('Failed to update booking status');
+    }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+
+    try {
+      await api.post(`/bookings/${bookingId}/cancel`);
+      toast.success('Booking cancelled successfully');
+      fetchBookings();
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      toast.error('Failed to cancel booking');
+    }
+  };
+
+  const handleExport = () => {
+    // Create CSV content
+    const headers = ['Booking Ref', 'Customer', 'Email', 'Type', 'Destination', 'Check-in', 'Check-out', 'Amount', 'Status', 'Payment', 'Booking Date'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredBookings.map(b => [
+        b.bookingRef,
+        b.customer,
+        b.email,
+        b.type,
+        b.destination,
+        b.checkIn,
+        b.checkOut,
+        b.amount,
+        b.status,
+        b.paymentStatus,
+        b.bookingDate
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bookings-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast.success('Bookings exported successfully');
   };
 
   const filteredBookings = bookings.filter((booking) => {
@@ -149,6 +178,23 @@ const AdminBookings = () => {
     return matchesSearch && matchesStatus && matchesType;
   });
 
+  if (loading) {
+    return (
+      <div className="admin-bookings">
+        <div className="bookings-header">
+          <div>
+            <h1 className="bookings-title">Bookings Management</h1>
+            <p className="bookings-subtitle">Loading bookings...</p>
+          </div>
+        </div>
+        <div className="loading-spinner" style={{ textAlign: 'center', padding: '60px' }}>
+          <RefreshCw size={40} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+          <p>Loading bookings...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-bookings">
       <div className="bookings-header">
@@ -156,10 +202,25 @@ const AdminBookings = () => {
           <h1 className="bookings-title">Bookings Management</h1>
           <p className="bookings-subtitle">Manage and track all customer bookings</p>
         </div>
-        <button className="export-btn">
-          <Download size={20} />
-          Export Data
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="refresh-btn" onClick={fetchBookings} style={{
+            padding: '10px 16px',
+            background: '#f0f0f0',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+          <button className="export-btn" onClick={handleExport}>
+            <Download size={20} />
+            Export Data
+          </button>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -211,28 +272,28 @@ const AdminBookings = () => {
         <div className="stat-item">
           <CheckCircle className="stat-icon confirmed" size={20} />
           <div>
-            <div className="stat-value">{bookings.filter(b => b.status === 'Confirmed').length}</div>
+            <div className="stat-value">{stats.confirmed}</div>
             <div className="stat-label">Confirmed</div>
           </div>
         </div>
         <div className="stat-item">
           <Clock className="stat-icon pending" size={20} />
           <div>
-            <div className="stat-value">{bookings.filter(b => b.status === 'Pending').length}</div>
+            <div className="stat-value">{stats.pending}</div>
             <div className="stat-label">Pending</div>
           </div>
         </div>
         <div className="stat-item">
           <XCircle className="stat-icon cancelled" size={20} />
           <div>
-            <div className="stat-value">{bookings.filter(b => b.status === 'Cancelled').length}</div>
+            <div className="stat-value">{stats.cancelled}</div>
             <div className="stat-label">Cancelled</div>
           </div>
         </div>
         <div className="stat-item">
           <div className="stat-icon revenue">$</div>
           <div>
-            <div className="stat-value">${bookings.reduce((sum, b) => sum + b.amount, 0).toLocaleString()}</div>
+            <div className="stat-value">${stats.totalRevenue.toLocaleString()}</div>
             <div className="stat-label">Total Revenue</div>
           </div>
         </div>
@@ -252,14 +313,25 @@ const AdminBookings = () => {
               <th>Amount</th>
               <th>Status</th>
               <th>Payment</th>
-              <th>Voucher</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredBookings.map((booking) => (
               <tr key={booking.id}>
-                <td className="booking-ref">{booking.bookingRef}</td>
+                <td className="booking-ref">
+                  {booking.bookingRef}
+                  {booking.isDemo && (
+                    <span style={{
+                      fontSize: '10px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      marginLeft: '6px'
+                    }}>DEMO</span>
+                  )}
+                </td>
                 <td>
                   <div className="customer-info">
                     <div className="customer-name">{booking.customer}</div>
@@ -274,30 +346,14 @@ const AdminBookings = () => {
                 </td>
                 <td>{booking.destination}</td>
                 <td className="booking-details">
-                  {booking.type === 'Hotel' && (
-                    <div>
-                      <div>{booking.hotelName}</div>
-                      <div className="detail-sub">{booking.checkIn} - {booking.checkOut}</div>
-                      <div className="detail-sub">{booking.guests} guests</div>
-                    </div>
-                  )}
-                  {booking.type === 'Flight' && (
-                    <div>
-                      <div>{booking.airline}</div>
-                      <div className="detail-sub">{booking.flightNumber}</div>
-                      <div className="detail-sub">{booking.departure}</div>
-                    </div>
-                  )}
-                  {booking.type === 'Cruise' && (
-                    <div>
-                      <div>{booking.cruiseLine}</div>
-                      <div className="detail-sub">{booking.duration}</div>
-                      <div className="detail-sub">Dep: {booking.departure}</div>
-                    </div>
-                  )}
+                  <div>
+                    <div>{booking.hotelName}</div>
+                    <div className="detail-sub">{booking.checkIn} - {booking.checkOut}</div>
+                    <div className="detail-sub">{booking.guests}</div>
+                  </div>
                 </td>
                 <td>{booking.bookingDate}</td>
-                <td className="amount-cell">${booking.amount}</td>
+                <td className="amount-cell">${booking.amount.toLocaleString()}</td>
                 <td>
                   <span className={`status-badge ${getStatusClass(booking.status)}`}>
                     {booking.status}
@@ -309,20 +365,24 @@ const AdminBookings = () => {
                   </span>
                 </td>
                 <td>
-                  {booking.voucherSent ? (
-                    <span className="voucher-sent">Sent</span>
-                  ) : (
-                    <span className="voucher-pending">Pending</span>
-                  )}
-                </td>
-                <td>
                   <div className="action-buttons">
-                    <button className="action-btn view" title="View Details">
+                    <button
+                      className="action-btn view"
+                      title="View Details"
+                      onClick={() => toast.info(`Booking: ${booking.bookingRef}\nCustomer: ${booking.customer}\nAmount: $${booking.amount}`)}
+                    >
                       <Eye size={16} />
                     </button>
-                    <button className="action-btn email" title="Send Email">
-                      <Mail size={16} />
-                    </button>
+                    {booking.status !== 'Cancelled' && (
+                      <button
+                        className="action-btn cancel"
+                        title="Cancel Booking"
+                        onClick={() => handleCancelBooking(booking.id)}
+                        style={{ color: '#dc3545' }}
+                      >
+                        <XCircle size={16} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -334,6 +394,11 @@ const AdminBookings = () => {
       {filteredBookings.length === 0 && (
         <div className="no-results">
           <p>No bookings found matching your criteria</p>
+          {bookings.length === 0 && (
+            <p style={{ color: '#666', marginTop: '10px' }}>
+              Bookings will appear here when customers make reservations.
+            </p>
+          )}
         </div>
       )}
     </div>

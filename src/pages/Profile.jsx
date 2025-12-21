@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Camera, MapPin, Calendar, Award, Edit2, Save, X, Globe, Heart, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,18 +8,34 @@ import SEO from '../components/SEO';
 import './Profile.css';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: user?.name || 'John Doe',
-    email: user?.email || 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    location: 'New York, USA',
-    bio: 'Travel enthusiast exploring the world one destination at a time. Love adventure, culture, and meeting new people.',
-    dateOfBirth: '1990-05-15',
-    gender: 'Male',
-    nationality: 'American'
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    location: user?.location || '',
+    bio: user?.bio || '',
+    dateOfBirth: user?.dateOfBirth || '',
+    gender: user?.gender || '',
+    nationality: user?.nationality || ''
   });
+
+  // Update form data when user changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        location: user.location || '',
+        bio: user.bio || '',
+        dateOfBirth: user.dateOfBirth || '',
+        gender: user.gender || '',
+        nationality: user.nationality || ''
+      });
+    }
+  }, [user]);
 
   const stats = [
     { label: 'Countries Visited', value: '23', icon: <Globe size={24} /> },
@@ -51,21 +67,31 @@ const Profile = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Save profile logic here
-    toast.success('Profile updated successfully!');
+    // Save profile using updateProfile from auth context
+    updateProfile({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      location: formData.location,
+      bio: formData.bio,
+      dateOfBirth: formData.dateOfBirth,
+      gender: formData.gender,
+      nationality: formData.nationality
+    });
     setIsEditing(false);
   };
 
   const handleCancel = () => {
+    // Reset to current user data
     setFormData({
-      name: user?.name || 'John Doe',
-      email: user?.email || 'john.doe@example.com',
-      phone: '+1 (555) 123-4567',
-      location: 'New York, USA',
-      bio: 'Travel enthusiast exploring the world one destination at a time. Love adventure, culture, and meeting new people.',
-      dateOfBirth: '1990-05-15',
-      gender: 'Male',
-      nationality: 'American'
+      name: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      location: user?.location || '',
+      bio: user?.bio || '',
+      dateOfBirth: user?.dateOfBirth || '',
+      gender: user?.gender || '',
+      nationality: user?.nationality || ''
     });
     setIsEditing(false);
   };

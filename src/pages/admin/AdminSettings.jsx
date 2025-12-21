@@ -11,7 +11,8 @@ import {
   EyeOff,
   RefreshCw,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApiSettings } from '../../contexts/ApiSettingsContext';
@@ -21,6 +22,8 @@ const AdminSettings = () => {
   const [activeTab, setActiveTab] = useState('api');
   const [showApiKey, setShowApiKey] = useState(false);
   const [showStripeKey, setShowStripeKey] = useState(false);
+  const [showGoogleSecret, setShowGoogleSecret] = useState(false);
+  const [showFacebookSecret, setShowFacebookSecret] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
 
   // Get API settings from context
@@ -28,6 +31,7 @@ const AdminSettings = () => {
     apiSettings: contextApiSettings,
     updateRateHawkSettings,
     updateStripeSettings,
+    updateOAuthSettings,
     testRateHawkConnection,
     isRateHawkConfigured
   } = useApiSettings();
@@ -39,6 +43,20 @@ const AdminSettings = () => {
     environment: 'sandbox'
   });
 
+  // OAuth settings state
+  const [oauthForm, setOAuthForm] = useState({
+    google: {
+      clientId: '',
+      clientSecret: '',
+      enabled: false
+    },
+    facebook: {
+      appId: '',
+      appSecret: '',
+      enabled: false
+    }
+  });
+
   // Load settings from context on mount
   useEffect(() => {
     if (contextApiSettings.ratehawk) {
@@ -46,6 +64,20 @@ const AdminSettings = () => {
         apiKey: contextApiSettings.ratehawk.apiKey || '',
         keyId: contextApiSettings.ratehawk.keyId || contextApiSettings.ratehawk.partnerId || '',
         environment: contextApiSettings.ratehawk.environment || 'sandbox'
+      });
+    }
+    if (contextApiSettings.oauth) {
+      setOAuthForm({
+        google: {
+          clientId: contextApiSettings.oauth.google?.clientId || '',
+          clientSecret: contextApiSettings.oauth.google?.clientSecret || '',
+          enabled: contextApiSettings.oauth.google?.enabled || false
+        },
+        facebook: {
+          appId: contextApiSettings.oauth.facebook?.appId || '',
+          appSecret: contextApiSettings.oauth.facebook?.appSecret || '',
+          enabled: contextApiSettings.oauth.facebook?.enabled || false
+        }
       });
     }
   }, [contextApiSettings]);
@@ -98,6 +130,20 @@ const AdminSettings = () => {
       }
     } catch (error) {
       toast.error('Error saving RateHawk settings');
+    }
+  };
+
+  const handleSaveOAuth = async () => {
+    try {
+      const result = await updateOAuthSettings(oauthForm);
+      if (result.success) {
+        toast.success('OAuth settings saved successfully!');
+      } else {
+        toast.error(result.message || 'Failed to save OAuth settings');
+      }
+    } catch (error) {
+      console.error('Error saving OAuth settings:', error);
+      toast.error('Error saving OAuth settings');
     }
   };
 
@@ -167,6 +213,7 @@ const AdminSettings = () => {
 
   const tabs = [
     { id: 'api', label: 'API Keys', icon: Key },
+    { id: 'oauth', label: 'Social Login', icon: Users },
     { id: 'payment', label: 'Payment', icon: CreditCard },
     { id: 'webhooks', label: 'Webhooks', icon: Webhook },
     { id: 'email', label: 'Email', icon: Mail },
@@ -296,6 +343,207 @@ const AdminSettings = () => {
                 <button className="btn-primary" onClick={handleSaveRateHawk}>
                   <Save size={18} />
                   Save API Settings
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* OAuth / Social Login Tab */}
+          {activeTab === 'oauth' && (
+            <div className="settings-section">
+              <div className="section-header">
+                <h2 className="section-title">Social Login Configuration</h2>
+                <p className="section-description">
+                  Configure Google and Facebook OAuth for user authentication
+                </p>
+              </div>
+
+              {/* Google OAuth */}
+              <div className="settings-card">
+                <div className="card-header">
+                  <h3 className="card-title">Google OAuth</h3>
+                  {oauthForm.google.enabled && oauthForm.google.clientId ? (
+                    <span className="status-badge active">
+                      <CheckCircle size={14} />
+                      Enabled
+                    </span>
+                  ) : (
+                    <span className="status-badge inactive">
+                      <AlertCircle size={14} />
+                      Disabled
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-group full-width">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={oauthForm.google.enabled}
+                        onChange={(e) =>
+                          setOAuthForm({
+                            ...oauthForm,
+                            google: { ...oauthForm.google, enabled: e.target.checked }
+                          })
+                        }
+                      />
+                      <span>Enable Google Sign-In</span>
+                    </label>
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label className="form-label">Client ID</label>
+                    <input
+                      type="text"
+                      value={oauthForm.google.clientId}
+                      onChange={(e) =>
+                        setOAuthForm({
+                          ...oauthForm,
+                          google: { ...oauthForm.google, clientId: e.target.value }
+                        })
+                      }
+                      className="form-input"
+                      placeholder="Enter Google Client ID"
+                    />
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label className="form-label">Client Secret</label>
+                    <div className="input-with-icon">
+                      <input
+                        type={showGoogleSecret ? 'text' : 'password'}
+                        value={oauthForm.google.clientSecret}
+                        onChange={(e) =>
+                          setOAuthForm({
+                            ...oauthForm,
+                            google: { ...oauthForm.google, clientSecret: e.target.value }
+                          })
+                        }
+                        className="form-input"
+                        placeholder="Enter Google Client Secret"
+                      />
+                      <button
+                        className="icon-btn"
+                        onClick={() => setShowGoogleSecret(!showGoogleSecret)}
+                        type="button"
+                      >
+                        {showGoogleSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="alert info">
+                  <AlertCircle size={18} />
+                  <div>
+                    <strong>How to get Google OAuth credentials:</strong>
+                    <p>
+                      1. Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Google Cloud Console</a><br />
+                      2. Create a new project or select existing one<br />
+                      3. Enable "Google+ API" or "Google Identity Services"<br />
+                      4. Create OAuth 2.0 Client ID (Web application)<br />
+                      5. Add authorized redirect URI: <code>{window.location.origin}/auth/google/callback</code>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Facebook OAuth */}
+              <div className="settings-card" style={{ marginTop: '1.5rem' }}>
+                <div className="card-header">
+                  <h3 className="card-title">Facebook OAuth</h3>
+                  {oauthForm.facebook.enabled && oauthForm.facebook.appId ? (
+                    <span className="status-badge active">
+                      <CheckCircle size={14} />
+                      Enabled
+                    </span>
+                  ) : (
+                    <span className="status-badge inactive">
+                      <AlertCircle size={14} />
+                      Disabled
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-group full-width">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={oauthForm.facebook.enabled}
+                        onChange={(e) =>
+                          setOAuthForm({
+                            ...oauthForm,
+                            facebook: { ...oauthForm.facebook, enabled: e.target.checked }
+                          })
+                        }
+                      />
+                      <span>Enable Facebook Sign-In</span>
+                    </label>
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label className="form-label">App ID</label>
+                    <input
+                      type="text"
+                      value={oauthForm.facebook.appId}
+                      onChange={(e) =>
+                        setOAuthForm({
+                          ...oauthForm,
+                          facebook: { ...oauthForm.facebook, appId: e.target.value }
+                        })
+                      }
+                      className="form-input"
+                      placeholder="Enter Facebook App ID"
+                    />
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label className="form-label">App Secret</label>
+                    <div className="input-with-icon">
+                      <input
+                        type={showFacebookSecret ? 'text' : 'password'}
+                        value={oauthForm.facebook.appSecret}
+                        onChange={(e) =>
+                          setOAuthForm({
+                            ...oauthForm,
+                            facebook: { ...oauthForm.facebook, appSecret: e.target.value }
+                          })
+                        }
+                        className="form-input"
+                        placeholder="Enter Facebook App Secret"
+                      />
+                      <button
+                        className="icon-btn"
+                        onClick={() => setShowFacebookSecret(!showFacebookSecret)}
+                        type="button"
+                      >
+                        {showFacebookSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="alert info">
+                  <AlertCircle size={18} />
+                  <div>
+                    <strong>How to get Facebook OAuth credentials:</strong>
+                    <p>
+                      1. Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer">Facebook Developers</a><br />
+                      2. Create a new app (Consumer type)<br />
+                      3. Add "Facebook Login" product<br />
+                      4. Go to Settings &gt; Basic to get App ID and App Secret<br />
+                      5. Add valid OAuth redirect URI: <code>{window.location.origin}/auth/facebook/callback</code>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button className="btn-primary" onClick={handleSaveOAuth}>
+                  <Save size={18} />
+                  Save Social Login Settings
                 </button>
               </div>
             </div>

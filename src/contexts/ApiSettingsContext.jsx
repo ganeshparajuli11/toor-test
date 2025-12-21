@@ -21,6 +21,18 @@ export const ApiSettingsProvider = ({ children }) => {
       secretKey: '',
       webhookSecret: '',
       initialized: false
+    },
+    oauth: {
+      google: {
+        clientId: '',
+        clientSecret: '',
+        enabled: false
+      },
+      facebook: {
+        appId: '',
+        appSecret: '',
+        enabled: false
+      }
     }
   });
 
@@ -47,7 +59,11 @@ export const ApiSettingsProvider = ({ children }) => {
 
       setApiSettings({
         ratehawk: { ...settings.ratehawk, initialized: ratehawkInitialized },
-        stripe: { ...settings.stripe, initialized: stripeInitialized }
+        stripe: { ...settings.stripe, initialized: stripeInitialized },
+        oauth: settings.oauth || {
+          google: { clientId: '', clientSecret: '', enabled: false },
+          facebook: { appId: '', appSecret: '', enabled: false }
+        }
       });
     } catch (error) {
       console.error('Error loading API settings:', error);
@@ -106,6 +122,13 @@ export const ApiSettingsProvider = ({ children }) => {
   }, [saveApiSettings]);
 
   /**
+   * Update OAuth settings
+   */
+  const updateOAuthSettings = useCallback((settings) => {
+    return saveApiSettings({ oauth: settings });
+  }, [saveApiSettings]);
+
+  /**
    * Get RateHawk service instance
    */
   const getRateHawkService = () => {
@@ -150,6 +173,7 @@ export const ApiSettingsProvider = ({ children }) => {
     saveApiSettings,
     updateRateHawkSettings,
     updateStripeSettings,
+    updateOAuthSettings,
     testRateHawkConnection,
     getRateHawkService,
     isRateHawkConfigured,

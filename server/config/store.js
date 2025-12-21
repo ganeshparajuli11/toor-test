@@ -27,6 +27,18 @@ const defaultSettings = {
     publishableKey: '',
     secretKey: '',
     webhookSecret: ''
+  },
+  oauth: {
+    google: {
+      clientId: '',
+      clientSecret: '',
+      enabled: false
+    },
+    facebook: {
+      appId: '',
+      appSecret: '',
+      enabled: false
+    }
   }
 };
 
@@ -45,6 +57,13 @@ export async function getSettings() {
     }
     if (settings.stripe?.webhookSecret) {
       settings.stripe.webhookSecret = decrypt(settings.stripe.webhookSecret);
+    }
+    // Decrypt OAuth secrets
+    if (settings.oauth?.google?.clientSecret) {
+      settings.oauth.google.clientSecret = decrypt(settings.oauth.google.clientSecret);
+    }
+    if (settings.oauth?.facebook?.appSecret) {
+      settings.oauth.facebook.appSecret = decrypt(settings.oauth.facebook.appSecret);
     }
 
     return settings;
@@ -74,6 +93,14 @@ export async function saveSettings(newSettings) {
   if (newSettings.stripe) {
     updated.stripe = { ...current.stripe, ...newSettings.stripe };
   }
+  // Merge OAuth settings
+  if (newSettings.oauth) {
+    updated.oauth = {
+      ...current.oauth,
+      google: newSettings.oauth.google ? { ...current.oauth?.google, ...newSettings.oauth.google } : current.oauth?.google,
+      facebook: newSettings.oauth.facebook ? { ...current.oauth?.facebook, ...newSettings.oauth.facebook } : current.oauth?.facebook
+    };
+  }
 
   // Create a copy for storage to encrypt sensitive fields
   const storageSettings = JSON.parse(JSON.stringify(updated));
@@ -86,6 +113,13 @@ export async function saveSettings(newSettings) {
   }
   if (storageSettings.stripe?.webhookSecret) {
     storageSettings.stripe.webhookSecret = encrypt(storageSettings.stripe.webhookSecret);
+  }
+  // Encrypt OAuth secrets
+  if (storageSettings.oauth?.google?.clientSecret) {
+    storageSettings.oauth.google.clientSecret = encrypt(storageSettings.oauth.google.clientSecret);
+  }
+  if (storageSettings.oauth?.facebook?.appSecret) {
+    storageSettings.oauth.facebook.appSecret = encrypt(storageSettings.oauth.facebook.appSecret);
   }
 
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(storageSettings, null, 2));

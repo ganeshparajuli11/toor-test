@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import EnhancedSearch from '../components/EnhancedSearch';
+import ImageSlider from '../components/ImageSlider';
 import SEO from '../components/SEO';
 import useTravelData from '../hooks/useTravelData';
 import { useLocation } from '../context/LocationContext';
@@ -130,11 +131,10 @@ const TravelBookingPage = () => {
               {hotels?.map((hotel) => (
                 <article key={hotel.id} className="card">
                   <div className="card-image-wrapper">
-                    <img
-                      src={hotel.img}
+                    <ImageSlider
+                      images={hotel.images || [hotel.image || hotel.img]}
                       alt={hotel.name}
-                      className="card-image"
-                      loading="lazy"
+                      className="card-image-slider"
                     />
                     {hotel.rating && (
                       <div className="card-badge">
