@@ -139,7 +139,7 @@ const TravelBookingPage = () => {
                     {hotel.rating && (
                       <div className="card-badge">
                         <Star className="star-icon" size={14} />
-                        <span className="card-badge-text">{hotel.rating}</span>
+                        <span className="card-badge-text">{typeof hotel.rating === 'number' ? hotel.rating.toFixed(1) : hotel.rating}</span>
                       </div>
                     )}
                   </div>
@@ -324,7 +324,7 @@ const TravelBookingPage = () => {
                     {cruise.rating && (
                       <div className="card-badge">
                         <Star className="star-icon" size={14} />
-                        <span className="card-badge-text">{cruise.rating}</span>
+                        <span className="card-badge-text">{typeof cruise.rating === 'number' ? cruise.rating.toFixed(1) : cruise.rating}</span>
                       </div>
                     )}
                   </div>

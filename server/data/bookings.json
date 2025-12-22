@@ -44,5 +44,97 @@
     "createdAt": "2025-12-06T14:18:33.888Z",
     "isDemo": true,
     "updatedAt": "2025-12-06T14:18:33.892Z"
+  },
+  {
+    "id": "BK34501166",
+    "paymentId": "demo_pi_1766334501166",
+    "type": "property",
+    "itemId": "paris_las_vegas",
+    "title": "Paris Las Vegas Resort & Casino",
+    "subtitle": "3655 Las Vegas Blvd S, Las Vegas, Las Vegas, US",
+    "price": 309,
+    "pricePerNight": 103,
+    "nights": 3,
+    "details": [
+      {
+        "label": "Check-in",
+        "value": "Dec 28, 2025"
+      },
+      {
+        "label": "Check-out",
+        "value": "Dec 31, 2025"
+      },
+      {
+        "label": "Guests",
+        "value": "2 Adults"
+      },
+      {
+        "label": "Rooms",
+        "value": "1 Room"
+      },
+      {
+        "label": "Nights",
+        "value": "3"
+      }
+    ],
+    "totalPrice": 355,
+    "taxesAndFees": 46,
+    "guest": {
+      "firstName": "Ganesh",
+      "lastName": "parajuli",
+      "email": "ganeshparajuli2059@gmail.com",
+      "phone": "9843047262",
+      "specialRequests": "ghghjgv"
+    },
+    "status": "confirmed",
+    "createdAt": "2025-12-21T16:28:21.166Z",
+    "isDemo": true,
+    "updatedAt": "2025-12-21T16:28:21.180Z"
+  },
+  {
+    "id": "BK36556122",
+    "paymentId": "demo_pi_1766336556121",
+    "type": "property",
+    "itemId": "pullman_paris_tour_eiffel",
+    "title": "Pullman Paris Tour Eiffel Hotel",
+    "subtitle": "Ave de Suffren 18, Entrée au 22 rue Jean Rey, Paris, Paris, FR",
+    "price": 600,
+    "pricePerNight": 200,
+    "nights": 3,
+    "details": [
+      {
+        "label": "Check-in",
+        "value": "Dec 28, 2025"
+      },
+      {
+        "label": "Check-out",
+        "value": "Dec 31, 2025"
+      },
+      {
+        "label": "Guests",
+        "value": "2 Adults"
+      },
+      {
+        "label": "Rooms",
+        "value": "1 Room"
+      },
+      {
+        "label": "Nights",
+        "value": "3"
+      }
+    ],
+    "totalPrice": 690,
+    "taxesAndFees": 90,
+    "guest": {
+      "firstName": "Ganesh",
+      "lastName": "parajuli",
+      "email": "user@gmail.com",
+      "phone": "9843047262",
+      "specialRequests": "jh"
+    },
+    "status": "confirmed",
+    "createdAt": "2025-12-21T17:02:36.122Z",
+    "isDemo": true,
+    "updatedAt": "2025-12-21T17:02:36.141Z"
   }
 ]

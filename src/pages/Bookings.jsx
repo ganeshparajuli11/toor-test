@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MapPin,
@@ -16,7 +16,10 @@ import {
   DollarSign,
   CheckCircle,
   Clock,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  Coffee,
+  XCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,11 +45,14 @@ const Bookings = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
   const [processingId, setProcessingId] = useState(null);
+  const [hotelInfoCache, setHotelInfoCache] = useState({});
   const [userStats, setUserStats] = useState({
     totalBookings: 0,
     confirmedBookings: 0,
     pendingBookings: 0,
+    cancelledBookings: 0,
     totalSpent: 0
   });
 
@@ -58,36 +64,103 @@ const Bookings = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // No fallback data - only show real user bookings
+  // Fetch hotel info for a booking
+  const fetchHotelInfo = useCallback(async (hotelId) => {
+    if (hotelInfoCache[hotelId]) {
+      return hotelInfoCache[hotelId];
+    }
+    try {
+      const response = await api.post('/hotels/info', { id: hotelId });
+      if (response.data?.success && response.data?.hotel) {
+        const hotelInfo = response.data.hotel;
+        setHotelInfoCache(prev => ({ ...prev, [hotelId]: hotelInfo }));
+        return hotelInfo;
+      }
+    } catch (error) {
+      console.warn('[Bookings] Could not fetch hotel info:', error.message);
+    }
+    return null;
+  }, [hotelInfoCache]);
 
-  // Transform booking data to display format
-  const transformBooking = (booking) => ({
-    id: booking.id,
-    type: booking.type || 'hotel',
-    name: booking.title || 'Hotel Booking',
-    location: booking.subtitle || 'Location',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
-    checkIn: booking.details?.find(d => d.label === 'Check-in')?.value || 'N/A',
-    checkOut: booking.details?.find(d => d.label === 'Check-out')?.value || 'N/A',
-    nights: parseInt(booking.details?.find(d => d.label === 'Nights')?.value) || 1,
-    guests: {
-      adults: parseInt(booking.details?.find(d => d.label === 'Guests')?.value?.match(/\d+/)?.[0]) || 2,
-      children: 0
-    },
-    rooms: parseInt(booking.details?.find(d => d.label === 'Rooms')?.value?.match(/\d+/)?.[0]) || 1,
-    status: booking.status || 'confirmed',
-    paymentStatus: booking.isDemo ? 'demo' : 'full',
-    price: booking.totalPrice || 0,
-    bookingDate: booking.createdAt || new Date().toISOString(),
-    isDemo: booking.isDemo
-  });
+  // Transform RateHawk booking data to display format
+  const transformBooking = (order, hotelInfo = null) => {
+    // Calculate total guests from rooms
+    let totalAdults = 0;
+    let totalChildren = 0;
+    const roomNames = [];
+
+    (order.rooms || []).forEach(room => {
+      totalAdults += room.adults || 0;
+      totalChildren += room.children || 0;
+      if (room.room_name) roomNames.push(room.room_name);
+    });
+
+    // Get price - prefer amount_sell (the actual price), fallback to amount_payable
+    const price = parseFloat(order.amount_sell?.amount || order.amount_payable?.amount || 0);
+    const currency = order.currency || 'EUR';
+
+    // Map RateHawk status to our display status
+    const statusMap = {
+      'completed': 'confirmed',
+      'cancelled': 'cancelled',
+      'failed': 'failed',
+      'noshow': 'noshow',
+      'rejected': 'rejected'
+    };
+
+    return {
+      id: order.partner_order_id || order.order_id,
+      order_id: order.order_id,
+      partner_order_id: order.partner_order_id,
+      type: order.order_type || 'hotel',
+      name: hotelInfo?.name || order.hotel?.id || 'Hotel Booking',
+      location: hotelInfo?.location || hotelInfo?.address || order.hotel?.id || '',
+      image: hotelInfo?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
+      checkIn: order.checkin_at,
+      checkOut: order.checkout_at,
+      nights: order.nights || 1,
+      guests: {
+        adults: totalAdults || 2,
+        children: totalChildren
+      },
+      rooms: order.rooms?.length || 1,
+      roomNames,
+      status: statusMap[order.status] || order.status || 'confirmed',
+      paymentStatus: order.payment?.paid_at ? 'full' : (order.payment?.type === 'deposit' ? 'deposit' : 'pending'),
+      price,
+      currency,
+      bookingDate: order.created_at,
+      modifiedDate: order.modified_at,
+      cancelledDate: order.cancelled_at,
+
+      // Cancellation info
+      isCancellable: order.cancellation_info?.is_cancellable,
+      freeCancellationBefore: order.cancellation_info?.free_cancellation_before,
+
+      // Supplier info
+      confirmationId: order.supplier?.confirmation_id,
+      supplierName: order.supplier?.name,
+
+      // User info
+      userEmail: order.user?.email,
+      userComment: order.user?.comment,
+
+      // Meal info from first room
+      meal: order.rooms?.[0]?.meal,
+      hasBreakfast: order.rooms?.[0]?.has_breakfast,
+
+      // Raw data for details view
+      rawData: order
+    };
+  };
 
   // Calculate user stats from bookings
-  const calculateUserStats = (bookingsList) => {
+  const calculateUserStats = (bookingsList, totalFromApi = 0) => {
     const stats = {
-      totalBookings: bookingsList.length,
+      totalBookings: totalFromApi || bookingsList.length,
       confirmedBookings: bookingsList.filter(b => b.status === 'confirmed').length,
       pendingBookings: bookingsList.filter(b => b.status === 'pending').length,
+      cancelledBookings: bookingsList.filter(b => b.status === 'cancelled').length,
       totalSpent: bookingsList
         .filter(b => b.status === 'confirmed')
         .reduce((sum, b) => sum + (b.price || 0), 0)
@@ -95,115 +168,108 @@ const Bookings = () => {
     setUserStats(stats);
   };
 
-  // Fetch bookings data
+  // Fetch bookings data from RateHawk API
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
     const fetchBookings = async () => {
       setLoading(true);
       try {
-        // Try to fetch from backend API first
-        const response = await api.get('/bookings');
-        const bookingsData = response.data.data || [];
+        // Build request params for RateHawk API
+        const requestParams = {
+          page_size: 10,
+          page_number: currentPage,
+          ordering_by: sortBy === 'latest' || sortBy === 'oldest' ? 'created_at' :
+                       sortBy === 'checkin' ? 'checkin_at' : 'created_at',
+          ordering_type: sortBy === 'oldest' ? 'asc' : 'desc'
+        };
 
-        // Filter bookings for current user (by email)
-        const userBookings = bookingsData.filter(booking => {
-          if (user?.email && booking.guest?.email) {
-            return booking.guest.email.toLowerCase() === user.email.toLowerCase();
-          }
-          return false;
-        });
-
-        // Transform backend data to match the expected format
-        const transformedBookings = userBookings.map(transformBooking);
-
-        // Apply type filter
-        let filteredBookings = [...transformedBookings];
-        if (selectedFilter !== 'all') {
-          filteredBookings = filteredBookings.filter(b => b.type === selectedFilter);
+        // Add status filter if not "all"
+        if (selectedFilter === 'completed') {
+          requestParams.status = 'completed';
+        } else if (selectedFilter === 'cancelled') {
+          requestParams.status = 'cancelled';
         }
 
-        // Sort bookings
-        filteredBookings.sort((a, b) => {
-          switch (sortBy) {
-            case 'latest':
-              return new Date(b.bookingDate) - new Date(a.bookingDate);
-            case 'oldest':
-              return new Date(a.bookingDate) - new Date(b.bookingDate);
-            case 'price-high':
-              return b.price - a.price;
-            case 'price-low':
-              return a.price - b.price;
-            default:
-              return 0;
-          }
-        });
+        console.log('[Bookings] Fetching with params:', requestParams);
 
-        setBookings(filteredBookings);
-        calculateUserStats(transformedBookings); // Calculate stats from all user bookings
-        setTotalPages(1);
+        // Fetch from RateHawk API
+        const response = await api.post('/hotels/bookings', requestParams);
+
+        if (response.data?.success && response.data?.data) {
+          const {
+            orders = [],
+            total_orders = 0,
+            total_pages = 1,
+            found_orders = 0,
+            found_pages = 1
+          } = response.data.data;
+
+          console.log('[Bookings] Received', orders.length, 'orders, total:', total_orders);
+
+          // Fetch hotel info for each unique hotel
+          const uniqueHotelIds = [...new Set(orders.map(o => o.hotel?.id).filter(Boolean))];
+
+          // Fetch hotel info in parallel (limit to 5 concurrent requests)
+          const hotelInfoMap = {};
+          for (let i = 0; i < uniqueHotelIds.length; i += 5) {
+            const batch = uniqueHotelIds.slice(i, i + 5);
+            const hotelInfoPromises = batch.map(id => fetchHotelInfo(id));
+            const results = await Promise.all(hotelInfoPromises);
+            batch.forEach((id, idx) => {
+              if (results[idx]) hotelInfoMap[id] = results[idx];
+            });
+          }
+
+          // Transform orders to display format
+          const transformedBookings = orders.map(order => {
+            const hotelInfo = hotelInfoMap[order.hotel?.id] || null;
+            return transformBooking(order, hotelInfo);
+          });
+
+          // Apply price sort (API doesn't support price sorting)
+          if (sortBy === 'price-high' || sortBy === 'price-low') {
+            transformedBookings.sort((a, b) =>
+              sortBy === 'price-high' ? b.price - a.price : a.price - b.price
+            );
+          }
+
+          setBookings(transformedBookings);
+          setTotalPages(found_pages || total_pages || 1);
+          setTotalOrders(found_orders || total_orders || 0);
+          calculateUserStats(transformedBookings, total_orders);
+        } else {
+          console.warn('[Bookings] No data in response');
+          setBookings([]);
+          setTotalPages(1);
+          setTotalOrders(0);
+          calculateUserStats([]);
+        }
       } catch (error) {
-        console.warn('API Error, fetching from local storage:', error.message);
-
-        // Get only real user bookings from localStorage (no fake fallback data)
-        const localBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-
-        // Filter bookings for current user (by email if available)
-        const userBookings = localBookings.filter(booking => {
-          if (user?.email && booking.guest?.email) {
-            return booking.guest.email.toLowerCase() === user.email.toLowerCase();
-          }
-          return false;
-        });
-
-        // Transform localStorage bookings
-        const transformedBookings = userBookings.map(transformBooking);
-
-        // Apply type filter
-        let filteredBookings = [...transformedBookings];
-        if (selectedFilter !== 'all') {
-          filteredBookings = filteredBookings.filter(b => b.type === selectedFilter);
-        }
-
-        // Sort bookings
-        filteredBookings.sort((a, b) => {
-          switch (sortBy) {
-            case 'latest':
-              return new Date(b.bookingDate) - new Date(a.bookingDate);
-            case 'oldest':
-              return new Date(a.bookingDate) - new Date(b.bookingDate);
-            case 'price-high':
-              return b.price - a.price;
-            case 'price-low':
-              return a.price - b.price;
-            default:
-              return 0;
-          }
-        });
-
-        setBookings(filteredBookings);
-        calculateUserStats(transformedBookings);
+        console.error('[Bookings] API Error:', error.message);
+        toast.error('Failed to load bookings. Please try again.');
+        setBookings([]);
         setTotalPages(1);
+        setTotalOrders(0);
+        calculateUserStats([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchBookings();
-  }, [user, isAuthenticated, selectedFilter, sortBy, currentPage]);
+  }, [user, isAuthenticated, selectedFilter, sortBy, currentPage, fetchHotelInfo]);
 
   // Handle filter change
   const handleFilterChange = (filter) => {
     setSelectedFilter(filter);
     setCurrentPage(1);
-    toast.info(`Filtering ${filter === 'all' ? 'all bookings' : filter + ' bookings'}...`);
   };
 
   // Handle sort change
   const handleSortChange = (e) => {
     setSortBy(e.target.value);
     setCurrentPage(1);
-    toast.info('Sorting bookings...');
   };
 
   // Handle view details
@@ -214,49 +280,89 @@ const Bookings = () => {
     }, 500);
   };
 
-  // Handle cancel booking
-  const handleCancelBooking = async (bookingId) => {
+  // Handle cancel booking through RateHawk API
+  const handleCancelBooking = async (booking) => {
+    const partnerOrderId = booking.partner_order_id || booking.id;
+
+    // Check if booking is cancellable
+    if (!booking.isCancellable) {
+      toast.error('This booking cannot be cancelled');
+      return;
+    }
+
+    // Check free cancellation deadline
+    let isFreeCancellation = false;
+    if (booking.freeCancellationBefore) {
+      const deadline = new Date(booking.freeCancellationBefore);
+      const now = new Date();
+      isFreeCancellation = now < deadline;
+
+      if (!isFreeCancellation) {
+        if (!window.confirm('Free cancellation period has passed. A cancellation fee may apply. Continue?')) {
+          return;
+        }
+      }
+    }
+
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
       return;
     }
 
-    setProcessingId(bookingId);
+    setProcessingId(booking.id);
     try {
-      // Cancel through backend API
-      await api.post(`/bookings/${bookingId}/cancel`);
+      // Cancel through RateHawk API
+      const response = await api.post('/hotels/booking/cancel', {
+        partner_order_id: partnerOrderId
+      });
 
-      // Update booking status locally
-      setBookings(bookings.map(booking =>
-        booking.id === bookingId
-          ? { ...booking, status: 'cancelled' }
-          : booking
-      ));
+      if (response.data?.success) {
+        const cancelData = response.data.data;
 
-      // Update stats
-      setUserStats(prev => ({
-        ...prev,
-        confirmedBookings: prev.confirmedBookings - 1
-      }));
+        // Update booking status locally
+        setBookings(bookings.map(b =>
+          b.id === booking.id
+            ? { ...b, status: 'cancelled', isCancellable: false }
+            : b
+        ));
 
-      toast.success('Booking cancelled successfully');
+        // Update stats
+        setUserStats(prev => ({
+          ...prev,
+          confirmedBookings: Math.max(0, prev.confirmedBookings - 1),
+          cancelledBookings: prev.cancelledBookings + 1
+        }));
+
+        // Show detailed cancellation message
+        if (cancelData?.refunded?.amount > 0) {
+          const refundAmount = cancelData.refunded.amount.toFixed(2);
+          const currency = cancelData.refunded.currency === 'EUR' ? '€' :
+                          cancelData.refunded.currency === 'USD' ? '$' :
+                          cancelData.refunded.currency === 'GBP' ? '£' :
+                          cancelData.refunded.currency + ' ';
+
+          if (cancelData.cancellation_fee?.amount > 0) {
+            const feeAmount = cancelData.cancellation_fee.amount.toFixed(2);
+            toast.success(`Booking cancelled. Refund: ${currency}${refundAmount} (Fee: ${currency}${feeAmount})`);
+          } else {
+            toast.success(`Booking cancelled. Full refund: ${currency}${refundAmount}`);
+          }
+        } else if (cancelData?.cancellation_fee?.amount > 0) {
+          const feeAmount = cancelData.cancellation_fee.amount.toFixed(2);
+          const currency = cancelData.cancellation_fee.currency === 'EUR' ? '€' :
+                          cancelData.cancellation_fee.currency === 'USD' ? '$' :
+                          cancelData.cancellation_fee.currency === 'GBP' ? '£' :
+                          cancelData.cancellation_fee.currency + ' ';
+          toast.success(`Booking cancelled. Cancellation fee: ${currency}${feeAmount}`);
+        } else {
+          toast.success('Booking cancelled successfully');
+        }
+      } else {
+        toast.error(response.data?.error || 'Failed to cancel booking');
+      }
     } catch (error) {
-      console.warn('Cancel API Error:', error.message);
-
-      // Try to update localStorage as fallback
-      const localBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-      const updatedBookings = localBookings.map(b =>
-        b.id === bookingId ? { ...b, status: 'cancelled' } : b
-      );
-      localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-
-      // Update locally
-      setBookings(bookings.map(booking =>
-        booking.id === bookingId
-          ? { ...booking, status: 'cancelled' }
-          : booking
-      ));
-
-      toast.success('Booking cancelled successfully');
+      console.error('Cancel API Error:', error.message);
+      const errorMessage = error.response?.data?.error || 'Failed to cancel booking';
+      toast.error(errorMessage);
     } finally {
       setProcessingId(null);
     }
@@ -282,13 +388,40 @@ const Bookings = () => {
   const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'confirmed':
+      case 'completed':
         return 'booking-status-confirmed';
       case 'pending':
         return 'booking-status-pending';
       case 'cancelled':
         return 'booking-status-cancelled';
+      case 'failed':
+      case 'rejected':
+        return 'booking-status-failed';
+      case 'noshow':
+        return 'booking-status-noshow';
       default:
         return '';
+    }
+  };
+
+  // Get status label
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'confirmed':
+      case 'completed':
+        return 'Confirmed';
+      case 'pending':
+        return 'Pending';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'failed':
+        return 'Failed';
+      case 'rejected':
+        return 'Rejected';
+      case 'noshow':
+        return 'No Show';
+      default:
+        return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
     }
   };
 
@@ -297,12 +430,14 @@ const Bookings = () => {
     switch (paymentStatus) {
       case 'full':
         return 'payment-status-full';
+      case 'deposit':
+        return 'payment-status-deposit';
       case 'partial':
         return 'payment-status-partial';
+      case 'pending':
+        return 'payment-status-pending';
       case 'free':
         return 'payment-status-free';
-      case 'demo':
-        return 'payment-status-demo';
       default:
         return '';
     }
@@ -312,13 +447,15 @@ const Bookings = () => {
   const getPaymentStatusLabel = (paymentStatus) => {
     switch (paymentStatus) {
       case 'full':
-        return 'Fully Paid';
+        return 'Paid';
+      case 'deposit':
+        return 'Deposit';
       case 'partial':
-        return 'Partially Paid';
+        return 'Partial';
+      case 'pending':
+        return 'Pending';
       case 'free':
-        return 'Free Reservation';
-      case 'demo':
-        return 'Demo Payment';
+        return 'Free';
       default:
         return '';
     }
@@ -488,11 +625,11 @@ const Bookings = () => {
                     gap: '16px'
                   }}>
                     <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '10px' }}>
-                      <Clock size={24} />
+                      <XCircle size={24} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{userStats.pendingBookings}</div>
-                      <div style={{ fontSize: '14px', opacity: 0.9 }}>Pending</div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{userStats.cancelledBookings}</div>
+                      <div style={{ fontSize: '14px', opacity: 0.9 }}>Cancelled</div>
                     </div>
                   </div>
 
@@ -544,7 +681,7 @@ const Bookings = () => {
             {/* Booking History Tab Content */}
             {activeTab === 'booking-history' && (
               <>
-                {/* Booking Type Filters */}
+                {/* Booking Status Filters */}
                 <div className="booking-filters-section">
                   <div className="booking-type-filters">
                     <button
@@ -553,34 +690,21 @@ const Bookings = () => {
                     >
                       <Search size={18} />
                       <span>All Bookings</span>
+                      {totalOrders > 0 && <span className="filter-count">{totalOrders}</span>}
                     </button>
                     <button
-                      className={`filter-button ${selectedFilter === 'flight' ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('flight')}
+                      className={`filter-button ${selectedFilter === 'completed' ? 'active' : ''}`}
+                      onClick={() => handleFilterChange('completed')}
                     >
-                      <Plane size={18} />
-                      <span>Flight Booking</span>
+                      <CheckCircle size={18} />
+                      <span>Confirmed</span>
                     </button>
                     <button
-                      className={`filter-button ${selectedFilter === 'hotel' ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('hotel')}
+                      className={`filter-button ${selectedFilter === 'cancelled' ? 'active' : ''}`}
+                      onClick={() => handleFilterChange('cancelled')}
                     >
-                      <Hotel size={18} />
-                      <span>Hotel Booking</span>
-                    </button>
-                    <button
-                      className={`filter-button ${selectedFilter === 'cruise' ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('cruise')}
-                    >
-                      <Ship size={18} />
-                      <span>Cruise Booking</span>
-                    </button>
-                    <button
-                      className={`filter-button ${selectedFilter === 'car' ? 'active' : ''}`}
-                      onClick={() => handleFilterChange('car')}
-                    >
-                      <Car size={18} />
-                      <span>Cars Booking</span>
+                      <XCircle size={18} />
+                      <span>Cancelled</span>
                     </button>
                   </div>
 
@@ -627,11 +751,18 @@ const Bookings = () => {
                               </div>
                               <div className="booking-badges">
                                 <span className={`booking-status-badge ${getStatusBadgeClass(booking.status)}`}>
-                                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                                  {getStatusLabel(booking.status)}
                                 </span>
-                                <span className={`payment-status-badge ${getPaymentStatusBadgeClass(booking.paymentStatus)}`}>
-                                  {getPaymentStatusLabel(booking.paymentStatus)}
-                                </span>
+                                {booking.paymentStatus && (
+                                  <span className={`payment-status-badge ${getPaymentStatusBadgeClass(booking.paymentStatus)}`}>
+                                    {getPaymentStatusLabel(booking.paymentStatus)}
+                                  </span>
+                                )}
+                                {booking.hasBreakfast && (
+                                  <span className="meal-badge">
+                                    <Coffee size={12} /> Breakfast
+                                  </span>
+                                )}
                               </div>
                             </div>
 
@@ -672,27 +803,40 @@ const Bookings = () => {
                             <div className="booking-card-footer">
                               <div className="booking-price">
                                 <span className="price-label">Total Amount:</span>
-                                <span className="price-value">₹{booking.price.toLocaleString()}</span>
+                                <span className="price-value">
+                                  {booking.currency === 'EUR' ? '€' :
+                                   booking.currency === 'USD' ? '$' :
+                                   booking.currency === 'GBP' ? '£' : booking.currency + ' '}
+                                  {booking.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
                               </div>
                               <div className="booking-actions">
+                                {booking.confirmationId && (
+                                  <span className="confirmation-id">
+                                    Conf: {booking.confirmationId}
+                                  </span>
+                                )}
                                 <button
                                   className="booking-action-button view-details"
-                                  onClick={() => handleViewDetails(booking.id)}
+                                  onClick={() => handleViewDetails(booking.partner_order_id || booking.order_id)}
                                 >
                                   View Details
                                 </button>
-                                {booking.status !== 'cancelled' && (
+                                {booking.status !== 'cancelled' && booking.isCancellable && (
                                   <button
                                     className="booking-action-button cancel-booking"
-                                    onClick={() => handleCancelBooking(booking.id)}
+                                    onClick={() => handleCancelBooking(booking)}
                                     disabled={processingId === booking.id}
                                   >
                                     {processingId === booking.id ? (
-                                      'Cancelling...'
+                                      <>
+                                        <RefreshCw size={16} className="spinning" />
+                                        Cancelling...
+                                      </>
                                     ) : (
                                       <>
                                         <X size={16} />
-                                        Cancel Booking
+                                        Cancel
                                       </>
                                     )}
                                   </button>

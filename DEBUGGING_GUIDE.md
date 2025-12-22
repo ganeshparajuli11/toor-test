@@ -1,309 +1,285 @@
-# Hotels Search Debugging Guide
+Check booking process
+#b2b
 
-## 🔍 How to Debug the Hotel Search
+https://api.worldota.net/api/b2b/v3/hotel/order/booking/finish/status/
 
-### Step 1: Open Developer Tools
+This call is required if you don’t use the Receive booking status webhook call.
+As the booking process is made asynchronously, repeatedly request this call to know the status.
+The call checks the booking process status.
 
-1. Go to http://localhost:5174/hotels
-2. Press **F12** or **Right-click → Inspect**
-3. Click on **Console** tab
-4. Clear the console (trash icon or Ctrl+L)
+Usage scenarios 
+The only possible call requesting scenarios:
 
-### Step 2: Perform a Search
+General. No need for you to make additional steps except for receiving the final status.
+3D Secure check. Needs you to make additional steps.
+3D Secure check 
+The scenario is required to be completed if the rate you are booking has the payment_types field with the now value.
+To complete the scenario, make the following steps:
 
-1. Type a city name (e.g., "Kathmandu", "Pokhara", "Paris")
-2. **Wait for dropdown** to show locations
-3. **Select a location** from the dropdown
-4. Make sure **dates are selected** (check-in and check-out)
-5. **Click the Search button**
+Request this call and receive the check details.
+Make the 3D Secure check request.
+After the 3D Secure check is completed, the payment gateway will redirect the user to the URL passed in the return_path field value of the Start booking process call.
+Request this call again and receive the final status.
+3D Secure check details 
+If the issuing bank supports 3D Secure cards, as the response to this call you will get:
 
-### Step 3: Check Console Logs
+The status field with the 3ds value.
+The special data in data.data_3ds field.
+The response example:
 
-You should see these logs in order:
-
-#### 1. Location Search (While Typing)
-```
-=== Hotels Debug ===
-Selected Location: {dest_id: "-1022488", search_type: "city", label: "Pokhara, Nepal"}
-API Params: {dest_id: "-1022488", arrival_date: "2025-11-20", ...}
-===================
-```
-
-#### 2. API Call Progress
-```
-Transform Effect - Loading: true
-Still loading, skipping...
-```
-
-#### 3. API Success
-```
-✅ API SUCCESS! Found hotels: 20
-First hotel sample: {hotel_id: 13647198, property: {...}}
-```
-
-#### 4. Data Transformation
-```
-Hotel 1: Temple Bell Boutique Hotel & Spa Image: https://cf.bstatic.com/xdata/images/hotel/square500/735074254.jpg
-Hotel 2: Hotel Fewa Camp Image: https://cf.bstatic.com/xdata/images/hotel/square500/492982109.jpg
-...
-✅ Set hotels to state: 20 hotels
-Sample hotel data: {id: 13647198, name: "Temple Bell Boutique Hotel & Spa", ...}
-```
-
-#### 5. Render
-```
-🔄 RENDER - Hotels: 20 Loading: false Fallback: false
-🎨 RENDERING HOTELS: 20 hotels
-First 3 hotels: [{name: "Temple Bell...", image: "https://..."}, ...]
-```
-
-## 🎯 What Each Log Means
-
-### ✅ Success Indicators
-
-| Log Message | Meaning |
-|-------------|---------|
-| `API SUCCESS! Found hotels: 20` | API returned hotel data successfully |
-| `Set hotels to state: 20 hotels` | Hotels were added to React state |
-| `RENDERING HOTELS: 20 hotels` | Hotels are being rendered to the page |
-| `Found 20 real hotels in Kathmandu!` | Toast notification confirming success |
-
-### ❌ Error Indicators
-
-| Log Message | Meaning | Solution |
-|-------------|---------|----------|
-| `Using fallback data because: no API data` | API didn't return data | Check API subscription |
-| `You are not subscribed to this API` | Not subscribed to Booking.com v15 API | Subscribe at RapidAPI |
-| `Invalid value` for dates | Dates are in wrong format | Check date formatting |
-| `API response doesn't match expected structure` | API returned unexpected format | Check API response structure |
-| `RENDER - Hotels: 0` | No hotels in state | Check why hotels weren't set |
-
-## 🐛 Common Issues & Solutions
-
-### Issue 1: "20 Hotels Found" but No Cards Display
-
-**Symptoms:**
-- Header shows "20 Hotels Found in Kathmandu"
-- But hotel cards area is empty
-- Console shows: `RENDER - Hotels: 0`
-
-**Causes:**
-1. Hotels state is being cleared after being set
-2. Transform effect running multiple times
-3. Render happening before state update
-
-**Debug Steps:**
-1. Check if you see `✅ Set hotels to state: 20 hotels`
-2. Then check if you see `🔄 RENDER - Hotels: 0`
-3. If hotels count drops from 20 to 0, there's a state clearing issue
-
-**Solution:**
-```javascript
-// Look for patterns like this in console:
-✅ Set hotels to state: 20 hotels  // ✓ Good
-🔄 RENDER - Hotels: 20              // ✓ Good
-🎨 RENDERING HOTELS: 20 hotels      // ✓ Good - Cards should show!
-
-// vs
-
-✅ Set hotels to state: 20 hotels  // ✓ Good
-Transform Effect Triggered         // ⚠️ Effect ran again
-Using fallback data                // ❌ Bad - cleared hotels
-🔄 RENDER - Hotels: 6              // ❌ Showing demo data instead
-```
-
-### Issue 2: Images Not Loading
-
-**Symptoms:**
-- Hotel cards show but no images
-- Broken image icons
-
-**Debug:**
-1. Check console for image URLs:
-```
-Hotel 1: Temple Bell... Image: https://cf.bstatic.com/...jpg
-```
-2. Copy the URL and paste in browser
-3. If URL loads in browser but not in app, it's a CORS or SSL issue
-4. If URL doesn't load anywhere, API is returning invalid URLs
-
-**Solution:**
-- Images should load from `cf.bstatic.com` (Booking.com CDN)
-- If they don't, check Network tab for failed requests
-- Check if image URLs are HTTPS (not HTTP)
-
-### Issue 3: API Called Before Search Click
-
-**Symptoms:**
-- API is called while typing location
-- Data loads before clicking Search button
-- Wrong results shown
-
-**Debug:**
-```
-// Check when API is called:
-=== Hotels Debug ===
-Selected Location: {dest_id: "-1022488"}  // ⚠️ Too early
-API Params: {dest_id: "-1022488", arrival_date: null}  // ❌ No dates!
-```
-
-**Solution:**
-- API should only be called when:
-  - `selectedLocation` exists
-  - `arrival_date` and `departure_date` are set
-  - User clicked Search button
-
-### Issue 4: Demo Data Instead of Real Data
-
-**Symptoms:**
-- Always shows "⚠️ Demo Mode" banner
-- Same 6 demo hotels every time
-- Console shows: `Using fallback data`
-
-**Causes:**
-1. Not subscribed to API
-2. API call failed
-3. API returned error
-
-**Debug:**
-```
-// Check API response:
-API Data: {status: false, message: "You are not subscribed"}
-// Solution: Subscribe to Booking.com v15 API
-
-// OR
-API Data: null
-Error: "Network error"
-// Solution: Check internet connection, API key
-```
-
-## 📊 Expected Console Output (Success)
-
-Here's what a successful search should look like:
-
-```
-=== Hotels Debug ===
-Selected Location: {dest_id: "-1022488", search_type: "city", label: "Pokhara, Nepal", ...}
-API Params: {
-  dest_id: "-1022488",
-  search_type: "CITY",
-  arrival_date: "2025-11-20",
-  departure_date: "2025-11-23",
-  adults: 2,
-  room_qty: 1,
-  ...
-}
-API Data: {status: true, message: "Success", data: {hotels: [...]}}
-Loading: false
-Error: null
-===================
-
-=== Transform Effect Triggered ===
-Loading: false
-Error: null
-API Data exists: true
-API Data: {status: true, message: "Success", ...}
-
-✅ API SUCCESS! Found hotels: 20
-First hotel sample: {hotel_id: 13647198, property: {...}}
-
-Hotel 1: Temple Bell Boutique Hotel & Spa Image: https://cf.bstatic.com/...jpg
-Hotel 2: Hotel Fewa Camp Image: https://cf.bstatic.com/...jpg
-[...18 more hotels...]
-
-✅ Set hotels to state: 20 hotels
-Sample hotel data: {
-  id: 13647198,
-  name: "Temple Bell Boutique Hotel & Spa",
-  location: "Pokhara",
-  image: "https://cf.bstatic.com/xdata/images/hotel/square500/735074254.jpg",
-  rating: 9.4,
-  reviews: 56,
-  price: 425,
-  currency: "USD",
-  ...
+{
+  "data": {
+    "data_3ds": {
+      "action_url": "https://example.com/ACS/auth/start.do",
+      "data": {
+        "MD": "94cf25b2-aa6d-4204-83e4-acf036d263f6",
+        "PaReq": "eJxVkt1ygjAQhV/F4R7zIwI6azptqa2dAR0L0+s0RKAV0ADVvn0TC33833+zObs5G7g5l/vRp1RNUVcLi4yxNZKVqNOiyhZWEi9t37phEOdKyuBFik5JBqFsGp6JUZEurBl358xfpLbvSWw7U05sHzvU3hGyS92Z8DyfWww2t1t5ZNA3YrrPmAIaUCsqkfOqZcDF8W4VMYd6LsaAeoRSqlXACJ04U9fzAf0wVLyUTPFW5vz0AeiCIOquatUXc20JoAGgU3uWt+1hjtBwYSzqEpA5APQ3waYzUaOFzkXKwvfwHMXZaR08kHWQOGH8cIqC5BTGyQKQqYBUyzGKKcYOpiPszbEzx1NAlzzw0kzACJmYXE9wME1ur47+p0AbrfQehkcMBPJ8qCupK7R7vzGgv3nvn4yHotXuLPPZIY2ecbeLGlI8bulbkh2zzRZvXvfG2UuRUSy0P5Rg9yJpAJCRQf3SUL9vHV39g287E7qa",
+        "TermUrl": "https://example.com/rebpayment/rest/finish3ds.do?ret_path=finish"
+      },
+      "method": "post"
+    },
+    "partner_order_id": "asd123",
+    "percent": 66
+  },
+  "debug": null,
+  "error": null,
+  "status": "3ds"
 }
 
-🔄 RENDER - Hotels: 20 Loading: false Fallback: false
+3D Secure check request 
+Send the request with received data for the 3D Secure check:
 
-🎨 RENDERING HOTELS: 20 hotels
-First 3 hotels: [
-  {name: "Temple Bell Boutique Hotel & Spa", image: "https://cf.bstatic.com/...jpg"},
-  {name: "Hotel Fewa Camp", image: "https://cf.bstatic.com/...jpg"},
-  {name: "Bar Peepal Resort", image: "https://cf.bstatic.com/...jpg"}
-]
+Via the GET method if the data.data_3ds.method field has the get value.
+Or via the POST method if the data.data_3ds.method field has the post value.
+The request example:
 
-✓ Toast: "Found 20 real hotels in Pokhara!"
-```
+curl -d '{"PaReq":"eJxVkt1ygjAQhV/F4R7zIwI6azptqa2dAR0L0+s0RKAV0ADVvn0TC33833+zObs5G7g5l/vRp1RNUVcLi4yxNZKVqNOiyhZWEi9t37phEOdKyuBFik5JBqFsGp6JUZEurBl358xfpLbvSWw7U05sHzvU3hGyS92Z8DyfWww2t1t5ZNA3YrrPmAIaUCsqkfOqZcDF8W4VMYd6LsaAeoRSqlXACJ04U9fzAf0wVLyUTPFW5vz0AeiCIOquatUXc20JoAGgU3uWt+1hjtBwYSzqEpA5APQ3waYzUaOFzkXKwvfwHMXZaR08kHWQOGH8cIqC5BTGyQKQqYBUyzGKKcYOpiPszbEzx1NAlzzw0kzACJmYXE9wME1ur47+p0AbrfQehkcMBPJ8qCupK7R7vzGgv3nvn4yHotXuLPPZIY2ecbeLGlI8bulbkh2zzRZvXvfG2UuRUSy0P5Rg9yJpAJCRQf3SUL9vHV39g287E7qa","termurl":"https://example.com/rebpayment/rest/finish3ds.do?ret_path=finish","MD":"94cf25b2-aa6d-4204-83e4-acf036d263f6}"' https://example.com/ACS/auth/start.do
 
-## 🔧 Quick Fixes
+Result interpretation 
+The result is described in the status response field. The possible values:
 
-### Fix 1: Clear Browser Cache
-```bash
-# Chrome/Edge
-Ctrl + Shift + Delete → Clear cache
+ok — the booking finishing has ended with success.
+processing — the booking finishing is in progress. Request the status change every second until you get the ok or error value.
+3ds — the booking finishing needs to complete the 3D Secure check.
+error — the booking finishing has ended with an error.
+Don’t forget that you might have the timeout, unknown, and 5xx error.
+Retry logic 
+During the maximum booking time request this call any time you like. The recommended time is once per 5 seconds.
 
-# Or hard reload
-Ctrl + Shift + R
-```
+Always send a final status request at the last second before the booking timeout, even if you check every 5 seconds. This reduces the risk of missing the correct status, especially with short timeouts.
+Request example 
+curl --user '<KEY_ID>:<API_KEY>' 'https://api.worldota.net/api/b2b/v3/hotel/order/booking/finish/status/' \
+--header 'Content-Type: application/json' \
+--data '{
+  "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6"
+}'
 
-### Fix 2: Restart Dev Server
-```bash
-# Kill the server
-Ctrl + C
+Request body 
+Expand this
+|
+Collapse this
+ partner_order_id String required
+Response 
+Expand this
+|
+Collapse this
+ data_3ds Object
+ partner_order_id String
+ percent Int
+deprecated
+Response example 
+{
+  "data": {
+    "data_3ds": null,
+    "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6",
+    "percent": 100
+  },
+  "debug": null,
+  "error": null,
+  "status": "ok"
+}
 
-# Restart
-npm run dev
-```
+Errors 
+The error field has the value specified in the headers below.
 
-### Fix 3: Check API Subscription
-1. Go to: https://rapidapi.com/DataCrawler/api/booking-com15
-2. Check if you're subscribed (should show "Unsubscribe" button)
-3. If not, click "Subscribe to Test" → Select free/basic plan
+block 
+The card funds can’t be frozen (blocked) for the booking payment.
 
-### Fix 4: Verify API Key
-```bash
-# Check .env file
-cat .env | grep RAPIDAPI_KEY
+charge 
+The card funds can’t be withdrawn for the booking payment due to:
 
-# Should show:
-VITE_RAPIDAPI_KEY=65a2fb9890msh2f1b3891422bcdap10b421jsndd0c715b3f03
-```
+A failed freeze.
+Another reason.
+3ds 
+The MD field value is invalid.
 
-## 📸 Screenshots to Share
+soldout 
+The rate is no longer available as its rooms are sold out.
 
-If hotels still don't show, please share:
+book_limit 
+The cut-off logic limit for the booking finishing is reached.
 
-1. **Console tab** - All the logs (scroll up to see everything)
-2. **Network tab** - Filter by "booking-com15" to see API calls
-3. **React DevTools** - Hotels component state (if you have it installed)
+not_allowed 
+There is no permission to use this call for this contract:
 
-## 🎯 Next Steps
+Contact the API support team.
+Tell the user the booking error has occurred.
+When contacting the API support team, provide at least:
 
-After checking console logs:
+The hotel name where the booking is in process.
+The order_id field with the value from the Create booking process call.
+The user and rooms fields with the values from the Start booking process call.
+This information will help to identify the request attempt.
 
-1. If you see `✅ Set hotels to state: 20 hotels` → Hotels are loading successfully
-2. If you see `🎨 RENDERING HOTELS: 20 hotels` → Cards should be visible
-3. If cards still don't show → Check browser console for React errors
-4. If you see red errors in console → Share them for debugging
+provider 
+A technical error at the rate provider side.
 
-## 📚 Useful Console Commands
+order_not_found 
+The order with the partner_order_id field value isn’t found. Try to change the value.
 
-While on /hotels page, try these in console:
+booking_finish_did_not_succeed 
+An attempt to request this call without a successful response from the Start booking process call.
 
-```javascript
-// Check hotels state (open React DevTools)
-// Find Hotels component → Props/State → hotels array
+timeout, unknown, and 5xx 
+An internal error. Continue to request this call until you get the following response:
 
-// Or add this to console:
-console.table(hotels);  // If hotels variable is accessible
+The status field has the ok value.
+The error field has one of the values:
+3ds.
+block.
+book_limit.
+booking_finish_did_not_succeed.
+charge.
+decoding_json.
+endpoint_exceeded_limit.
+endpoint_not_active.
+endpoint_not_found.
+incorrect_credentials.
+invalid_auth_header.
+invalid_params.
+lock.
+no_auth_header.
+not_allowed.
+not_allowed_host.
+order_not_found.
+overdue_debt.
+provider.
+soldout.
+unexpected_method.
 
-// Check if images load
-document.querySelectorAll('.hotel-card-image').forEach((img, i) => {
-  console.log(`Image ${i + 1}:`, img.src, img.complete ? '✓ Loaded' : '✗ Failed');
-});
-```
+Receive booking status webhook
+#b2b
 
----
+This call is required if you don’t use the Check booking process call.
+The call retrieves a webhook for the booking process status via the POST method.
 
-**Remember:** The key is to look at the console output step by step. Each log tells you what's happening at that moment!
+Getting webhook scenario 
+Provide the callback URL to the API support team.
+The API support team sets up the callback URL.
+Once the callback URL is set and the booking process is finished, the ETG API sends the webhook.
+Check if the webhook is received on your side and send the appropriate response.
+At the last second, request this call for the last time and receive the status:
+
+completed — the booking finishing will end with success.
+failed — the booking finishing will end with an error.
+Your server responses 
+The ETG listens to the following codes from your server and reacts accordingly:
+
+Code 200 — the webhook is received successfully and doesn’t need a retry.
+Code 500 — the ETG needs to retry sending for 7.5 minutes with the intervals:
+30 seconds.
+60 seconds.
+90 seconds.
+120 seconds.
+150 seconds.
+Payload 
+Expand this
+|
+Collapse this
+ partner_order_id String required
+ status String required
+The payload example:
+
+{
+  "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6",
+  "status": "completed"
+}
+
+Secure data 
+Expand this
+|
+Collapse this
+ signature String required
+ timestamp Int required
+ token String required
+The secure data example:
+
+{
+  "signature": {
+    "signature": "7865d225dbee1b54909er153d193e0b57b707ebe81ff5b2e1b71ebaf749bec23",
+    "timestamp": 1574146939,
+    "token": "d3395025-1ee7-49a2-bd86-e4bd6b9908b2"
+  }
+}
+
+Whole fields example 
+{
+  "data": {
+    "partner_order_id": "0b370500-5321-4046-92c5-5982f1a64fc6",
+    "status": "completed"
+  },
+  "signature": {
+    "signature": "7865d225dbee1b54909er153d193e0b57b707ebe81ff5b2e1b71ebaf749bec23",
+    "timestamp": 1574146939,
+    "token": "d3395025-1ee7-49a2-bd86-e4bd6b9908b2"
+  }
+}
+
+Signature verification 
+To verify the webhook issued by the ETG:
+
+Concatenate the timestamp and token values. The “token” means the one sent by the ETG in the webhook data.
+Encode the resulting string with the HMAC algorithm:
+Use your API Key token as a key.
+Use the SHA256 digest mode.
+Use the hexdigest() method to make a resulting string.
+Compare the resulting string to the signature.
+Optional. Cache the token locally and don’t honor any subsequent request with the same token. This will prevent replay attacks.
+Optional. Check that the timestamp is within the token lifetime.
+Examples 
+Python 
+import hashlib, hmac
+def verify(api_key, token, timestamp, signature):
+    hmac_digest = hmac.new(key=api_key,
+                           msg='{}{}'.format(timestamp, token),
+                           digestmod=hashlib.sha256).hexdigest()
+    return hmac.compare_digest(unicode(signature), unicode(hmac_digest))
+
+Ruby 
+require 'openssl'
+def verify(api_key, token, timestamp, signature)
+  digest = OpenSSL::Digest::SHA256.new
+  data = [timestamp, token].join
+  signature == OpenSSL::HMAC.hexdigest(digest, api_key, data)
+end
+
+PHP 
+function verify($apiKey, $token, $timestamp, $signature)
+{
+  // check if the timestamp is fresh
+  if (abs(time() - $timestamp) > 15) {
+    return false;
+  }
+  // returns true if signature is valid
+  return hash_hmac('sha256', $timestamp . $token, $apiKey) === $signature;
+}
+
+Node.js 
+const crypto = require('crypto')
+const verify = ({ apiKey, timestamp, token, signature }) => {
+    const encodedToken = crypto
+        .createHmac('sha256', apiKey)
+        .update(timestamp.toString().concat(token))
+        .digest('hex')
+    return (encodedToken === signature)
+}

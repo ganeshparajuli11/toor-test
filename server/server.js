@@ -6,6 +6,7 @@ import paymentRoutes from './routes/payment.js';
 import bookingsRoutes from './routes/bookings.js';
 import oauthRoutes from './routes/oauth.js';
 import hotelsRoutes from './routes/hotels.js';
+import authRoutes from './routes/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +22,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/hotels', hotelsRoutes);
+app.use('/api/auth', authRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

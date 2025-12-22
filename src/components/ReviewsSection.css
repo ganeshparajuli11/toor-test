@@ -285,3 +285,130 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
+
+/* Loading State */
+.reviews-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  color: var(--color-text-secondary);
+}
+
+.reviews-loading .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Empty State */
+.reviews-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  text-align: center;
+}
+
+.reviews-empty-icon {
+  color: var(--color-text-light);
+  margin-bottom: var(--spacing-md);
+}
+
+.reviews-empty h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.reviews-empty p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Review User Info */
+.review-user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.review-date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+/* Review Pros/Cons */
+.review-pros-cons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--color-off-white);
+  border-radius: var(--radius-md);
+}
+
+.review-pros,
+.review-cons {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.review-pros .icon-green {
+  color: #22c55e;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.review-cons .icon-red {
+  color: #ef4444;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.icon-green {
+  color: #22c55e;
+}
+
+.icon-red {
+  color: #ef4444;
+}
+
+/* Travel Info Tags */
+.review-travel-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.review-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: var(--color-off-white);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Room Type */
+.review-room-type {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+  font-style: italic;
+}

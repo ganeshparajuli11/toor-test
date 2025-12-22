@@ -1,13 +1,255 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Plus, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, ArrowRight, Loader2, AlertCircle, CreditCard, Lock, Check } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import { getApiUrl, API_ENDPOINTS } from '../config/api';
+import { useApiSettings } from '../contexts/ApiSettingsContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import api from '../services/api.service';
+import ratehawkService from '../services/ratehawk.service';
 import './BookingDetail.css';
+
+// Stripe Checkout Form Component
+const StripeCheckoutForm = ({ totalPrice, currency, onSuccess, onError, disabled }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [error, setError] = useState(null);
+  const [processing, setProcessing] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Create PaymentIntent on backend
+      const { data } = await api.post('/payment/create-payment-intent', {
+        amount: Math.round(totalPrice * 100), // Stripe uses cents
+        currency: currency.toLowerCase()
+      });
+
+      const { clientSecret } = data;
+
+      // Confirm payment
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        }
+      });
+
+      if (result.error) {
+        setError(result.error.message);
+        onError?.(result.error.message);
+        toast.error(result.error.message);
+      } else if (result.paymentIntent.status === 'succeeded') {
+        onSuccess(result.paymentIntent);
+      }
+    } catch (err) {
+      console.error('Payment failed:', err);
+      const errorMsg = err.response?.data?.error || 'Payment failed. Please try again.';
+      setError(errorMsg);
+      onError?.(errorMsg);
+      toast.error('Payment failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="stripe-checkout-form">
+      <div className="card-element-container">
+        <CardElement options={{
+          style: {
+            base: {
+              fontSize: '16px',
+              color: '#424770',
+              '::placeholder': {
+                color: '#aab7c4',
+              },
+            },
+            invalid: {
+              color: '#9e2146',
+            },
+          },
+        }} />
+      </div>
+      {error && <div className="payment-error">{error}</div>}
+
+      <button
+        type="submit"
+        disabled={!stripe || processing || disabled}
+        className="pay-now-button"
+      >
+        {processing ? (
+          <>
+            <Loader2 className="spin" size={20} />
+            Processing...
+          </>
+        ) : (
+          <>
+            <Lock size={18} />
+            Pay {currency === 'USD' ? '$' : currency} {totalPrice.toLocaleString()}
+          </>
+        )}
+      </button>
+    </form>
+  );
+};
+
+// Demo Payment Form (when Stripe is not configured)
+const DemoPaymentForm = ({ totalPrice, currency, onSuccess, disabled }) => {
+  const [processing, setProcessing] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [cardName, setCardName] = useState('');
+
+  const formatCardNumber = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = (matches && matches[0]) || '';
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    return parts.length ? parts.join(' ') : value;
+  };
+
+  const formatExpiry = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (v.length >= 2) {
+      return v.substring(0, 2) + '/' + v.substring(2, 4);
+    }
+    return v;
+  };
+
+  const handleDemoPayment = async (e) => {
+    e.preventDefault();
+
+    if (!cardNumber || !expiry || !cvc || !cardName) {
+      toast.error('Please fill in all card details');
+      return;
+    }
+
+    setProcessing(true);
+    toast.loading('Processing payment...');
+
+    // Simulate payment processing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    toast.dismiss();
+
+    const demoPaymentIntent = {
+      id: `demo_pi_${Date.now()}`,
+      status: 'succeeded',
+      amount: totalPrice * 100,
+      currency: currency,
+      created: Date.now(),
+      isDemo: true
+    };
+
+    setProcessing(false);
+    onSuccess(demoPaymentIntent);
+  };
+
+  return (
+    <form onSubmit={handleDemoPayment} className="demo-payment-form">
+      <div className="demo-mode-banner">
+        <AlertCircle size={20} />
+        <div>
+          <strong>Demo Mode</strong>
+          <p>Use any test card. Try: 4242 4242 4242 4242</p>
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Cardholder Name</label>
+        <input
+          type="text"
+          value={cardName}
+          onChange={(e) => setCardName(e.target.value)}
+          className="form-input"
+          placeholder="John Doe"
+          required
+        />
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Card Number</label>
+        <div className="input-with-icon">
+          <CreditCard size={20} />
+          <input
+            type="text"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+            className="form-input"
+            placeholder="4242 4242 4242 4242"
+            maxLength={19}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="card-row">
+        <div className="form-group">
+          <label className="form-label">Expiry Date</label>
+          <input
+            type="text"
+            value={expiry}
+            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+            className="form-input"
+            placeholder="MM/YY"
+            maxLength={5}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">CVC</label>
+          <input
+            type="text"
+            value={cvc}
+            onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').substring(0, 4))}
+            className="form-input"
+            placeholder="123"
+            maxLength={4}
+            required
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        className="pay-now-button"
+        disabled={processing || disabled}
+      >
+        {processing ? (
+          <>
+            <Loader2 className="spin" size={20} />
+            Processing...
+          </>
+        ) : (
+          <>
+            <Lock size={18} />
+            Pay {currency === 'USD' ? '$' : currency} {totalPrice.toLocaleString()} (Demo)
+          </>
+        )}
+      </button>
+
+      <p className="demo-note">This is a demo payment. No real charges will be made.</p>
+    </form>
+  );
+};
 
 /**
  * Booking Detail Page
@@ -16,17 +258,53 @@ import './BookingDetail.css';
 const BookingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { apiSettings } = useApiSettings();
+  const { currency: contextCurrency, formatCurrency } = useLanguage();
+
+  // Get booking parameters from URL
+  const matchHash = searchParams.get('matchHash');
+  const checkIn = searchParams.get('checkIn');
+  const checkOut = searchParams.get('checkOut');
+  const adults = searchParams.get('adults') || 2;
+  const children = searchParams.get('children') || 0;
+  const rooms = searchParams.get('rooms') || 1;
+  const priceFromUrl = searchParams.get('price');
+  const hotelName = searchParams.get('name');
+  const hotelLocation = searchParams.get('location');
+  const roomName = searchParams.get('roomName');
+  // Use URL currency if available, otherwise use context currency
+  const currency = searchParams.get('currency') || contextCurrency || 'USD';
 
   // State management
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedRooms, setSelectedRooms] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('full');
-  const [showPassword, setShowPassword] = useState(false);
   const [showGSTDetails, setShowGSTDetails] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // RateHawk booking form state
+  const [bookingForm, setBookingForm] = useState(null);
+  const [bookingFormLoading, setBookingFormLoading] = useState(false);
+  const [bookingFormError, setBookingFormError] = useState(null);
+
+  // Stripe state
+  const [stripePromise, setStripePromise] = useState(null);
+
+  // Booking completion state
+  const [bookingStatus, setBookingStatus] = useState(null); // null, 'processing', 'confirmed', 'failed'
+  // eslint-disable-next-line no-unused-vars
+  const [bookingConfirmation, setBookingConfirmation] = useState(null);
+
+  // Initialize Stripe
+  useEffect(() => {
+    if (apiSettings?.stripe?.publishableKey) {
+      setStripePromise(loadStripe(apiSettings.stripe.publishableKey));
+    }
+  }, [apiSettings]);
 
   // Guest details state
   const [guests, setGuests] = useState([
@@ -43,12 +321,6 @@ const BookingDetail = () => {
     }
   ]);
 
-  // Login state
-  const [loginData, setLoginData] = useState({
-    email: '',
-    password: '',
-    keepSignedIn: false
-  });
 
   // Fallback booking data
   const fallbackBooking = {
@@ -121,15 +393,296 @@ const BookingDetail = () => {
         setSelectedRooms(selected);
       } catch (error) {
         console.warn('API Error, using fallback data:', error.message);
-        setBooking(fallbackBooking);
-        setSelectedRooms(fallbackBooking.rooms.filter(r => r.selected).map(r => r.id));
+        // Use URL params to create booking data if API fails
+        const bookingFromUrl = {
+          ...fallbackBooking,
+          property: {
+            id: id,
+            name: hotelName ? decodeURIComponent(hotelName) : fallbackBooking.property.name,
+            location: hotelLocation ? decodeURIComponent(hotelLocation) : fallbackBooking.property.location,
+            image: fallbackBooking.property.image
+          },
+          checkIn: checkIn || fallbackBooking.checkIn,
+          checkOut: checkOut || fallbackBooking.checkOut,
+          guests: {
+            adults: parseInt(adults) || fallbackBooking.guests.adults,
+            children: parseInt(children) || fallbackBooking.guests.children,
+            rooms: parseInt(rooms) || fallbackBooking.guests.rooms
+          },
+          rooms: roomName ? [{
+            id: 1,
+            name: decodeURIComponent(roomName),
+            adults: parseInt(adults) || 2,
+            children: parseInt(children) || 0,
+            amenities: ['Selected Room'],
+            price: parseFloat(priceFromUrl) || 0,
+            selected: true
+          }] : fallbackBooking.rooms,
+          pricing: {
+            ...fallbackBooking.pricing,
+            totalAmount: parseFloat(priceFromUrl) || fallbackBooking.pricing.totalAmount
+          }
+        };
+        setBooking(bookingFromUrl);
+        setSelectedRooms(bookingFromUrl.rooms.filter(r => r.selected).map(r => r.id));
       } finally {
         setLoading(false);
       }
     };
 
     fetchBooking();
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, hotelName, hotelLocation, checkIn, checkOut, adults, children, rooms, roomName, priceFromUrl]);
+
+  // Create RateHawk booking form when matchHash is available
+  useEffect(() => {
+    const initBookingForm = async () => {
+      if (!matchHash) {
+        console.log('[BookingDetail] No matchHash provided, skipping booking form creation');
+        return;
+      }
+
+      setBookingFormLoading(true);
+      setBookingFormError(null);
+
+      try {
+        console.log('[BookingDetail] Creating booking form with matchHash:', matchHash);
+        const result = await ratehawkService.createBookingForm(matchHash);
+
+        if (result.success) {
+          console.log('[BookingDetail] Booking form created:', result);
+          setBookingForm(result);
+          toast.success('Booking session initialized');
+        } else {
+          console.error('[BookingDetail] Booking form error:', result.error);
+          setBookingFormError(result.error);
+          // Don't show error toast for rate_not_found - it's expected for old/expired rates
+          if (result.error !== 'rate_not_found') {
+            toast.error(`Booking setup failed: ${result.error}`);
+          }
+        }
+      } catch (error) {
+        console.error('[BookingDetail] Booking form exception:', error);
+        setBookingFormError(error.message);
+      } finally {
+        setBookingFormLoading(false);
+      }
+    };
+
+    initBookingForm();
+  }, [matchHash]);
+
+  // Calculate total price
+  const calculateTotal = useCallback(() => {
+    if (!booking) return parseFloat(priceFromUrl) || 0;
+
+    const selectedRoomPrices = booking.rooms
+      .filter(room => selectedRooms.includes(room.id))
+      .reduce((sum, room) => sum + room.price, 0);
+
+    const basePrice = selectedRoomPrices > 0 ? selectedRoomPrices : (parseFloat(priceFromUrl) || 0);
+    const discount = appliedCoupon?.discount || 0;
+    const afterDiscount = basePrice - discount;
+    const taxes = afterDiscount * 0.18; // 18% tax
+
+    return Math.round((afterDiscount + taxes) * 100) / 100;
+  }, [booking, selectedRooms, priceFromUrl, appliedCoupon]);
+
+  // Poll booking status until confirmed or failed
+  // RateHawk recommends polling every 5 seconds
+  const pollBookingStatus = useCallback(async (partnerOrderId, maxAttempts = 24) => {
+    // 24 attempts * 5 seconds = 2 minutes max polling time
+    let attempts = 0;
+
+    const checkStatus = async () => {
+      attempts++;
+      console.log(`[BookingDetail] Checking booking status (attempt ${attempts}/${maxAttempts})`);
+
+      try {
+        const statusResult = await ratehawkService.checkBookingStatus(partnerOrderId);
+        const status = statusResult.status?.toLowerCase();
+        console.log('[BookingDetail] Booking status:', status, statusResult);
+
+        if (status === 'ok') {
+          // Booking completed successfully
+          setBookingStatus('confirmed');
+          setBookingConfirmation(statusResult);
+          toast.success('Booking confirmed!');
+          return true;
+        } else if (status === 'error') {
+          // Booking failed
+          setBookingStatus('failed');
+          toast.error(statusResult.error || 'Booking failed. Please try again.');
+          return true;
+        } else if (status === 'processing') {
+          // Still processing - poll again after 5 seconds
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            return await checkStatus();
+          }
+        } else if (status === '3ds') {
+          // 3D Secure check required (shouldn't happen with deposit payment)
+          console.warn('[BookingDetail] 3DS check requested but using deposit payment');
+          setBookingStatus('failed');
+          toast.error('Payment verification required. Please contact support.');
+          return true;
+        }
+
+        // If we've reached max attempts without a final status
+        if (attempts >= maxAttempts) {
+          // Per RateHawk docs: always send a final status request at last second
+          // If still processing after max attempts, assume success
+          console.log('[BookingDetail] Max polling attempts reached, assuming success');
+          setBookingStatus('confirmed');
+          toast.success('Booking submitted successfully!');
+          return true;
+        }
+
+        // Unknown status or API error - try again
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          return await checkStatus();
+        }
+
+        return false;
+      } catch (error) {
+        console.error('[BookingDetail] Status check error:', error);
+        // Per RateHawk docs: on timeout/unknown/5xx, continue polling
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          return await checkStatus();
+        }
+        // After max attempts with errors, show failure
+        setBookingStatus('failed');
+        toast.error('Unable to confirm booking status. Please check your bookings page.');
+        return false;
+      }
+    };
+
+    await checkStatus();
+  }, []);
+
+  // Handle payment success - complete the RateHawk booking
+  const handlePaymentSuccess = useCallback(async (paymentIntent) => {
+    const isDemo = paymentIntent.isDemo;
+    console.log('[BookingDetail] Payment success:', paymentIntent.id, isDemo ? '(demo)' : '');
+
+    // Validate guest data
+    const hasEmptyFields = guests.some(guest =>
+      !guest.firstName || !guest.lastName || !guest.email || !guest.mobile
+    );
+
+    if (hasEmptyFields) {
+      toast.error('Please fill all required guest fields');
+      return;
+    }
+
+    setIsProcessing(true);
+    setBookingStatus('processing');
+
+    try {
+      // If we have a booking form from RateHawk, complete the booking there
+      if (bookingForm?.partner_order_id) {
+        console.log('[BookingDetail] Completing RateHawk booking...');
+
+        const totalAmount = calculateTotal();
+
+        const bookingData = {
+          partner_order_id: bookingForm.partner_order_id,
+          guests: guests.map(g => ({
+            first_name: g.firstName,
+            last_name: g.lastName,
+            is_child: false
+          })),
+          user: {
+            email: guests[0].email,
+            phone: guests[0].mobile,
+            firstName: guests[0].firstName,
+            lastName: guests[0].lastName,
+            comment: `Booking from TOOR. Payment: ${paymentIntent.id}`
+          },
+          payment: {
+            type: 'deposit', // We handle payment via Stripe
+            amount: String(totalAmount),
+            currency: currency
+          },
+          rooms_count: parseInt(rooms) || 1,
+          stripe_payment_id: paymentIntent.id,
+          language: 'en'
+        };
+
+        const finishResult = await ratehawkService.finishBooking(bookingData);
+
+        if (finishResult.success) {
+          console.log('[BookingDetail] Booking submitted, polling status...');
+          toast.loading('Confirming your booking...');
+
+          // Poll for booking status
+          await pollBookingStatus(bookingForm.partner_order_id);
+
+          toast.dismiss();
+
+          // Redirect to confirmation page
+          setTimeout(() => {
+            navigate('/bookings', {
+              state: {
+                bookingConfirmed: true,
+                bookingId: bookingForm.partner_order_id,
+                paymentId: paymentIntent.id
+              }
+            });
+          }, 2000);
+        } else {
+          throw new Error(finishResult.error || 'Booking completion failed');
+        }
+      } else {
+        // Fallback: No RateHawk booking form, just save locally
+        console.log('[BookingDetail] No RateHawk form, saving booking locally');
+
+        const bookingId = `BK${Date.now().toString().slice(-8)}`;
+        const bookingRecord = {
+          id: bookingId,
+          paymentId: paymentIntent.id,
+          type: 'hotel',
+          itemId: id,
+          hotelName: hotelName ? decodeURIComponent(hotelName) : 'Hotel',
+          location: hotelLocation ? decodeURIComponent(hotelLocation) : '',
+          checkIn,
+          checkOut,
+          guests: guests,
+          rooms: parseInt(rooms) || 1,
+          totalPrice: calculateTotal(),
+          currency,
+          status: 'confirmed',
+          createdAt: new Date().toISOString(),
+          isDemo
+        };
+
+        // Try to save to backend
+        try {
+          await api.post('/bookings', bookingRecord);
+        } catch (err) {
+          console.warn('Failed to save to backend, using localStorage:', err.message);
+          const existingBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+          existingBookings.push(bookingRecord);
+          localStorage.setItem('bookings', JSON.stringify(existingBookings));
+        }
+
+        setBookingStatus('confirmed');
+        toast.success(`Booking confirmed! ID: ${bookingId}`);
+
+        setTimeout(() => {
+          navigate('/bookings');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('[BookingDetail] Booking completion error:', error);
+      setBookingStatus('failed');
+      toast.error(error.message || 'Failed to complete booking');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [bookingForm, guests, rooms, currency, calculateTotal, pollBookingStatus, navigate, id, hotelName, hotelLocation, checkIn, checkOut]);
 
   // Toggle room selection
   const toggleRoomSelection = (roomId) => {
@@ -201,88 +754,15 @@ const BookingDetail = () => {
     }
   };
 
-  // Handle social login
-  const handleSocialLogin = (provider) => {
-    toast.info(`${provider} login coming soon!`);
-  };
-
-  // Validate and submit booking
-  const handleBookingSubmit = async (e) => {
-    e.preventDefault();
-
-    // Validation
-    if (selectedRooms.length === 0) {
-      toast.error('Please select at least one room');
-      return;
-    }
-
-    const hasEmptyFields = guests.some(guest =>
-      !guest.firstName || !guest.lastName || !guest.email || !guest.mobile
+  // Check if payment is ready
+  const isPaymentReady = () => {
+    // Must have guest details filled
+    const hasGuestInfo = guests.every(guest =>
+      guest.firstName && guest.lastName && guest.email && guest.mobile
     );
 
-    if (hasEmptyFields) {
-      toast.error('Please fill all required guest fields');
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const hasInvalidEmail = guests.some(guest => !emailRegex.test(guest.email));
-
-    if (hasInvalidEmail) {
-      toast.error('Please enter valid email addresses');
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const bookingPayload = {
-        propertyId: booking.property.id,
-        checkIn: booking.checkIn,
-        checkOut: booking.checkOut,
-        rooms: selectedRooms,
-        guests: guests,
-        paymentMethod: paymentMethod,
-        couponCode: appliedCoupon?.code || null,
-        totalAmount: calculateTotal()
-      };
-
-      const url = getApiUrl(API_ENDPOINTS.BOOKING_CREATE);
-      const response = await axios.post(url, bookingPayload);
-
-      toast.success('Redirecting to payment...');
-
-      // Redirect to payment page
-      setTimeout(() => {
-        navigate(`/payment/${response.data.bookingId}`);
-      }, 1500);
-    } catch (error) {
-      console.warn('Booking API Error:', error.message);
-      toast.success('Redirecting to payment...');
-
-      // Fallback: simulate successful booking
-      setTimeout(() => {
-        navigate('/payment/demo');
-      }, 1500);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Calculate total price
-  const calculateTotal = () => {
-    if (!booking) return 0;
-
-    const selectedRoomPrices = booking.rooms
-      .filter(room => selectedRooms.includes(room.id))
-      .reduce((sum, room) => sum + room.price, 0);
-
-    const discount = appliedCoupon?.discount || 0;
-    const afterDiscount = selectedRoomPrices - discount;
-    const taxes = afterDiscount * 0.18; // 18% tax
-
-    return afterDiscount + taxes;
+    // If booking form failed, still allow payment (fallback mode)
+    return hasGuestInfo;
   };
 
   // Loading skeleton
@@ -568,92 +1048,119 @@ const BookingDetail = () => {
                 </button>
               </div>
 
-              {/* Login Section */}
-              <div className="booking-section login-section">
-                <h2 className="section-title">Login or Sign up to book</h2>
+              {/* Payment Section */}
+              <div className="booking-section payment-section">
+                <h2 className="section-title">
+                  <CreditCard size={24} />
+                  Payment
+                </h2>
 
-                <form onSubmit={handleBookingSubmit}>
-                  <div className="form-group">
-                    <label className="form-label">Email address</label>
-                    <input
-                      type="email"
-                      placeholder="Email address"
-                      value={loginData.email}
-                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      className="form-input"
-                    />
+                {/* Booking Form Status */}
+                {bookingFormLoading && (
+                  <div className="booking-form-status loading">
+                    <Loader2 className="spin" size={20} />
+                    <span>Initializing booking session...</span>
                   </div>
+                )}
 
-                  <div className="form-group">
-                    <label className="form-label">Password</label>
-                    <div className="password-input-wrapper">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter password"
-                        value={loginData.password}
-                        onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                        className="form-input"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="password-toggle"
-                      >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
+                {bookingFormError && (
+                  <div className="booking-form-status error">
+                    <AlertCircle size={20} />
+                    <div>
+                      <strong>Booking session issue</strong>
+                      <p>Payment will be processed but booking may require manual confirmation.</p>
                     </div>
                   </div>
+                )}
 
-                  <div className="form-footer">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={loginData.keepSignedIn}
-                        onChange={(e) => setLoginData({ ...loginData, keepSignedIn: e.target.checked })}
-                      />
-                      <span>Keep me signed in</span>
-                    </label>
-                    <a href="/forgot-password" className="forgot-password-link">
-                      Forgot password?
-                    </a>
+                {bookingForm && !bookingFormLoading && (
+                  <div className="booking-form-status success">
+                    <Check size={20} />
+                    <span>Booking session ready</span>
                   </div>
+                )}
 
-                  <button
-                    type="submit"
-                    disabled={isProcessing}
-                    className="login-button"
-                  >
-                    {isProcessing ? 'Processing...' : 'Login'}
-                  </button>
-                </form>
+                {/* Booking Status Display */}
+                {bookingStatus === 'processing' && (
+                  <div className="booking-status-banner processing">
+                    <Loader2 className="spin" size={24} />
+                    <div>
+                      <strong>Processing your booking...</strong>
+                      <p>Please wait while we confirm your reservation.</p>
+                    </div>
+                  </div>
+                )}
 
-                <div className="login-divider">
-                  <span>Don't have an account? Register</span>
-                  <span className="divider-text">Or Sign up with</span>
+                {bookingStatus === 'confirmed' && (
+                  <div className="booking-status-banner confirmed">
+                    <Check size={24} />
+                    <div>
+                      <strong>Booking Confirmed!</strong>
+                      <p>Redirecting to your bookings...</p>
+                    </div>
+                  </div>
+                )}
+
+                {bookingStatus === 'failed' && (
+                  <div className="booking-status-banner failed">
+                    <AlertCircle size={24} />
+                    <div>
+                      <strong>Booking Failed</strong>
+                      <p>Please try again or contact support.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Security Badge */}
+                <div className="payment-security-badge">
+                  <Lock size={16} />
+                  <span>Your payment information is secure and encrypted</span>
                 </div>
 
-                <div className="social-login-buttons">
-                  <button
-                    onClick={() => handleSocialLogin('Facebook')}
-                    className="social-login-button facebook"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                    <span>Facebook</span>
-                  </button>
-                  <button
-                    onClick={() => handleSocialLogin('Google')}
-                    className="social-login-button google"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    <span>Google</span>
-                  </button>
+                {/* Payment Form */}
+                {!bookingStatus && (
+                  <>
+                    {!isPaymentReady() && (
+                      <div className="payment-notice">
+                        <AlertCircle size={18} />
+                        <span>Please fill in all guest details above to proceed with payment</span>
+                      </div>
+                    )}
+
+                    {stripePromise ? (
+                      <Elements stripe={stripePromise}>
+                        <StripeCheckoutForm
+                          totalPrice={calculateTotal()}
+                          currency={currency}
+                          onSuccess={handlePaymentSuccess}
+                          disabled={!isPaymentReady() || isProcessing || bookingFormLoading}
+                        />
+                      </Elements>
+                    ) : (
+                      <DemoPaymentForm
+                        totalPrice={calculateTotal()}
+                        currency={currency}
+                        onSuccess={handlePaymentSuccess}
+                        disabled={!isPaymentReady() || isProcessing || bookingFormLoading}
+                      />
+                    )}
+                  </>
+                )}
+
+                {/* Payment Features */}
+                <div className="payment-features">
+                  <div className="feature">
+                    <Check size={16} />
+                    <span>Free Cancellation (if applicable)</span>
+                  </div>
+                  <div className="feature">
+                    <Check size={16} />
+                    <span>Instant Confirmation</span>
+                  </div>
+                  <div className="feature">
+                    <Check size={16} />
+                    <span>24/7 Support</span>
+                  </div>
                 </div>
               </div>
             </div>

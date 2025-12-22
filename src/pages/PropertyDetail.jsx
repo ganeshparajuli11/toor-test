@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { MapPin, Heart, Share2, Award, Tag } from 'lucide-react';
+import { MapPin, Heart, Share2, Award, Tag, Users, Coffee, X, Check, Calendar, Loader2, Clock, Phone, Mail, Star, BedDouble } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -9,6 +9,7 @@ import ImageGallery from '../components/ImageGallery';
 import AmenitiesList from '../components/AmenitiesList';
 import ReviewsSection from '../components/ReviewsSection';
 import ratehawkService from '../services/ratehawk.service';
+import { useLanguage } from '../contexts/LanguageContext';
 import './PropertyDetail.css';
 
 /**
@@ -21,6 +22,14 @@ const PropertyDetail = () => {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [rates, setRates] = useState([]);
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [ratesError, setRatesError] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Get currency from context
+  const { currency, formatCurrency } = useLanguage();
 
   // Get search params passed from Hotels page
   const checkIn = searchParams.get('checkIn');
@@ -79,20 +88,50 @@ const PropertyDetail = () => {
   useEffect(() => {
     const fetchProperty = async () => {
       setLoading(true);
+
+      // First, check if we have cached data from Hotels page
+      let cachedData = null;
+      try {
+        const cached = sessionStorage.getItem(`hotel_${id}`);
+        if (cached) {
+          cachedData = JSON.parse(cached);
+          console.log('[PropertyDetail] Using cached hotel data:', cachedData);
+          // Set cached data immediately for instant display
+          if (cachedData.images && cachedData.images.length > 0) {
+            const initialProperty = {
+              ...fallbackProperty,
+              ...cachedData,
+              images: cachedData.images,
+            };
+            if (priceFromSearch && parseFloat(priceFromSearch) > 0) {
+              initialProperty.price = parseFloat(priceFromSearch);
+            }
+            setProperty(initialProperty);
+          }
+        }
+      } catch (e) {
+        console.log('[PropertyDetail] No cached data found');
+      }
+
       try {
         const hotelData = await ratehawkService.getHotelDetails(id);
-        console.log('Hotel details:', hotelData);
+        console.log('Hotel details from API:', hotelData);
 
         // Use price from search params if available (since hotel/info doesn't return price)
         if (priceFromSearch && parseFloat(priceFromSearch) > 0) {
           hotelData.price = parseFloat(priceFromSearch);
         }
 
+        // If API returned no images but we have cached images, use those
+        if ((!hotelData.images || hotelData.images.length === 0) && cachedData?.images?.length > 0) {
+          hotelData.images = cachedData.images;
+        }
+
         setProperty(hotelData);
       } catch (error) {
         console.warn('API Error, using fallback data:', error.message);
         // Include price in fallback if available from search
-        const fallbackWithPrice = { ...fallbackProperty };
+        const fallbackWithPrice = cachedData ? { ...fallbackProperty, ...cachedData } : { ...fallbackProperty };
         if (priceFromSearch && parseFloat(priceFromSearch) > 0) {
           fallbackWithPrice.price = parseFloat(priceFromSearch);
         }
@@ -104,6 +143,106 @@ const PropertyDetail = () => {
 
     fetchProperty();
   }, [id, priceFromSearch]);
+
+  // Fetch reviews when property is loaded
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!property) return;
+
+      setReviewsLoading(true);
+      try {
+        console.log('[PropertyDetail] Fetching reviews for:', id);
+        const reviewsData = await ratehawkService.getHotelReviews(id);
+        console.log('[PropertyDetail] Reviews received:', reviewsData);
+
+        if (reviewsData.reviews && reviewsData.reviews.length > 0) {
+          // Transform reviews to match component format
+          const formattedReviews = reviewsData.reviews.map((review, index) => ({
+            id: review.id || index,
+            rating: review.rating || review.score || 5.0,
+            title: review.title || getRatingLabel(review.rating || review.score || 5.0),
+            text: review.text || review.comment || review.review_text || '',
+            userName: review.author || review.user_name || review.guest_name || 'Guest',
+            userAvatar: review.avatar || null,
+            date: review.date || review.created_at || new Date().toISOString(),
+            pros: review.pros || null,
+            cons: review.cons || null,
+          }));
+          setReviews(formattedReviews);
+        }
+      } catch (error) {
+        console.error('[PropertyDetail] Error fetching reviews:', error);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    fetchReviews();
+  }, [property, id]);
+
+  // Helper function to get rating label
+  const getRatingLabel = (rating) => {
+    if (rating >= 9) return 'Excellent';
+    if (rating >= 8) return 'Very Good';
+    if (rating >= 7) return 'Good';
+    if (rating >= 6) return 'Fair';
+    return 'Average';
+  };
+
+  // Fetch rates when property is loaded and we have dates
+  useEffect(() => {
+    const fetchRates = async () => {
+      if (!property || !checkIn || !checkOut) {
+        return;
+      }
+
+      setRatesLoading(true);
+      setRatesError(null);
+
+      try {
+        console.log('[PropertyDetail] Fetching rates for:', id, { checkIn, checkOut, adults, rooms, currency });
+        const hotelRates = await ratehawkService.getHotelRates(id, {
+          checkIn,
+          checkOut,
+          adults: parseInt(adults),
+          rooms: parseInt(rooms),
+          currency: currency
+        });
+
+        console.log('[PropertyDetail] Rates received:', hotelRates);
+        setRates(hotelRates);
+      } catch (error) {
+        console.error('[PropertyDetail] Error fetching rates:', error);
+        setRatesError(error.message || 'Unable to fetch room rates');
+      } finally {
+        setRatesLoading(false);
+      }
+    };
+
+    fetchRates();
+  }, [property, id, checkIn, checkOut, adults, rooms, currency]);
+
+  // Helper function to format cancellation date
+  const formatCancellationDate = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Helper to calculate number of nights
+  const calculateNights = () => {
+    if (!checkIn || !checkOut) return 1;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const diffTime = Math.abs(end - start);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+  };
 
   // Loading skeleton
   if (loading && !property) {
@@ -151,14 +290,34 @@ const PropertyDetail = () => {
                   <MapPin size={18} className="property-location-icon" />
                   <span>{propertyData.location}</span>
                 </div>
-                <div className="property-rating">
-                  <div className="property-rating-badge">
-                    {propertyData.rating}
+                {/* Star Rating */}
+                {propertyData.rating > 0 && (
+                  <div className="property-star-rating">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={18}
+                        fill={i < propertyData.rating ? '#f59e0b' : 'none'}
+                        stroke={i < propertyData.rating ? '#f59e0b' : '#d1d5db'}
+                      />
+                    ))}
+                    <span className="star-rating-text">{propertyData.rating}-star {propertyData.propertyType || 'Hotel'}</span>
                   </div>
-                  <span className="property-rating-text">
-                    Very Good <span className="property-rating-count">({propertyData.reviewCount} reviews)</span>
-                  </span>
-                </div>
+                )}
+                {/* Review Score */}
+                {propertyData.reviewScore > 0 && (
+                  <div className="property-rating">
+                    <div className="property-rating-badge">
+                      {propertyData.reviewScore}
+                    </div>
+                    <span className="property-rating-text">
+                      {propertyData.reviewScore >= 9 ? 'Excellent' : propertyData.reviewScore >= 8 ? 'Very Good' : propertyData.reviewScore >= 7 ? 'Good' : 'Fair'}
+                      {propertyData.reviewCount > 0 && (
+                        <span className="property-rating-count"> ({propertyData.reviewCount} reviews)</span>
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="property-actions">
@@ -233,6 +392,67 @@ const PropertyDetail = () => {
           <div className="property-tab-content">
             {activeTab === 'overview' && (
               <>
+                {/* Key Info Cards */}
+                <div className="property-info-cards">
+                  {/* Check-in/out Times */}
+                  {(propertyData.checkInTime || propertyData.checkOutTime) && (
+                    <div className="info-card">
+                      <div className="info-card-header">
+                        <Clock size={20} />
+                        <h3>Check-in / Check-out</h3>
+                      </div>
+                      <div className="info-card-body">
+                        {propertyData.checkInTime && (
+                          <div className="info-row">
+                            <span className="info-label">Check-in:</span>
+                            <span className="info-value">From {propertyData.checkInTime}</span>
+                          </div>
+                        )}
+                        {propertyData.checkOutTime && (
+                          <div className="info-row">
+                            <span className="info-label">Check-out:</span>
+                            <span className="info-value">Until {propertyData.checkOutTime}</span>
+                          </div>
+                        )}
+                        {propertyData.frontDeskStart && propertyData.frontDeskEnd && (
+                          <div className="info-row">
+                            <span className="info-label">Front desk:</span>
+                            <span className="info-value">
+                              {propertyData.frontDeskStart === '00:00' && propertyData.frontDeskEnd === '00:00'
+                                ? '24 hours'
+                                : `${propertyData.frontDeskStart} - ${propertyData.frontDeskEnd}`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contact Info */}
+                  {(propertyData.phone || propertyData.email) && (
+                    <div className="info-card">
+                      <div className="info-card-header">
+                        <Phone size={20} />
+                        <h3>Contact</h3>
+                      </div>
+                      <div className="info-card-body">
+                        {propertyData.phone && (
+                          <div className="info-row">
+                            <Phone size={16} />
+                            <a href={`tel:${propertyData.phone}`} className="info-link">{propertyData.phone}</a>
+                          </div>
+                        )}
+                        {propertyData.email && (
+                          <div className="info-row">
+                            <Mail size={16} />
+                            <a href={`mailto:${propertyData.email}`} className="info-link">{propertyData.email}</a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Description */}
                 <div className="property-description">
                   <div className="property-description-text">
@@ -257,11 +477,60 @@ const PropertyDetail = () => {
                 {/* Amenities */}
                 <AmenitiesList amenities={propertyData.amenities} />
 
+                {/* Rooms Preview (if rates available) */}
+                {rates.length > 0 && (
+                  <div className="property-rooms-preview">
+                    <div className="rooms-preview-header">
+                      <h2>Available Rooms</h2>
+                      <button
+                        className="rooms-preview-view-all"
+                        onClick={() => setActiveTab('rooms')}
+                      >
+                        View all {rates.length} rooms
+                      </button>
+                    </div>
+                    <div className="rooms-preview-list">
+                      {rates.slice(0, 3).map((rate, index) => (
+                        <div key={rate.match_hash || index} className="rooms-preview-item">
+                          <div className="rooms-preview-info">
+                            <h4>{rate.room_name || 'Standard Room'}</h4>
+                            <div className="rooms-preview-details">
+                              {rate.room_data?.bedding_type && (
+                                <span className="preview-detail">
+                                  <BedDouble size={14} /> {rate.room_data.bedding_type}
+                                </span>
+                              )}
+                              <span className={`preview-meal ${rate.meal === 'Breakfast included' ? 'included' : ''}`}>
+                                <Coffee size={14} /> {rate.meal}
+                              </span>
+                              {rate.cancellation?.free_cancellation_before && (
+                                <span className="preview-cancellation">
+                                  <Check size={14} /> Free cancellation
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="rooms-preview-price">
+                            <span className="preview-price-value">
+                              ${parseFloat(rate.total_price).toFixed(0)}
+                            </span>
+                            <span className="preview-price-nights">
+                              {calculateNights()} {calculateNights() === 1 ? 'night' : 'nights'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Reviews */}
                 <ReviewsSection
-                  overallRating={propertyData.overallRating}
-                  totalReviews={propertyData.totalReviews}
+                  overallRating={propertyData.reviewScore || propertyData.overallRating}
+                  totalReviews={propertyData.reviewCount || propertyData.totalReviews}
                   ratingBreakdown={propertyData.ratingBreakdown}
+                  reviews={reviews}
+                  loading={reviewsLoading}
                 />
 
                 {/* Location/Map */}
@@ -288,17 +557,214 @@ const PropertyDetail = () => {
             {activeTab === 'rooms' && (
               <div className="property-rooms">
                 <h2 className="property-rooms-title">Available Rooms</h2>
-                <p className="property-rooms-text">
-                  Room information will be displayed here. Connect your backend API to show available rooms.
-                </p>
+
+                {/* Search Info */}
+                {checkIn && checkOut && (
+                  <div className="property-search-summary">
+                    <Calendar size={18} />
+                    <span>
+                      {new Date(checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
+                      {new Date(checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {' '}({calculateNights()} {calculateNights() === 1 ? 'night' : 'nights'})
+                    </span>
+                    <span className="search-guests">
+                      <Users size={16} /> {adults} {adults === '1' ? 'Adult' : 'Adults'}, {rooms} {rooms === '1' ? 'Room' : 'Rooms'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Loading State */}
+                {ratesLoading && (
+                  <div className="rates-loading">
+                    <Loader2 className="spinner" size={24} />
+                    <span>Loading available rooms...</span>
+                  </div>
+                )}
+
+                {/* Room Groups from Hotel Info (shown when rates not available) */}
+                {propertyData.roomGroups && propertyData.roomGroups.length > 0 && (
+                  <>
+                    {/* Show info message if rates failed or no dates */}
+                    {(ratesError || !checkIn || !checkOut || (!ratesLoading && rates.length === 0)) && (
+                      <div className="room-groups-info">
+                        <BedDouble size={20} />
+                        <span>
+                          {!checkIn || !checkOut
+                            ? 'Room types available at this property. Select dates for pricing.'
+                            : 'Live pricing unavailable. Here are the room types at this property.'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Room Groups List */}
+                    {(ratesError || !checkIn || !checkOut || (!ratesLoading && rates.length === 0)) && (
+                      <div className="room-groups-list">
+                        {propertyData.roomGroups.map((room, index) => (
+                          <div key={index} className="room-group-card">
+                            {/* Room Image */}
+                            {room.images && room.images.length > 0 && (
+                              <div className="room-group-image">
+                                <img src={room.images[0]} alt={room.name} />
+                              </div>
+                            )}
+
+                            <div className="room-group-content">
+                              <h3 className="room-group-name">{room.name}</h3>
+
+                              {/* Room Details */}
+                              <div className="room-group-details">
+                                {room.bedding_type && (
+                                  <div className="room-group-detail">
+                                    <BedDouble size={16} />
+                                    <span>{room.bedding_type}</span>
+                                  </div>
+                                )}
+                                {room.size && (
+                                  <div className="room-group-detail">
+                                    <span>{room.size} m²</span>
+                                  </div>
+                                )}
+                                {room.bathroom && (
+                                  <div className="room-group-detail">
+                                    <span>{room.bathroom}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Room Amenities */}
+                              {room.amenities && room.amenities.length > 0 && (
+                                <div className="room-group-amenities">
+                                  {room.amenities.slice(0, 6).map((amenity, i) => (
+                                    <span key={i} className="room-amenity-tag">{amenity}</span>
+                                  ))}
+                                  {room.amenities.length > 6 && (
+                                    <span className="room-amenity-more">+{room.amenities.length - 6} more</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* No Room Groups and No Dates */}
+                {(!propertyData.roomGroups || propertyData.roomGroups.length === 0) && (!checkIn || !checkOut) && (
+                  <div className="rates-no-dates">
+                    <Calendar size={32} />
+                    <p>Select check-in and check-out dates to see available rooms and prices.</p>
+                  </div>
+                )}
+
+                {/* Rates List (when available) */}
+                {!ratesLoading && !ratesError && rates.length > 0 && (
+                  <div className="rates-list">
+                    {rates.map((rate, index) => (
+                      <div key={rate.match_hash || index} className="rate-card">
+                        <div className="rate-card-header">
+                          <h3 className="rate-room-name">{rate.room_name || 'Standard Room'}</h3>
+                          {rate.room_data?.main_room_type && (
+                            <span className="rate-room-type">{rate.room_data.main_room_type}</span>
+                          )}
+                        </div>
+
+                        <div className="rate-card-body">
+                          {/* Room Details */}
+                          <div className="rate-details">
+                            {/* Meal Info */}
+                            <div className="rate-detail-item">
+                              <Coffee size={16} />
+                              <span className={rate.meal === 'Breakfast included' ? 'meal-included' : 'meal-not-included'}>
+                                {rate.meal}
+                              </span>
+                            </div>
+
+                            {/* Bed Type */}
+                            {rate.room_data?.bedding_type && (
+                              <div className="rate-detail-item">
+                                <span className="bed-type">{rate.room_data.bedding_type}</span>
+                              </div>
+                            )}
+
+                            {/* Occupancy */}
+                            <div className="rate-detail-item">
+                              <Users size={16} />
+                              <span>{rate.allotment || 1} {rate.allotment === 1 ? 'room' : 'rooms'} left</span>
+                            </div>
+
+                            {/* Amenities */}
+                            {rate.amenities && rate.amenities.length > 0 && (
+                              <div className="rate-amenities">
+                                {rate.amenities.map((amenity, i) => (
+                                  <span key={i} className="rate-amenity-tag">
+                                    {amenity.replace(/-/g, ' ')}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Cancellation Policy */}
+                          <div className="rate-cancellation">
+                            {rate.cancellation?.free_cancellation_before ? (
+                              <div className="cancellation-free">
+                                <Check size={16} className="icon-green" />
+                                <span>
+                                  Free cancellation before {formatCancellationDate(rate.cancellation.free_cancellation_before)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="cancellation-non-refundable">
+                                <X size={16} className="icon-red" />
+                                <span>Non-refundable</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rate-card-footer">
+                          {/* Daily Prices */}
+                          {rate.daily_prices && rate.daily_prices.length > 0 && (
+                            <div className="rate-daily-prices">
+                              <span className="daily-price-label">Per night:</span>
+                              <span className="daily-price-value">
+                                {formatCurrency(parseFloat(rate.daily_prices[0]).toFixed(0), rate.currency || currency)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Total Price */}
+                          <div className="rate-total-price">
+                            <span className="total-price-label">Total for {calculateNights()} {calculateNights() === 1 ? 'night' : 'nights'}</span>
+                            <span className="total-price-value">
+                              {formatCurrency(parseFloat(rate.total_price).toFixed(0), rate.currency || currency)}
+                            </span>
+                          </div>
+
+                          {/* Book Button */}
+                          <Link
+                            to={`/property/${id}/book?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}&rooms=${rooms}&price=${rate.total_price}&currency=${rate.currency || currency}&name=${encodeURIComponent(propertyData.name)}&location=${encodeURIComponent(propertyData.location)}&roomName=${encodeURIComponent(rate.room_name || 'Standard Room')}&matchHash=${rate.match_hash || ''}`}
+                            className="rate-book-button"
+                          >
+                            Book This Room
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'reviews' && (
               <ReviewsSection
-                overallRating={propertyData.overallRating}
-                totalReviews={propertyData.totalReviews}
+                overallRating={propertyData.reviewScore || propertyData.overallRating}
+                totalReviews={propertyData.reviewCount || propertyData.totalReviews}
                 ratingBreakdown={propertyData.ratingBreakdown}
+                reviews={reviews}
+                loading={reviewsLoading}
               />
             )}
           </div>

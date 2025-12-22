@@ -68,7 +68,25 @@ const useTravelData = (dataType, userLocation = null) => {
         // Try to fetch real data based on type using RateHawk API
         switch (dataType) {
           case 'hotels':
-            results = await ratehawkService.getRecommendedHotels(locationCity);
+            // Use getSuggestedHotels which is faster and returns hotels with actual names
+            console.log(`[useTravelData] Fetching suggested hotels for: ${locationCity}`);
+            results = await ratehawkService.getSuggestedHotels(locationCity);
+            console.log(`[useTravelData] Got ${results?.length || 0} hotels from API`);
+
+            // Transform to homepage format if we got results
+            if (results && results.length > 0) {
+              results = results.map(hotel => ({
+                id: hotel.id,
+                name: hotel.name,
+                location: hotel.location || locationCity,
+                price: hotel.price || 0,
+                rating: hotel.rating || 4.0,
+                img: hotel.image,
+                images: hotel.images,
+                amenities: hotel.amenities || []
+              }));
+              console.log(`[useTravelData] Transformed hotels:`, results.map(h => h.name));
+            }
             break;
           case 'flights':
             // Flights require from/to - can't show recommended on homepage without destination

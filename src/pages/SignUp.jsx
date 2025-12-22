@@ -39,20 +39,28 @@ const SignUp = () => {
 
   const onSubmit = async (data) => {
     if (!agreedToTerms) {
-      toast.error(t('I agree to the') + ' ' + t('Terms of Service'));
+      toast.error(t('Please agree to the Terms of Service'));
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const fullName = `${data.firstName} ${data.lastName}`;
-      const result = await signup(fullName, data.email, data.password, data.phoneNumber);
+      // New signup signature: (firstName, lastName, email, password, phone)
+      const result = await signup(
+        data.firstName,
+        data.lastName,
+        data.email,
+        data.password,
+        data.phoneNumber
+      );
 
       if (result.success) {
+        // Show message about email verification
+        toast.success('Account created! Please check your email to verify your account.');
         setTimeout(() => {
           navigate('/');
-        }, 1500);
+        }, 2000);
       }
     } catch (error) {
       console.error('Signup error:', error);

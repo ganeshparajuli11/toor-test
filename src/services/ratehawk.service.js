@@ -139,15 +139,24 @@ class RateHawkService {
 
   /**
    * Fetch details for a list of hotels and merge them
+   * Uses Promise.allSettled to ensure all results are returned even if some fail
    * @private
    */
   async enrichHotelsWithDetails(hotels) {
     try {
       const topHotels = hotels.slice(0, 15);
+      console.log(`[RateHawk Service] Enriching ${topHotels.length} hotels with details...`);
 
-      const detailsPromises = topHotels.map(async (hotel) => {
+      // Use Promise.allSettled to handle partial failures gracefully
+      const detailsPromises = topHotels.map(async (hotel, index) => {
         try {
-          // Use new clean endpoint
+          // Small stagger to avoid overwhelming the API
+          if (index > 0) {
+            await new Promise(resolve => setTimeout(resolve, 50 * index));
+          }
+
+          console.log(`[RateHawk Service] Fetching info for hotel: ${hotel.id}`);
+
           const infoResponse = await api.post('/hotels/info', {
             id: hotel.id,
             language: 'en'
@@ -155,12 +164,16 @@ class RateHawkService {
 
           if (infoResponse.data?.success && infoResponse.data?.hotel) {
             const info = infoResponse.data.hotel;
+            const hotelName = info.name || this.formatHotelIdAsName(hotel.id);
+
+            console.log(`[RateHawk Service] Got info for: ${hotelName}`);
+
             // Merge hotel info with search result, preserving best_offer from search
             return {
               id: hotel.id,
               hid: hotel.hid || info.hid,
-              name: info.name || hotel.name,
-              location: info.address ? `${info.address}, ${info.city || ''}` : hotel.name,
+              name: hotelName,
+              location: info.address ? `${info.address}${info.city ? `, ${info.city}` : ''}` : (info.city || 'Location'),
               address: info.address,
               city: info.city,
               country: info.country,
@@ -169,26 +182,51 @@ class RateHawkService {
               reviews: info.reviews_count || 0,
               price: parseFloat(hotel.best_offer?.total_price) || 0,
               currency: hotel.best_offer?.currency || 'USD',
-              description: info.description || `Experience luxury at ${info.name}`,
+              description: info.description || `Experience luxury at ${hotelName}`,
               image: info.images?.[0] || this.getRandomFallbackImage(),
-              images: info.images || [this.getRandomFallbackImage()],
-              amenities: info.amenities || ['Free WiFi', 'Air Conditioning'],
+              images: info.images?.length > 0 ? info.images : [this.getRandomFallbackImage()],
+              amenities: info.amenities?.length > 0 ? info.amenities : ['Free WiFi', 'Air Conditioning'],
               best_offer: hotel.best_offer,
               total_rates: hotel.total_rates
             };
           }
+
+          console.warn(`[RateHawk Service] No info data for hotel ${hotel.id}, using basic transform`);
           return this.transformBasicHotel(hotel);
         } catch (err) {
-          console.warn(`Failed to fetch details for hotel ${hotel.id}:`, err.message);
+          console.warn(`[RateHawk Service] Failed to fetch details for hotel ${hotel.id}:`, err.message);
           return this.transformBasicHotel(hotel);
         }
       });
 
-      return await Promise.all(detailsPromises);
+      // Wait for all promises to settle (won't reject if some fail)
+      const results = await Promise.all(detailsPromises);
+
+      const successCount = results.filter(h => h.location !== 'Location not available').length;
+      console.log(`[RateHawk Service] Enrichment complete: ${successCount}/${results.length} hotels with full details`);
+
+      return results;
     } catch (error) {
-      console.error('Enrich hotels error:', error);
+      console.error('[RateHawk Service] Enrich hotels error:', error);
       return hotels.map(h => this.transformBasicHotel(h));
     }
+  }
+
+  /**
+   * Convert hotel ID to readable name
+   * e.g., "the_tower_o_pooman_hotel" -> "The Tower O Pooman Hotel"
+   * @private
+   */
+  formatHotelIdAsName(id) {
+    if (!id || typeof id !== 'string') return 'Hotel';
+
+    return id
+      .replace(/_/g, ' ')           // Replace underscores with spaces
+      .replace(/\s+/g, ' ')          // Normalize multiple spaces
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   }
 
   /**
@@ -196,17 +234,20 @@ class RateHawkService {
    * @private
    */
   transformBasicHotel(hotel) {
+    // Create readable name from ID if name not available
+    const hotelName = hotel.name || this.formatHotelIdAsName(hotel.id);
+
     return {
       id: hotel.id,
       hid: hotel.hid,
-      name: hotel.name || hotel.id,
-      location: 'Location',
+      name: hotelName,
+      location: 'Location not available',
       rating: 4,
       reviewScore: 8.0,
       reviews: 0,
       price: parseFloat(hotel.best_offer?.total_price) || 0,
       currency: hotel.best_offer?.currency || 'USD',
-      description: `Experience ${hotel.name}`,
+      description: `Experience luxury at ${hotelName}`,
       image: this.getRandomFallbackImage(),
       images: [this.getRandomFallbackImage()],
       amenities: ['Free WiFi'],
@@ -315,6 +356,46 @@ class RateHawkService {
    * Search for cruises (not supported by RateHawk)
    */
   async searchCruises(params) {
+    return [];
+  }
+
+  /**
+   * Get suggested hotels using multicomplete API
+   * This is faster and returns hotels with actual names
+   * Tries multiple queries if first one returns no results
+   * @param {string} query - Search query (city name or keyword)
+   */
+  async getSuggestedHotels(query = 'hotel') {
+    // List of queries to try - user's query first, then fallbacks
+    const queriesToTry = [
+      query,
+      'hotel',      // Generic hotel search
+      'Paris',      // Popular destination
+      'London',     // Popular destination
+      'New York'    // Popular destination
+    ].filter((q, index, arr) => arr.indexOf(q) === index); // Remove duplicates
+
+    for (const searchQuery of queriesToTry) {
+      try {
+        console.log(`[RateHawk Service] Getting suggested hotels for: ${searchQuery}`);
+
+        const response = await api.post('/hotels/suggested', {
+          query: searchQuery,
+          language: 'en'
+        });
+
+        if (response.data?.success && response.data?.hotels && response.data.hotels.length > 0) {
+          console.log(`[RateHawk Service] Got ${response.data.hotels.length} suggested hotels for "${searchQuery}"`);
+          return response.data.hotels;
+        }
+
+        console.log(`[RateHawk Service] No hotels found for "${searchQuery}", trying next query...`);
+      } catch (error) {
+        console.error(`[RateHawk Service] Error getting suggested hotels for "${searchQuery}":`, error.message);
+      }
+    }
+
+    console.warn('[RateHawk Service] No suggested hotels found for any query');
     return [];
   }
 
@@ -503,15 +584,21 @@ class RateHawkService {
 
   /**
    * Transform hotel details to app format
+   * Backend already processes images and extracts data, so use directly
    * @private
    */
   transformHotelDetails(response) {
     const hotel = response.hotel || response;
 
-    // Process all images
-    const images = this.extractImages(hotel);
+    // Backend already processes images - use directly or fallback
+    let images = [];
+    if (hotel.images && Array.isArray(hotel.images) && hotel.images.length > 0) {
+      images = hotel.images;
+    } else {
+      images = [this.getRandomFallbackImage()];
+    }
 
-    // Handle description
+    // Backend already extracts description as array
     let description = [];
     if (hotel.description) {
       if (Array.isArray(hotel.description)) {
@@ -524,46 +611,71 @@ class RateHawkService {
       description = ['No description available for this property.'];
     }
 
-    // Handle amenities
+    // Backend already provides flat amenities array
     let amenities = [];
     if (hotel.amenities && Array.isArray(hotel.amenities)) {
       amenities = hotel.amenities.map(a => typeof a === 'string' ? a : (a.name || a.title || ''));
-    } else if (hotel.amenity_groups && Array.isArray(hotel.amenity_groups)) {
-      hotel.amenity_groups.forEach(group => {
-        if (group.amenities) {
-          amenities.push(...group.amenities.map(a => typeof a === 'string' ? a : (a.name || a)));
-        }
-      });
+    }
+    if (amenities.length === 0) {
+      amenities = ['Free WiFi', 'Air Conditioning'];
     }
 
-    // Build location string
-    const locationParts = [];
-    if (hotel.address) locationParts.push(hotel.address);
-    if (hotel.city) locationParts.push(hotel.city);
-    if (hotel.country) locationParts.push(hotel.country);
-    const location = locationParts.join(', ') || 'Location not available';
+    // Backend provides location string already built
+    const location = hotel.location || hotel.address || 'Location not available';
+
+    // Format check-in/out times
+    const formatTime = (time) => {
+      if (!time) return null;
+      // Remove seconds if present (15:00:00 -> 15:00)
+      const parts = time.split(':');
+      if (parts.length >= 2) {
+        return `${parts[0]}:${parts[1]}`;
+      }
+      return time;
+    };
 
     return {
       id: hotel.id,
+      hid: hotel.hid,
       name: hotel.name || 'Hotel',
       location: location,
       address: hotel.address,
-      rating: hotel.star_rating || (hotel.review_score ? hotel.review_score / 2 : 4.0),
-      reviewCount: hotel.reviews_count || hotel.review_count || 0,
+      city: hotel.city,
+      country: hotel.country,
+      rating: hotel.star_rating || 0,
+      reviewScore: hotel.review_score ? Math.round(hotel.review_score * 10) / 10 : 0,
+      reviewCount: hotel.reviews_count || 0,
       price: hotel.min_price || 0,
       description: description,
       images: images,
-      amenities: amenities.length > 0 ? amenities : ['Free WiFi', 'Air Conditioning'],
+      amenities: amenities,
       tags: hotel.kind ? [hotel.kind] : [],
-      overallRating: hotel.star_rating || (hotel.review_score ? hotel.review_score / 2 : 4.0),
-      totalReviews: hotel.reviews_count || hotel.review_count || 0,
-      ratingBreakdown: {
-        'Staff/service': 4.5,
-        'Location': 4.2,
-        'Amenities': 4.3,
-        'Hospitality': 4.4,
-        'Cleanliness': 4.5,
-      },
+      overallRating: hotel.star_rating || 0,
+      totalReviews: hotel.reviews_count || 0,
+      // Check-in/out times from API
+      checkInTime: formatTime(hotel.check_in_time),
+      checkOutTime: formatTime(hotel.check_out_time),
+      frontDeskStart: formatTime(hotel.front_desk_time_start),
+      frontDeskEnd: formatTime(hotel.front_desk_time_end),
+      // Room groups from hotel info (used when rates API not available)
+      roomGroups: hotel.room_groups || [],
+      // Property type
+      propertyType: hotel.kind || 'Hotel',
+      // Contact info
+      phone: hotel.phone,
+      email: hotel.email,
+      // Additional info
+      hotelChain: hotel.hotel_chain,
+      postalCode: hotel.postal_code,
+      // Rating breakdown (estimate based on overall)
+      ratingBreakdown: hotel.star_rating ? {
+        'Staff/service': Math.min(5, hotel.star_rating + 0.3),
+        'Location': Math.min(5, hotel.star_rating + 0.1),
+        'Amenities': Math.min(5, hotel.star_rating),
+        'Hospitality': Math.min(5, hotel.star_rating + 0.2),
+        'Cleanliness': Math.min(5, hotel.star_rating + 0.3),
+      } : null,
+      // Map embed URL
       mapEmbedUrl: hotel.latitude && hotel.longitude
         ? `https://maps.google.com/maps?q=${hotel.latitude},${hotel.longitude}&z=15&output=embed`
         : null,
@@ -571,13 +683,58 @@ class RateHawkService {
         latitude: hotel.latitude,
         longitude: hotel.longitude
       },
-      policies: hotel.policies || {},
-      contact: {
-        phone: hotel.phone,
-        email: hotel.email
-      },
+      // Keep raw data for debugging
       rateHawkData: hotel
     };
+  }
+
+  /**
+   * Get hotel rates/availability by ID
+   * @param {string} hotelId - Hotel ID
+   * @param {Object} params - Search params (checkin, checkout, guests)
+   */
+  async getHotelRates(hotelId, params) {
+    try {
+      // Format guests for API
+      const guests = [];
+      const roomCount = params.rooms || 1;
+      const adultsCount = params.adults || 2;
+      const adultsPerRoom = Math.ceil(adultsCount / roomCount);
+
+      for (let i = 0; i < roomCount; i++) {
+        guests.push({
+          adults: adultsPerRoom,
+          children: []
+        });
+      }
+
+      const requestBody = {
+        id: hotelId,
+        checkin: params.checkIn,
+        checkout: params.checkOut,
+        guests: guests,
+        currency: params.currency || 'USD',
+        residency: 'us',
+        language: 'en'
+      };
+
+      console.log('[RateHawk Service] Fetching rates for hotel:', hotelId, requestBody);
+
+      const response = await this.withRetry(() =>
+        api.post('/hotels/rates', requestBody)
+      );
+
+      console.log('[RateHawk Service] Rates response:', response.data);
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'No rates available');
+      }
+
+      return response.data.rates || [];
+    } catch (error) {
+      console.error('[RateHawk Service] Get hotel rates error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -608,6 +765,36 @@ class RateHawkService {
   }
 
   /**
+   * Get hotel reviews by ID
+   * @param {string} hotelId - Hotel ID
+   * @param {number} hid - Hotel numeric ID (optional)
+   */
+  async getHotelReviews(hotelId, hid = null) {
+    try {
+      const response = await api.post('/hotels/reviews', {
+        id: hotelId,
+        hid: hid,
+        language: 'en'
+      });
+
+      console.log('[RateHawk Service] Reviews response:', response.data);
+
+      if (response.data?.success) {
+        return {
+          reviews: response.data.reviews || [],
+          total: response.data.total || 0,
+          source: response.data.source || 'none'
+        };
+      }
+
+      return { reviews: [], total: 0, source: 'none' };
+    } catch (error) {
+      console.error('[RateHawk Service] Get reviews error:', error);
+      return { reviews: [], total: 0, source: 'error' };
+    }
+  }
+
+  /**
    * Test API connection
    */
   async testConnection() {
@@ -616,6 +803,172 @@ class RateHawkService {
       return { success: true, message: 'Connection successful' };
     } catch (error) {
       return { success: false, message: error.message };
+    }
+  }
+
+  /**
+   * Create booking form - first step in booking process
+   * Must be called before starting the actual booking
+   *
+   * @param {string} bookHash - The book_hash or match_hash from rate selection
+   * @param {string} language - Language code (default: 'en')
+   * @returns {Object} { order_id, partner_order_id, item_id, payment_types, ... }
+   */
+  async createBookingForm(bookHash, language = 'en') {
+    try {
+      console.log('[RateHawk Service] Creating booking form with hash:', bookHash);
+
+      const response = await api.post('/hotels/booking/form', {
+        book_hash: bookHash,
+        match_hash: bookHash, // Send both for compatibility
+        language
+      });
+
+      console.log('[RateHawk Service] Booking form response:', response.data);
+
+      if (response.data?.success) {
+        return {
+          success: true,
+          ...response.data.data
+        };
+      }
+
+      return {
+        success: false,
+        error: response.data?.error || 'Failed to create booking form'
+      };
+    } catch (error) {
+      console.error('[RateHawk Service] Create booking form error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message
+      };
+    }
+  }
+
+  /**
+   * Finish/Complete the booking process with guest details
+   * This calls the RateHawk /hotel/order/booking/finish/ API
+   *
+   * @param {Object} bookingData - Booking details
+   * @param {string} bookingData.partner_order_id - From createBookingForm response
+   * @param {Array} bookingData.guests - Array of guests [{first_name, last_name, is_child?, age?}]
+   * @param {Object} bookingData.user - User contact {email, phone, comment?}
+   * @param {Object} bookingData.payment - Payment info {type: 'deposit', amount, currency}
+   * @param {number} bookingData.rooms_count - Number of rooms
+   * @param {string} bookingData.stripe_payment_id - Stripe payment ID for records
+   * @returns {Object} Booking result
+   */
+  async finishBooking(bookingData) {
+    try {
+      console.log('[RateHawk Service] Finishing booking:', bookingData.partner_order_id);
+
+      const response = await api.post('/hotels/booking/finish', bookingData);
+
+      console.log('[RateHawk Service] Finish booking response:', response.data);
+
+      if (response.data?.success) {
+        return {
+          success: true,
+          ...response.data.data,
+          message: response.data.message
+        };
+      }
+
+      return {
+        success: false,
+        error: response.data?.error || 'Failed to complete booking'
+      };
+    } catch (error) {
+      console.error('[RateHawk Service] Finish booking error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message,
+        details: error.response?.data?.details
+      };
+    }
+  }
+
+  /**
+   * Check booking status
+   * Polls RateHawk to get current booking status
+   *
+   * RateHawk status values:
+   * - ok: booking finished successfully
+   * - processing: booking still in progress
+   * - 3ds: needs 3D Secure check (only for "now" payment type)
+   * - error: booking failed
+   *
+   * @param {string} partnerOrderId - The partner order ID
+   * @returns {Object} Booking status { success, status, error?, ... }
+   */
+  async checkBookingStatus(partnerOrderId) {
+    try {
+      console.log('[RateHawk Service] Checking booking status:', partnerOrderId);
+
+      const response = await api.post('/hotels/booking/status', {
+        partner_order_id: partnerOrderId
+      });
+
+      console.log('[RateHawk Service] Booking status response:', response.data);
+
+      // Return the status from data object
+      const data = response.data?.data || {};
+      const status = data.status || 'unknown';
+
+      return {
+        success: response.data?.success !== false,
+        status: status,
+        partner_order_id: data.partner_order_id || partnerOrderId,
+        percent: data.percent,
+        data_3ds: data.data_3ds,
+        error: response.data?.error,
+        ...data
+      };
+    } catch (error) {
+      console.error('[RateHawk Service] Check booking status error:', error);
+      return {
+        success: false,
+        status: 'error',
+        error: error.response?.data?.error || error.message
+      };
+    }
+  }
+
+  /**
+   * Cancel a booking
+   *
+   * @param {string} partnerOrderId - The partner order ID
+   * @returns {Object} Cancellation result
+   */
+  async cancelBooking(partnerOrderId) {
+    try {
+      console.log('[RateHawk Service] Cancelling booking:', partnerOrderId);
+
+      const response = await api.post('/hotels/booking/cancel', {
+        partner_order_id: partnerOrderId
+      });
+
+      console.log('[RateHawk Service] Cancel booking response:', response.data);
+
+      if (response.data?.success) {
+        return {
+          success: true,
+          message: response.data.message,
+          ...response.data.data
+        };
+      }
+
+      return {
+        success: false,
+        error: response.data?.error || 'Failed to cancel booking'
+      };
+    } catch (error) {
+      console.error('[RateHawk Service] Cancel booking error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message
+      };
     }
   }
 }

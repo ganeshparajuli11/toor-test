@@ -441,6 +441,16 @@
   color: #721c24;
 }
 
+.booking-status-failed {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.booking-status-noshow {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
 /* Booking Badges Container */
 .booking-badges {
   display: flex;
@@ -478,6 +488,74 @@
 .payment-status-demo {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+}
+
+.payment-status-deposit {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.payment-status-pending {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+/* Meal Badge */
+.meal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* Filter Count Badge */
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: var(--color-primary);
+  color: white;
+  margin-left: 6px;
+}
+
+.filter-button.active .filter-count {
+  background-color: white;
+  color: var(--color-primary);
+}
+
+/* Confirmation ID */
+.confirmation-id {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  background-color: var(--color-off-white);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-family: monospace;
+}
+
+/* Spinning animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
 }
 
 .booking-card-details {

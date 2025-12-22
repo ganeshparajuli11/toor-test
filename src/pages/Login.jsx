@@ -15,9 +15,11 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const { login } = useAuth();
+  const { login, forgotPassword } = useAuth();
   const { t } = useLanguage();
   const { loginWithGoogle, loginWithFacebook, isGoogleEnabled, isFacebookEnabled } = useOAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
 
   const {
     register,
@@ -68,8 +70,20 @@ const Login = () => {
     }
   };
 
-  const handleForgotPassword = () => {
-    toast.info('Password reset feature coming soon!');
+  const handleForgotPassword = async (e) => {
+    e?.preventDefault();
+    if (!forgotEmail) {
+      toast.error('Please enter your email address');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await forgotPassword(forgotEmail);
+      setShowForgotPassword(false);
+      setForgotEmail('');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -208,10 +222,50 @@ const Login = () => {
                   <span className="checkbox-custom"></span>
                   <span>{t('Remember me')}</span>
                 </label>
-                <button type="button" className="link-button" onClick={handleForgotPassword}>
+                <button type="button" className="link-button" onClick={() => setShowForgotPassword(true)}>
                   {t('Forgot password?')}
                 </button>
               </div>
+
+              {/* Forgot Password Modal */}
+              {showForgotPassword && (
+                <div className="forgot-password-modal">
+                  <div className="forgot-password-content">
+                    <h3>{t('Reset Password')}</h3>
+                    <p>{t('Enter your email address and we\'ll send you a reset link.')}</p>
+                    <div className="form-group">
+                      <div className="input-with-icon">
+                        <Mail className="field-icon" size={18} />
+                        <input
+                          type="email"
+                          placeholder="name@example.com"
+                          value={forgotEmail}
+                          onChange={(e) => setForgotEmail(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="forgot-password-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => {
+                          setShowForgotPassword(false);
+                          setForgotEmail('');
+                        }}
+                      >
+                        {t('Cancel')}
+                      </button>
+                      <Button
+                        type="button"
+                        loading={isLoading}
+                        onClick={handleForgotPassword}
+                      >
+                        {t('Send Reset Link')}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Submit */}
               <Button type="submit" fullWidth loading={isLoading} disabled={isLoading}>
