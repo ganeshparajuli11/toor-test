@@ -97,7 +97,7 @@ const FlightDetail = () => {
   return (
     <>
       <SEO
-        title={`${flight.from} to ${flight.to} - ${flight.airline} | TOOR`}
+        title={`${flight.from} to ${flight.to} - ${flight.airline} | Zanafly`}
         description={`Book ${flight.airline} flight from ${flight.from} to ${flight.to}`}
         keywords="flight booking, airline tickets, international flights"
         canonical={`/flight/${id}`}

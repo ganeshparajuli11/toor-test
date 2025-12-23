@@ -9,14 +9,13 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import { getApiUrl, API_ENDPOINTS } from '../config/api';
-import { useApiSettings } from '../contexts/ApiSettingsContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import api from '../services/api.service';
 import ratehawkService from '../services/ratehawk.service';
 import './BookingDetail.css';
 
 // Stripe Checkout Form Component
-const StripeCheckoutForm = ({ totalPrice, currency, onSuccess, onError, disabled }) => {
+const StripeCheckoutForm = ({ totalPrice, currency, onSuccess, onError, disabled, bookingMetadata }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState(null);
@@ -33,13 +32,27 @@ const StripeCheckoutForm = ({ totalPrice, currency, onSuccess, onError, disabled
     setError(null);
 
     try {
-      // Create PaymentIntent on backend
+      // Create PaymentIntent on backend with booking metadata
       const { data } = await api.post('/payment/create-payment-intent', {
-        amount: Math.round(totalPrice * 100), // Stripe uses cents
-        currency: currency.toLowerCase()
+        amount: totalPrice, // Backend handles conversion to cents
+        currency: currency.toLowerCase(),
+        bookingId: bookingMetadata?.bookingId || '',
+        customerEmail: bookingMetadata?.customerEmail || '',
+        customerName: bookingMetadata?.customerName || '',
+        description: bookingMetadata?.description || 'Zanafly Booking',
+        metadata: {
+          hotelName: bookingMetadata?.hotelName || '',
+          checkIn: bookingMetadata?.checkIn || '',
+          checkOut: bookingMetadata?.checkOut || '',
+          guests: bookingMetadata?.guests || ''
+        }
       });
 
       const { clientSecret } = data;
+
+      if (!clientSecret) {
+        throw new Error('Failed to create payment intent');
+      }
 
       // Confirm payment
       const result = await stripe.confirmCardPayment(clientSecret, {
@@ -57,10 +70,10 @@ const StripeCheckoutForm = ({ totalPrice, currency, onSuccess, onError, disabled
       }
     } catch (err) {
       console.error('Payment failed:', err);
-      const errorMsg = err.response?.data?.error || 'Payment failed. Please try again.';
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Payment failed. Please try again.';
       setError(errorMsg);
       onError?.(errorMsg);
-      toast.error('Payment failed');
+      toast.error(errorMsg);
     } finally {
       setProcessing(false);
     }
@@ -259,7 +272,6 @@ const BookingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { apiSettings } = useApiSettings();
   const { currency: contextCurrency, formatCurrency } = useLanguage();
 
   // Get booking parameters from URL
@@ -299,12 +311,20 @@ const BookingDetail = () => {
   // eslint-disable-next-line no-unused-vars
   const [bookingConfirmation, setBookingConfirmation] = useState(null);
 
-  // Initialize Stripe
+  // Initialize Stripe - fetch publishable key from public API endpoint
   useEffect(() => {
-    if (apiSettings?.stripe?.publishableKey) {
-      setStripePromise(loadStripe(apiSettings.stripe.publishableKey));
-    }
-  }, [apiSettings]);
+    const fetchStripeKey = async () => {
+      try {
+        const response = await api.get('/payment/publishable-key');
+        if (response.data.success && response.data.publishableKey) {
+          setStripePromise(loadStripe(response.data.publishableKey));
+        }
+      } catch (error) {
+        console.error('Error fetching Stripe publishable key:', error);
+      }
+    };
+    fetchStripeKey();
+  }, []);
 
   // Guest details state
   const [guests, setGuests] = useState([
@@ -599,7 +619,7 @@ const BookingDetail = () => {
             phone: guests[0].mobile,
             firstName: guests[0].firstName,
             lastName: guests[0].lastName,
-            comment: `Booking from TOOR. Payment: ${paymentIntent.id}`
+            comment: `Booking from Zanafly. Payment: ${paymentIntent.id}`
           },
           payment: {
             type: 'deposit', // We handle payment via Stripe
@@ -788,7 +808,7 @@ const BookingDetail = () => {
     <>
       {/* SEO Meta Tags */}
       <SEO
-        title={`Complete Booking - ${bookingData.property.name} | TOOR`}
+        title={`Complete Booking - ${bookingData.property.name} | Zanafly`}
         description={`Book your stay at ${bookingData.property.name}`}
         keywords={`booking, hotel reservation, ${bookingData.property.name}`}
         canonical={`/booking/${id}`}
@@ -1134,6 +1154,16 @@ const BookingDetail = () => {
                           currency={currency}
                           onSuccess={handlePaymentSuccess}
                           disabled={!isPaymentReady() || isProcessing || bookingFormLoading}
+                          bookingMetadata={{
+                            bookingId: bookingForm?.hash || `booking-${Date.now()}`,
+                            customerEmail: guests[0]?.email || '',
+                            customerName: `${guests[0]?.firstName || ''} ${guests[0]?.lastName || ''}`.trim(),
+                            description: `${hotelName || 'Hotel Booking'} - ${checkIn} to ${checkOut}`,
+                            hotelName: hotelName || '',
+                            checkIn: checkIn || '',
+                            checkOut: checkOut || '',
+                            guests: `${adults} adults${children > 0 ? `, ${children} children` : ''}`
+                          }}
                         />
                       </Elements>
                     ) : (

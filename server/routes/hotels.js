@@ -840,7 +840,7 @@ router.post('/booking/form', async (req, res) => {
         }
 
         // Generate unique partner_order_id
-        const partner_order_id = `toor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const partner_order_id = `zanafly_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         // Get user IP from request (for credit card processing)
         const user_ip = req.headers['x-forwarded-for']?.split(',')[0] ||

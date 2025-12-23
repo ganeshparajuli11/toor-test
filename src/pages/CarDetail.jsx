@@ -99,7 +99,7 @@ const CarDetail = () => {
   return (
     <>
       <SEO
-        title={`${car.name} Rental | TOOR`}
+        title={`${car.name} Rental | Zanafly`}
         description={`Rent ${car.name} - ${car.category} with ${car.specs.passengers} seats`}
         keywords="car rental, vehicle rental, car hire"
         canonical={`/car/${id}`}

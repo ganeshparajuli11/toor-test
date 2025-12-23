@@ -319,7 +319,7 @@ const Hotels = () => {
   return (
     <>
       <SEO
-        title={`Hotels in ${currentLocation} | TOOR - Find Your Perfect Stay`}
+        title={`Hotels in ${currentLocation} | Zanafly - Find Your Perfect Stay`}
         description={`Find and book the best hotels in ${currentLocation}. Compare prices, read reviews, and get the best deals.`}
         keywords="hotel booking, hotels, accommodation, best hotel deals"
         canonical="/hotels"

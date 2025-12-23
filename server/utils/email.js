@@ -47,9 +47,9 @@ const getAppUrl = async () => {
 const getSenderEmail = async () => {
     try {
         const settings = await getSettings();
-        return settings.email?.from || settings.email?.user || 'noreply@toor.com';
+        return settings.email?.from || settings.email?.user || 'noreply@zanafly.com';
     } catch (error) {
-        return 'noreply@toor.com';
+        return 'noreply@zanafly.com';
     }
 };
 
@@ -74,11 +74,11 @@ export const sendVerificationEmail = async (email, firstName, verificationToken)
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify Your Email - TOOR</title>
+    <title>Verify Your Email - Zanafly</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to TOOR!</h1>
+        <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to Zanafly!</h1>
     </div>
 
     <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
@@ -104,7 +104,7 @@ export const sendVerificationEmail = async (email, firstName, verificationToken)
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
 
         <p style="font-size: 12px; color: #888; text-align: center;">
-            TOOR - Your Travel Companion<br>
+            Zanafly - Your Travel Companion<br>
             <a href="${appUrl}" style="color: #667eea;">Visit our website</a>
         </p>
     </div>
@@ -115,7 +115,7 @@ export const sendVerificationEmail = async (email, firstName, verificationToken)
         const textContent = `
 Hi ${firstName},
 
-Welcome to TOOR!
+Welcome to Zanafly!
 
 Thank you for signing up! Please verify your email address by clicking the link below:
 
@@ -126,15 +126,15 @@ This link will expire in 24 hours.
 If you didn't create an account, you can safely ignore this email.
 
 ---
-TOOR - Your Travel Companion
+Zanafly - Your Travel Companion
 ${appUrl}
 `;
 
         if (transporter) {
             await transporter.sendMail({
-                from: `"TOOR" <${senderEmail}>`,
+                from: `"Zanafly" <${senderEmail}>`,
                 to: email,
-                subject: 'Verify Your Email - TOOR',
+                subject: 'Verify Your Email - Zanafly',
                 text: textContent,
                 html: htmlContent
             });
@@ -175,7 +175,7 @@ export const sendPasswordResetEmail = async (email, firstName, resetToken) => {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Your Password - TOOR</title>
+    <title>Reset Your Password - Zanafly</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
@@ -205,7 +205,7 @@ export const sendPasswordResetEmail = async (email, firstName, resetToken) => {
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
 
         <p style="font-size: 12px; color: #888; text-align: center;">
-            TOOR - Your Travel Companion<br>
+            Zanafly - Your Travel Companion<br>
             <a href="${appUrl}" style="color: #667eea;">Visit our website</a>
         </p>
     </div>
@@ -227,15 +227,15 @@ This link will expire in 1 hour.
 If you didn't request a password reset, you can safely ignore this email.
 
 ---
-TOOR - Your Travel Companion
+Zanafly - Your Travel Companion
 ${appUrl}
 `;
 
         if (transporter) {
             await transporter.sendMail({
-                from: `"TOOR" <${senderEmail}>`,
+                from: `"Zanafly" <${senderEmail}>`,
                 to: email,
-                subject: 'Reset Your Password - TOOR',
+                subject: 'Reset Your Password - Zanafly',
                 text: textContent,
                 html: htmlContent
             });
@@ -274,7 +274,7 @@ export const sendBookingConfirmationEmail = async (email, firstName, booking) =>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Confirmed - TOOR</title>
+    <title>Booking Confirmed - Zanafly</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
@@ -301,13 +301,13 @@ export const sendBookingConfirmationEmail = async (email, firstName, booking) =>
         </div>
 
         <p style="font-size: 14px; color: #666;">
-            Thank you for choosing TOOR! If you have any questions about your booking, please contact our support team.
+            Thank you for choosing Zanafly! If you have any questions about your booking, please contact our support team.
         </p>
 
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
 
         <p style="font-size: 12px; color: #888; text-align: center;">
-            TOOR - Your Travel Companion<br>
+            Zanafly - Your Travel Companion<br>
             <a href="${appUrl}" style="color: #667eea;">Visit our website</a>
         </p>
     </div>
@@ -331,18 +331,18 @@ Booking Details:
 
 View your bookings: ${appUrl}/bookings
 
-Thank you for choosing TOOR!
+Thank you for choosing Zanafly!
 
 ---
-TOOR - Your Travel Companion
+Zanafly - Your Travel Companion
 ${appUrl}
 `;
 
         if (transporter) {
             await transporter.sendMail({
-                from: `"TOOR" <${senderEmail}>`,
+                from: `"Zanafly" <${senderEmail}>`,
                 to: email,
-                subject: 'Booking Confirmed - TOOR',
+                subject: 'Booking Confirmed - Zanafly',
                 text: textContent,
                 html: htmlContent
             });

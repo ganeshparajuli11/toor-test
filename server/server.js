@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import adminRoutes from './routes/admin.js';
 import proxyRoutes from './routes/proxy.js';
 import paymentRoutes from './routes/payment.js';
@@ -8,11 +9,19 @@ import oauthRoutes from './routes/oauth.js';
 import hotelsRoutes from './routes/hotels.js';
 import authRoutes from './routes/auth.js';
 
+// Load environment variables
+dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
+
+// Stripe webhook needs raw body - must be before express.json()
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+
+// JSON parsing for all other routes
 app.use(express.json());
 
 // Routes

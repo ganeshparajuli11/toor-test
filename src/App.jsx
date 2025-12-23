@@ -40,6 +40,7 @@ import AdminCars from './pages/admin/AdminCars';
 import AdminCruises from './pages/admin/AdminCruises';
 import AdminPayments from './pages/admin/AdminPayments';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminManagement from './pages/admin/AdminManagement';
 import TestAPI from './pages/admin/TestAPI';
 import ProtectedRoute from './components/admin/ProtectedRoute';
 
@@ -97,6 +98,7 @@ function App() {
             <Route path="cruises" element={<AdminCruises />} />
             <Route path="payments" element={<AdminPayments />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="admins" element={<AdminManagement />} />
             <Route path="test-api" element={<TestAPI />} />
           </Route>
 

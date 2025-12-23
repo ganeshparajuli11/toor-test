@@ -115,7 +115,7 @@ const CruiseDetail = () => {
   return (
     <>
       <SEO
-        title={`${cruise.name} - ${cruise.cruiseLine} | TOOR`}
+        title={`${cruise.name} - ${cruise.cruiseLine} | Zanafly`}
         description={`Book ${cruise.duration} ${cruise.destination} cruise`}
         keywords="cruise booking, mediterranean cruise, cruise vacation"
         canonical={`/cruise/${id}`}

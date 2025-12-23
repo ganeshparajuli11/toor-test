@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -11,104 +11,98 @@ import {
   MapPin,
   Phone,
   UserCheck,
-  UserX
+  UserX,
+  RefreshCw,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 import './AdminUsers.css';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    verified: 0,
+    unverified: 0,
+    newThisMonth: 0,
+    activeThisMonth: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - will be replaced with real API data
-  const [users] = useState([
-    {
-      id: 'USR001',
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      phone: '+1 234 567 8900',
-      location: 'New York, USA',
-      joinDate: '2024-01-15',
-      lastLogin: '2025-11-23',
-      totalBookings: 12,
-      totalSpent: 15480,
-      status: 'Active',
-      verified: true,
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100'
-    },
-    {
-      id: 'USR002',
-      name: 'Sarah Smith',
-      email: 'sarah.smith@example.com',
-      phone: '+1 234 567 8901',
-      location: 'Los Angeles, USA',
-      joinDate: '2024-03-20',
-      lastLogin: '2025-11-22',
-      totalBookings: 8,
-      totalSpent: 9240,
-      status: 'Active',
-      verified: true,
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100'
-    },
-    {
-      id: 'USR003',
-      name: 'Mike Johnson',
-      email: 'mike.j@example.com',
-      phone: '+1 234 567 8902',
-      location: 'Chicago, USA',
-      joinDate: '2024-05-10',
-      lastLogin: '2025-11-20',
-      totalBookings: 15,
-      totalSpent: 22350,
-      status: 'Active',
-      verified: true,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100'
-    },
-    {
-      id: 'USR004',
-      name: 'Emily Brown',
-      email: 'emily.brown@example.com',
-      phone: '+1 234 567 8903',
-      location: 'Miami, USA',
-      joinDate: '2024-07-22',
-      lastLogin: '2025-11-18',
-      totalBookings: 5,
-      totalSpent: 7800,
-      status: 'Active',
-      verified: false,
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100'
-    },
-    {
-      id: 'USR005',
-      name: 'David Wilson',
-      email: 'david.w@example.com',
-      phone: '+1 234 567 8904',
-      location: 'Seattle, USA',
-      joinDate: '2024-09-05',
-      lastLogin: '2025-10-15',
-      totalBookings: 3,
-      totalSpent: 2890,
-      status: 'Blocked',
-      verified: true,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100'
-    },
-    {
-      id: 'USR006',
-      name: 'Lisa Anderson',
-      email: 'lisa.a@example.com',
-      phone: '+1 234 567 8905',
-      location: 'Boston, USA',
-      joinDate: '2024-10-12',
-      lastLogin: '2025-11-23',
-      totalBookings: 7,
-      totalSpent: 11200,
-      status: 'Active',
-      verified: true,
-      avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100'
+  const getAuthHeaders = () => ({
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('adminToken')}`
     }
-  ]);
+  });
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/api/admin/users`, getAuthHeaders());
+
+      if (response.data.success) {
+        setUsers(response.data.users);
+        setStats(response.data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleStatusChange = async (userId, newStatus) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/admin/users/${userId}/status`,
+        { status: newStatus },
+        getAuthHeaders()
+      );
+
+      if (response.data.success) {
+        toast.success(`User ${newStatus === 'blocked' ? 'blocked' : 'activated'} successfully`);
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      toast.error('Failed to update user status');
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/admin/users/${userId}`,
+        getAuthHeaders()
+      );
+
+      if (response.data.success) {
+        toast.success('User deleted successfully');
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Failed to delete user');
+    }
+  };
 
   const getStatusClass = (status) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'active':
         return 'status-active';
       case 'blocked':
@@ -116,25 +110,56 @@ const AdminUsers = () => {
       case 'inactive':
         return 'status-inactive';
       default:
-        return '';
+        return 'status-active';
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.id.toLowerCase().includes(searchTerm.toLowerCase());
+  const getUserStatus = (user) => {
+    if (user.status) return user.status;
+    return user.isVerified ? 'Active' : 'Inactive';
+  };
 
-    const matchesStatus = filterStatus === 'all' || user.status.toLowerCase() === filterStatus;
+  const filteredUsers = users.filter((user) => {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
+    const matchesSearch =
+      fullName.includes(searchTerm.toLowerCase()) ||
+      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.id || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    const userStatus = getUserStatus(user).toLowerCase();
+    const matchesStatus = filterStatus === 'all' || userStatus === filterStatus;
 
     return matchesSearch && matchesStatus;
   });
 
   const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.status === 'Active').length;
-  const blockedUsers = users.filter(u => u.status === 'Blocked').length;
-  const verifiedUsers = users.filter(u => u.verified).length;
+  const activeUsers = users.filter(u => getUserStatus(u).toLowerCase() === 'active').length;
+  const blockedUsers = users.filter(u => getUserStatus(u).toLowerCase() === 'blocked').length;
+  const verifiedUsers = users.filter(u => u.isVerified).length;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getInitials = (firstName, lastName) => {
+    return `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase() || 'U';
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-users">
+        <div className="loading-state">
+          <RefreshCw size={40} className="spinning" />
+          <p>Loading users...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-users">
@@ -143,10 +168,15 @@ const AdminUsers = () => {
           <h1 className="users-title">Users Management</h1>
           <p className="users-subtitle">Manage and monitor all registered users</p>
         </div>
-        <button className="export-btn">
-          <Download size={20} />
-          Export Users
-        </button>
+        <div className="header-actions">
+          <button className="refresh-btn" onClick={fetchUsers}>
+            <RefreshCw size={20} />
+          </button>
+          <button className="export-btn">
+            <Download size={20} />
+            Export Users
+          </button>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -220,84 +250,113 @@ const AdminUsers = () => {
       </div>
 
       {/* Users Grid */}
-      <div className="users-grid">
-        {filteredUsers.map((user) => (
-          <div key={user.id} className="user-card">
-            <div className="user-card-header">
-              <div className="user-avatar-wrapper">
-                <img src={user.avatar} alt={user.name} className="user-avatar" />
-                {user.verified && (
-                  <div className="verified-badge" title="Verified User">
-                    <CheckCircle size={14} />
+      {users.length === 0 ? (
+        <div className="no-results">
+          <AlertCircle size={48} />
+          <p>No registered users yet</p>
+          <span>Users will appear here when they sign up</span>
+        </div>
+      ) : (
+        <div className="users-grid">
+          {filteredUsers.map((user) => (
+            <div key={user.id} className="user-card">
+              <div className="user-card-header">
+                <div className="user-avatar-wrapper">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={`${user.firstName} ${user.lastName}`} className="user-avatar" />
+                  ) : (
+                    <div className="user-avatar-initials">
+                      {getInitials(user.firstName, user.lastName)}
+                    </div>
+                  )}
+                  {user.isVerified && (
+                    <div className="verified-badge" title="Verified User">
+                      <CheckCircle size={14} />
+                    </div>
+                  )}
+                </div>
+                <span className={`status-badge ${getStatusClass(getUserStatus(user))}`}>
+                  {getUserStatus(user)}
+                </span>
+              </div>
+
+              <div className="user-card-body">
+                <h3 className="user-name">{user.firstName} {user.lastName}</h3>
+                <p className="user-id">{user.id.slice(0, 8)}...</p>
+
+                <div className="user-info">
+                  <div className="info-item">
+                    <Mail size={14} />
+                    <span>{user.email}</span>
                   </div>
-                )}
+                  {user.phone && (
+                    <div className="info-item">
+                      <Phone size={14} />
+                      <span>{user.phone}</span>
+                    </div>
+                  )}
+                  {user.location && (
+                    <div className="info-item">
+                      <MapPin size={14} />
+                      <span>{user.location}</span>
+                    </div>
+                  )}
+                  <div className="info-item">
+                    <Calendar size={14} />
+                    <span>Joined {formatDate(user.createdAt)}</span>
+                  </div>
+                </div>
+
+                <div className="user-stats">
+                  <div className="user-stat">
+                    <div className="user-stat-value">{user.bookings?.length || 0}</div>
+                    <div className="user-stat-label">Bookings</div>
+                  </div>
+                  <div className="user-stat">
+                    <div className="user-stat-value">
+                      {user.isVerified ? 'Yes' : 'No'}
+                    </div>
+                    <div className="user-stat-label">Verified</div>
+                  </div>
+                </div>
+
+                <div className="user-meta">
+                  <span className="last-login">
+                    Last login: {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
+                  </span>
+                </div>
               </div>
-              <span className={`status-badge ${getStatusClass(user.status)}`}>
-                {user.status}
-              </span>
+
+              <div className="user-card-footer">
+                <button className="action-btn view" title="View Details">
+                  <Eye size={16} />
+                  View
+                </button>
+                <button
+                  className={`action-btn ${getUserStatus(user).toLowerCase() === 'blocked' ? 'unblock' : 'block'}`}
+                  title={getUserStatus(user).toLowerCase() === 'blocked' ? 'Unblock User' : 'Block User'}
+                  onClick={() => handleStatusChange(
+                    user.id,
+                    getUserStatus(user).toLowerCase() === 'blocked' ? 'active' : 'blocked'
+                  )}
+                >
+                  <Ban size={16} />
+                  {getUserStatus(user).toLowerCase() === 'blocked' ? 'Unblock' : 'Block'}
+                </button>
+                <button
+                  className="action-btn delete"
+                  title="Delete User"
+                  onClick={() => handleDeleteUser(user.id)}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            <div className="user-card-body">
-              <h3 className="user-name">{user.name}</h3>
-              <p className="user-id">{user.id}</p>
-
-              <div className="user-info">
-                <div className="info-item">
-                  <Mail size={14} />
-                  <span>{user.email}</span>
-                </div>
-                <div className="info-item">
-                  <Phone size={14} />
-                  <span>{user.phone}</span>
-                </div>
-                <div className="info-item">
-                  <MapPin size={14} />
-                  <span>{user.location}</span>
-                </div>
-                <div className="info-item">
-                  <Calendar size={14} />
-                  <span>Joined {user.joinDate}</span>
-                </div>
-              </div>
-
-              <div className="user-stats">
-                <div className="user-stat">
-                  <div className="user-stat-value">{user.totalBookings}</div>
-                  <div className="user-stat-label">Bookings</div>
-                </div>
-                <div className="user-stat">
-                  <div className="user-stat-value">${user.totalSpent.toLocaleString()}</div>
-                  <div className="user-stat-label">Total Spent</div>
-                </div>
-              </div>
-
-              <div className="user-meta">
-                <span className="last-login">Last login: {user.lastLogin}</span>
-              </div>
-            </div>
-
-            <div className="user-card-footer">
-              <button className="action-btn view" title="View Details">
-                <Eye size={16} />
-                View
-              </button>
-              <button className="action-btn email" title="Send Email">
-                <Mail size={16} />
-                Email
-              </button>
-              <button
-                className={`action-btn ${user.status === 'Blocked' ? 'unblock' : 'block'}`}
-                title={user.status === 'Blocked' ? 'Unblock User' : 'Block User'}
-              >
-                <Ban size={16} />
-                {user.status === 'Blocked' ? 'Unblock' : 'Block'}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredUsers.length === 0 && (
+      {users.length > 0 && filteredUsers.length === 0 && (
         <div className="no-results">
           <p>No users found matching your criteria</p>
         </div>

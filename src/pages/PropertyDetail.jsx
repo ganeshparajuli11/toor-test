@@ -267,7 +267,7 @@ const PropertyDetail = () => {
     <>
       {/* SEO Meta Tags */}
       <SEO
-        title={`${propertyData.name} - ${propertyData.price ? `$${propertyData.price}/night` : ''} | TOOR`}
+        title={`${propertyData.name} - ${propertyData.price ? `$${propertyData.price}/night` : ''} | Zanafly`}
         description={Array.isArray(propertyData.description) ? propertyData.description[0] : propertyData.description}
         keywords={`${propertyData.name}, hotel booking, ${propertyData.location}`}
         canonical={`/property/${id}`}

@@ -94,9 +94,9 @@ const SignUp = () => {
   return (
     <>
       <SEO
-        title="Sign Up - TOOR | Create Your Account"
-        description="Join TOOR today and start exploring amazing travel destinations. Sign up now to book hotels, flights, and cruise packages."
-        keywords="sign up, register, create account, travel booking, TOOR registration"
+        title="Sign Up - Zanafly | Create Your Account"
+        description="Join Zanafly today and start exploring amazing travel destinations. Sign up now to book hotels, flights, and cruise packages."
+        keywords="sign up, register, create account, travel booking, Zanafly registration"
         canonical={`${window.location.origin}/signup`}
       />
 
@@ -105,7 +105,7 @@ const SignUp = () => {
         <div className="auth-brand-panel signup-brand">
           <div className="brand-content">
             <Link to="/" className="brand-logo">
-              <img src="/src/assets/logo.png" alt="TOOR" />
+              <img src="/src/assets/logo.png" alt="Zanafly" />
             </Link>
             <div className="brand-text">
               <h1>{t('Discover Your Next Adventure')}</h1>
@@ -154,7 +154,7 @@ const SignUp = () => {
           <div className="form-container signup-container">
             <div className="mobile-logo">
               <Link to="/">
-                <img src="/src/assets/logo.png" alt="TOOR" />
+                <img src="/src/assets/logo.png" alt="Zanafly" />
               </Link>
             </div>
 
@@ -168,13 +168,12 @@ const SignUp = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="firstName">{t('First name')}</label>
-                  <div className="input-with-icon">
+                  <div className={`input-with-icon ${errors.firstName ? 'error' : ''}`}>
                     <User className="field-icon" size={18} />
                     <input
                       id="firstName"
                       type="text"
                       placeholder="John"
-                      className={errors.firstName ? 'error' : ''}
                       {...register('firstName', {
                         required: t('First name') + ' is required',
                         minLength: { value: 2, message: 'Min 2 characters' },
@@ -186,13 +185,12 @@ const SignUp = () => {
 
                 <div className="form-group">
                   <label htmlFor="lastName">{t('Last name')}</label>
-                  <div className="input-with-icon">
+                  <div className={`input-with-icon ${errors.lastName ? 'error' : ''}`}>
                     <User className="field-icon" size={18} />
                     <input
                       id="lastName"
                       type="text"
                       placeholder="Doe"
-                      className={errors.lastName ? 'error' : ''}
                       {...register('lastName', {
                         required: t('Last name') + ' is required',
                         minLength: { value: 2, message: 'Min 2 characters' },
@@ -206,13 +204,12 @@ const SignUp = () => {
               {/* Email Field */}
               <div className="form-group">
                 <label htmlFor="email">{t('Email address')}</label>
-                <div className="input-with-icon">
+                <div className={`input-with-icon ${errors.email ? 'error' : ''}`}>
                   <Mail className="field-icon" size={18} />
                   <input
                     id="email"
                     type="email"
                     placeholder="name@example.com"
-                    className={errors.email ? 'error' : ''}
                     {...register('email', {
                       required: t('Email address') + ' is required',
                       pattern: {
@@ -228,13 +225,12 @@ const SignUp = () => {
               {/* Phone Field */}
               <div className="form-group">
                 <label htmlFor="phone">{t('Phone number')}</label>
-                <div className="input-with-icon">
+                <div className={`input-with-icon ${errors.phoneNumber ? 'error' : ''}`}>
                   <Phone className="field-icon" size={18} />
                   <input
                     id="phone"
                     type="tel"
                     placeholder="+1 (555) 000-0000"
-                    className={errors.phoneNumber ? 'error' : ''}
                     {...register('phoneNumber', {
                       required: t('Phone number') + ' is required',
                       pattern: {
@@ -250,13 +246,12 @@ const SignUp = () => {
               {/* Password Field */}
               <div className="form-group">
                 <label htmlFor="password">{t('Password')}</label>
-                <div className="input-with-icon">
+                <div className={`input-with-icon ${errors.password ? 'error' : ''}`}>
                   <Lock className="field-icon" size={18} />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder={t('Password')}
-                    className={errors.password ? 'error' : ''}
                     {...register('password', {
                       required: t('Password') + ' is required',
                       minLength: { value: 8, message: 'Min 8 characters' },

@@ -417,6 +417,14 @@
   background-color: #fef3c7;
 }
 
+.action-btn.receipt {
+  color: #10b981;
+}
+
+.action-btn.receipt:hover {
+  background-color: #d1fae5;
+}
+
 .no-results {
   text-align: center;
   padding: 3rem;

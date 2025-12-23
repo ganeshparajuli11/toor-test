@@ -163,6 +163,7 @@
   border: 2px solid #e2e8f0;
   border-radius: 0.75rem;
   transition: all 0.2s;
+  padding-left: 1rem;
 }
 
 .input-wrapper:focus-within {
@@ -180,18 +181,16 @@
 }
 
 .input-icon {
-  position: absolute;
-  left: 0.875rem;
   color: #64748b;
-  pointer-events: none;
   flex-shrink: 0;
-  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .form-input {
   flex: 1;
-  padding: 0.875rem 1rem;
-  padding-left: 2.75rem;
+  padding: 0.875rem 0.75rem;
   padding-right: 3rem;
   border: none;
   background: transparent;

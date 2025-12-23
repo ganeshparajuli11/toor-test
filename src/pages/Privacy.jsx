@@ -7,8 +7,8 @@ const Privacy = () => {
   return (
     <>
       <SEO
-        title="Privacy Policy | TOOR"
-        description="Learn how TOOR collects, uses, and protects your personal information."
+        title="Privacy Policy | Zanafly"
+        description="Learn how Zanafly collects, uses, and protects your personal information."
         keywords="privacy policy, data protection, personal information"
         canonical="/privacy"
       />
@@ -116,7 +116,7 @@ const Privacy = () => {
                     <li><strong>Object:</strong> Object to certain processing of your information</li>
                   </ul>
                   <p>
-                    To exercise these rights, please contact us at privacy@toor.com.
+                    To exercise these rights, please contact us at privacy@zanafly.com.
                   </p>
                 </div>
               </div>
@@ -173,7 +173,7 @@ const Privacy = () => {
                     If you have questions about this Privacy Policy or our privacy practices, please contact us:
                   </p>
                   <p>
-                    Email: privacy@toor.com<br />
+                    Email: privacy@zanafly.com<br />
                     Phone: +1 (555) 123-4567<br />
                     Address: 123 Travel Street, New York, NY 10001, USA
                   </p>

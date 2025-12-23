@@ -12,7 +12,8 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  Users
+  Users,
+  Info
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApiSettings } from '../../contexts/ApiSettingsContext';
@@ -66,6 +67,15 @@ const AdminSettings = () => {
         environment: contextApiSettings.ratehawk.environment || 'sandbox'
       });
     }
+    if (contextApiSettings.stripe) {
+      setPaymentSettings({
+        stripePublishableKey: contextApiSettings.stripe.publishableKey || '',
+        stripeSecretKey: contextApiSettings.stripe.secretKey || '',
+        stripeWebhookSecret: contextApiSettings.stripe.webhookSecret || '',
+        stripeCurrency: contextApiSettings.stripe.currency || 'USD',
+        stripe3DSecure: contextApiSettings.stripe.enable3DSecure !== false
+      });
+    }
     if (contextApiSettings.oauth) {
       setOAuthForm({
         google: {
@@ -80,6 +90,31 @@ const AdminSettings = () => {
         }
       });
     }
+    if (contextApiSettings.email) {
+      setEmailSettings({
+        smtpHost: contextApiSettings.email.smtpHost || '',
+        smtpPort: contextApiSettings.email.smtpPort || '587',
+        smtpUser: contextApiSettings.email.smtpUser || '',
+        smtpPassword: contextApiSettings.email.smtpPassword || '',
+        fromEmail: contextApiSettings.email.fromEmail || '',
+        fromName: contextApiSettings.email.fromName || 'Zanafly'
+      });
+    }
+    if (contextApiSettings.database) {
+      setDatabaseSettings({
+        mongodbUrl: contextApiSettings.database.mongodbUrl || '',
+        enabled: contextApiSettings.database.enabled || false
+      });
+    }
+    if (contextApiSettings.general) {
+      setGeneralSettings({
+        siteName: contextApiSettings.general.siteName || 'Zanafly',
+        siteUrl: contextApiSettings.general.siteUrl || '',
+        currency: contextApiSettings.general.currency || 'USD',
+        language: contextApiSettings.general.language || 'en',
+        timezone: contextApiSettings.general.timezone || 'UTC'
+      });
+    }
   }, [contextApiSettings]);
 
   const [apiSettings, setApiSettings] = useState({
@@ -88,11 +123,11 @@ const AdminSettings = () => {
   });
 
   const [paymentSettings, setPaymentSettings] = useState({
-    stripePublishableKey: 'pk_test_••••••••••••••••••••',
-    stripeSecretKey: 'sk_test_••••••••••••••••••••',
+    stripePublishableKey: '',
+    stripeSecretKey: '',
     stripe3DSecure: true,
     stripeCurrency: 'USD',
-    stripeWebhookSecret: 'whsec_••••••••••••••••'
+    stripeWebhookSecret: ''
   });
 
   const [webhookSettings, setWebhookSettings] = useState({
@@ -103,21 +138,25 @@ const AdminSettings = () => {
   });
 
   const [emailSettings, setEmailSettings] = useState({
-    smtpHost: 'smtp.gmail.com',
+    smtpHost: '',
     smtpPort: '587',
-    smtpUser: 'noreply@yoursite.com',
-    smtpPassword: '••••••••••••',
-    fromEmail: 'noreply@yoursite.com',
-    fromName: 'TOUR Travel'
+    smtpUser: '',
+    smtpPassword: '',
+    fromEmail: '',
+    fromName: 'Zanafly'
+  });
+
+  const [databaseSettings, setDatabaseSettings] = useState({
+    mongodbUrl: '',
+    enabled: false
   });
 
   const [generalSettings, setGeneralSettings] = useState({
-    siteName: 'TOUR',
-    siteUrl: 'https://yoursite.com',
+    siteName: 'Zanafly',
+    siteUrl: '',
     currency: 'USD',
     language: 'en',
-    timezone: 'UTC',
-    autoVoucherDelivery: true
+    timezone: 'UTC'
   });
 
   const handleSaveRateHawk = async () => {
@@ -169,30 +208,62 @@ const AdminSettings = () => {
   };
 
   const handleSave = async (section) => {
-    if (section === 'Payment') {
-      try {
-        const result = await updateStripeSettings({
-          publishableKey: paymentSettings.stripePublishableKey,
-          secretKey: paymentSettings.stripeSecretKey,
-          webhookSecret: paymentSettings.stripeWebhookSecret,
-          currency: paymentSettings.stripeCurrency,
-          enable3DSecure: paymentSettings.stripe3DSecure
+    try {
+      let result;
+
+      if (section === 'Payment') {
+        result = await saveApiSettings({
+          stripe: {
+            publishableKey: paymentSettings.stripePublishableKey,
+            secretKey: paymentSettings.stripeSecretKey,
+            webhookSecret: paymentSettings.stripeWebhookSecret,
+            currency: paymentSettings.stripeCurrency,
+            enable3DSecure: paymentSettings.stripe3DSecure
+          }
         });
-
-        if (result.success) {
-          toast.success('Payment settings saved successfully!');
-        } else {
-          toast.error(result.message || 'Failed to save payment settings');
-        }
-      } catch (error) {
-        console.error('Error saving payment settings:', error);
-        toast.error('Error saving payment settings');
+      } else if (section === 'Email') {
+        result = await saveApiSettings({
+          email: {
+            smtpHost: emailSettings.smtpHost,
+            smtpPort: emailSettings.smtpPort,
+            smtpUser: emailSettings.smtpUser,
+            smtpPassword: emailSettings.smtpPassword,
+            fromEmail: emailSettings.fromEmail,
+            fromName: emailSettings.fromName,
+            enabled: true
+          }
+        });
+      } else if (section === 'Database') {
+        result = await saveApiSettings({
+          database: {
+            mongodbUrl: databaseSettings.mongodbUrl,
+            enabled: databaseSettings.enabled
+          }
+        });
+      } else if (section === 'General') {
+        result = await saveApiSettings({
+          general: {
+            siteName: generalSettings.siteName,
+            siteUrl: generalSettings.siteUrl,
+            currency: generalSettings.currency,
+            language: generalSettings.language,
+            timezone: generalSettings.timezone
+          }
+        });
+      } else {
+        toast.success(`${section} settings saved successfully!`);
+        return;
       }
-      return;
-    }
 
-    // TODO: Implement save logic for other sections
-    toast.success(`${section} settings saved successfully!`);
+      if (result?.success) {
+        toast.success(`${section} settings saved successfully!`);
+      } else {
+        toast.error(result?.message || `Failed to save ${section} settings`);
+      }
+    } catch (error) {
+      console.error(`Error saving ${section} settings:`, error);
+      toast.error(`Error saving ${section} settings`);
+    }
   };
 
   const handleTestWebhook = () => {
@@ -215,8 +286,8 @@ const AdminSettings = () => {
     { id: 'api', label: 'API Keys', icon: Key },
     { id: 'oauth', label: 'Social Login', icon: Users },
     { id: 'payment', label: 'Payment', icon: CreditCard },
-    { id: 'webhooks', label: 'Webhooks', icon: Webhook },
-    { id: 'email', label: 'Email', icon: Mail },
+    { id: 'email', label: 'Email SMTP', icon: Mail },
+    { id: 'database', label: 'Database', icon: Shield },
     { id: 'general', label: 'General', icon: Globe }
   ];
 
@@ -560,10 +631,17 @@ const AdminSettings = () => {
               <div className="settings-card">
                 <div className="card-header">
                   <h3 className="card-title">Stripe Settings</h3>
-                  <span className="status-badge active">
-                    <CheckCircle size={14} />
-                    Connected
-                  </span>
+                  {paymentSettings.stripePublishableKey && paymentSettings.stripeSecretKey ? (
+                    <span className="status-badge active">
+                      <CheckCircle size={14} />
+                      Configured
+                    </span>
+                  ) : (
+                    <span className="status-badge inactive">
+                      <AlertCircle size={14} />
+                      Not Configured
+                    </span>
+                  )}
                 </div>
 
                 <div className="form-grid">
@@ -576,6 +654,7 @@ const AdminSettings = () => {
                         setPaymentSettings({ ...paymentSettings, stripePublishableKey: e.target.value })
                       }
                       className="form-input"
+                      placeholder="pk_live_... or pk_test_..."
                     />
                   </div>
 
@@ -589,8 +668,10 @@ const AdminSettings = () => {
                           setPaymentSettings({ ...paymentSettings, stripeSecretKey: e.target.value })
                         }
                         className="form-input"
+                        placeholder="sk_live_... or sk_test_..."
                       />
                       <button
+                        type="button"
                         className="icon-btn"
                         onClick={() => setShowStripeKey(!showStripeKey)}
                       >
@@ -629,7 +710,7 @@ const AdminSettings = () => {
                   </div>
 
                   <div className="form-group full-width">
-                    <label className="form-label">Webhook Secret</label>
+                    <label className="form-label">Webhook Secret (Optional)</label>
                     <input
                       type="password"
                       value={paymentSettings.stripeWebhookSecret}
@@ -637,17 +718,28 @@ const AdminSettings = () => {
                         setPaymentSettings({ ...paymentSettings, stripeWebhookSecret: e.target.value })
                       }
                       className="form-input"
+                      placeholder="whsec_..."
                     />
                   </div>
                 </div>
 
-                <div className="alert success">
-                  <Shield size={18} />
+                <div className="alert info">
+                  <Info size={18} />
                   <div>
-                    <strong>3-D Secure Enabled</strong>
-                    <p>Enhanced security for card payments with SCA compliance</p>
+                    <strong>Get your Stripe API Keys</strong>
+                    <p>Visit <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer">dashboard.stripe.com/apikeys</a> to get your publishable and secret keys. Keys are stored securely encrypted.</p>
                   </div>
                 </div>
+
+                {paymentSettings.stripe3DSecure && (
+                  <div className="alert success">
+                    <Shield size={18} />
+                    <div>
+                      <strong>3-D Secure Enabled</strong>
+                      <p>Enhanced security for card payments with SCA compliance</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="form-actions">
@@ -830,6 +922,76 @@ const AdminSettings = () => {
                   Send Test Email
                 </button>
                 <button className="btn-primary" onClick={() => handleSave('Email')}>
+                  <Save size={18} />
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Database Tab */}
+          {activeTab === 'database' && (
+            <div className="settings-section">
+              <div className="section-header">
+                <h2 className="section-title">Database Configuration</h2>
+                <p className="section-description">Configure MongoDB database connection (optional)</p>
+              </div>
+
+              <div className="settings-card">
+                <div className="card-header">
+                  <h3 className="card-title">MongoDB Settings</h3>
+                  {databaseSettings.mongodbUrl ? (
+                    <span className="status-badge active">
+                      <CheckCircle size={14} />
+                      Configured
+                    </span>
+                  ) : (
+                    <span className="status-badge inactive">
+                      <AlertCircle size={14} />
+                      Not Configured
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-group full-width">
+                    <label className="form-label">MongoDB Connection URL</label>
+                    <input
+                      type="password"
+                      value={databaseSettings.mongodbUrl}
+                      onChange={(e) =>
+                        setDatabaseSettings({ ...databaseSettings, mongodbUrl: e.target.value })
+                      }
+                      className="form-input"
+                      placeholder="mongodb+srv://username:password@cluster.mongodb.net/database"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={databaseSettings.enabled}
+                        onChange={(e) =>
+                          setDatabaseSettings({ ...databaseSettings, enabled: e.target.checked })
+                        }
+                      />
+                      <span>Enable MongoDB (use database instead of JSON files)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="alert info">
+                  <Info size={18} />
+                  <div>
+                    <strong>MongoDB Atlas</strong>
+                    <p>Create a free MongoDB Atlas account at <a href="https://www.mongodb.com/cloud/atlas" target="_blank" rel="noopener noreferrer">mongodb.com/cloud/atlas</a> and paste your connection string above. The URL is stored securely encrypted.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button className="btn-primary" onClick={() => handleSave('Database')}>
                   <Save size={18} />
                   Save Changes
                 </button>

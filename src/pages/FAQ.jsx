@@ -113,7 +113,7 @@ const FAQ = () => {
   return (
     <>
       <SEO
-        title="FAQ | TOOR - Frequently Asked Questions"
+        title="FAQ | Zanafly - Frequently Asked Questions"
         description="Find answers to commonly asked questions about booking, payments, cancellations, and more."
         keywords="FAQ, help, questions, booking help, travel questions"
         canonical="/faq"

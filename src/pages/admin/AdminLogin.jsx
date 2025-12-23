@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Shield, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import './AdminLogin.css';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -41,26 +44,57 @@ const AdminLogin = () => {
     }
 
     setLoading(true);
+    setErrors({});
 
-    // TODO: Replace with actual API call to backend
-    setTimeout(() => {
-      // Mock authentication - replace with real backend authentication
-      if (formData.email === 'admin@tour.com' && formData.password === 'admin123') {
-        localStorage.setItem('adminToken', 'mock-admin-token-12345');
-        localStorage.setItem('adminUser', JSON.stringify({
-          name: 'Admin User',
-          email: formData.email,
-          role: 'Administrator'
-        }));
+    try {
+      const response = await axios.post(`${API_URL}/api/admin/auth/login`, {
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (response.data.success) {
+        // Store admin tokens and info
+        localStorage.setItem('adminToken', response.data.accessToken);
+        localStorage.setItem('adminRefreshToken', response.data.refreshToken);
+        localStorage.setItem('adminUser', JSON.stringify(response.data.admin));
 
         toast.success('Login successful!');
         navigate('/admin');
-      } else {
-        toast.error('Invalid email or password');
-        setErrors({ submit: 'Invalid email or password' });
       }
+    } catch (error) {
+      console.error('Admin login error:', error);
+
+      if (error.response) {
+        const { status, data } = error.response;
+
+        if (status === 401) {
+          setErrors({ submit: 'Invalid email or password' });
+          toast.error('Invalid email or password');
+        } else if (status === 403) {
+          setErrors({ submit: data.error || 'Account is deactivated' });
+          toast.error(data.error || 'Account is deactivated');
+        } else if (status === 429) {
+          setErrors({ submit: data.error || 'Too many login attempts' });
+          toast.error(data.error || 'Too many login attempts. Please try again later.');
+        } else if (data.errors) {
+          // Validation errors
+          const fieldErrors = {};
+          data.errors.forEach(err => {
+            fieldErrors[err.field] = err.message;
+          });
+          setErrors(fieldErrors);
+          toast.error('Please check the form for errors');
+        } else {
+          setErrors({ submit: data.error || 'Login failed' });
+          toast.error(data.error || 'Login failed. Please try again.');
+        }
+      } else {
+        setErrors({ submit: 'Network error. Please check your connection.' });
+        toast.error('Network error. Please check your connection.');
+      }
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const handleChange = (e) => {
@@ -91,29 +125,6 @@ const AdminLogin = () => {
             <p className="login-subtitle">Sign in to access the admin panel</p>
           </div>
 
-          {/* Demo Credentials Alert */}
-          <div className="demo-alert">
-            <AlertCircle size={18} />
-            <div>
-              <strong>Authentication Bypassed for Development</strong>
-              <p>Click "Skip to Admin Panel" below to access directly</p>
-            </div>
-          </div>
-
-          {/* Skip Login Button */}
-          <button
-            type="button"
-            onClick={() => navigate('/admin')}
-            className="skip-login-btn"
-          >
-            Skip to Admin Panel →
-          </button>
-
-          {/* Divider */}
-          <div className="login-divider">
-            <span>Or login with credentials</span>
-          </div>
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="login-form">
             {/* Email Field */}
@@ -129,9 +140,10 @@ const AdminLogin = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="admin@tour.com"
+                  placeholder="Enter your email"
                   className="form-input"
                   disabled={loading}
+                  autoComplete="email"
                 />
               </div>
               {errors.email && (
@@ -155,6 +167,7 @@ const AdminLogin = () => {
                   placeholder="Enter your password"
                   className="form-input"
                   disabled={loading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"

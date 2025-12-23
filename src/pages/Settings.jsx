@@ -95,7 +95,7 @@ const Settings = () => {
   return (
     <>
       <SEO
-        title="Settings | TOOR"
+        title="Settings | Zanafly"
         description="Manage your account settings and preferences"
         keywords="settings, account settings, preferences"
         canonical="/settings"
@@ -132,7 +132,7 @@ const Settings = () => {
                   <div className="settings-section">
                     <h2 className="settings-section-title">Appearance</h2>
                     <p className="settings-section-description">
-                      Customize how TOOR looks on your device
+                      Customize how Zanafly looks on your device
                     </p>
 
                     <div className="settings-card">

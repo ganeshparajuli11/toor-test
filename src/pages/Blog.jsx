@@ -133,7 +133,7 @@ const Blog = () => {
   return (
     <>
       <SEO
-        title="Travel Blog | TOOR - Tips, Guides & Inspiration"
+        title="Travel Blog | Zanafly - Tips, Guides & Inspiration"
         description="Explore our travel blog for tips, destination guides, reviews, and inspiration for your next adventure."
         keywords="travel blog, travel tips, destination guides, travel inspiration"
         canonical="/blog"

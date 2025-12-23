@@ -7,8 +7,8 @@ const Terms = () => {
   return (
     <>
       <SEO
-        title="Terms & Conditions | TOOR"
-        description="Read our terms and conditions for using TOOR travel booking platform."
+        title="Terms & Conditions | Zanafly"
+        description="Read our terms and conditions for using Zanafly travel booking platform."
         keywords="terms and conditions, terms of service, legal"
         canonical="/terms"
       />
@@ -32,7 +32,7 @@ const Terms = () => {
                 <h2 className="info-section-title">1. Acceptance of Terms</h2>
                 <div className="info-section-content">
                   <p>
-                    By accessing and using the TOOR platform, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by the above, please do not use this service.
+                    By accessing and using the Zanafly platform, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by the above, please do not use this service.
                   </p>
                   <p>
                     We reserve the right to modify these terms at any time. Your continued use of the platform following any changes indicates your acceptance of the new terms.
@@ -44,7 +44,7 @@ const Terms = () => {
                 <h2 className="info-section-title">2. Use of Service</h2>
                 <div className="info-section-content">
                   <p>
-                    TOOR provides an online platform for booking travel services including hotels, flights, cruises, and car rentals. You agree to:
+                    Zanafly provides an online platform for booking travel services including hotels, flights, cruises, and car rentals. You agree to:
                   </p>
                   <ul>
                     <li>Provide accurate, current, and complete information during booking</li>
@@ -100,7 +100,7 @@ const Terms = () => {
                 <h2 className="info-section-title">6. Intellectual Property</h2>
                 <div className="info-section-content">
                   <p>
-                    All content on the TOOR platform, including text, graphics, logos, images, and software, is the property of TOOR or its content suppliers and is protected by copyright and intellectual property laws.
+                    All content on the Zanafly platform, including text, graphics, logos, images, and software, is the property of Zanafly or its content suppliers and is protected by copyright and intellectual property laws.
                   </p>
                 </div>
               </div>
@@ -109,10 +109,10 @@ const Terms = () => {
                 <h2 className="info-section-title">7. Limitation of Liability</h2>
                 <div className="info-section-content">
                   <p>
-                    TOOR acts as an intermediary between users and service providers. We are not responsible for the acts, errors, omissions, representations, warranties, or defaults of service providers.
+                    Zanafly acts as an intermediary between users and service providers. We are not responsible for the acts, errors, omissions, representations, warranties, or defaults of service providers.
                   </p>
                   <p>
-                    To the maximum extent permitted by law, TOOR shall not be liable for any indirect, incidental, special, consequential, or punitive damages.
+                    To the maximum extent permitted by law, Zanafly shall not be liable for any indirect, incidental, special, consequential, or punitive damages.
                   </p>
                 </div>
               </div>
@@ -121,7 +121,7 @@ const Terms = () => {
                 <h2 className="info-section-title">8. Governing Law</h2>
                 <div className="info-section-content">
                   <p>
-                    These terms shall be governed by and construed in accordance with the laws of the jurisdiction in which TOOR operates, without regard to conflict of law provisions.
+                    These terms shall be governed by and construed in accordance with the laws of the jurisdiction in which Zanafly operates, without regard to conflict of law provisions.
                   </p>
                 </div>
               </div>
@@ -133,7 +133,7 @@ const Terms = () => {
                     For questions about these Terms & Conditions, please contact us at:
                   </p>
                   <p>
-                    Email: legal@toor.com<br />
+                    Email: legal@zanafly.com<br />
                     Phone: +1 (555) 123-4567<br />
                     Address: 123 Travel Street, New York, NY 10001, USA
                   </p>

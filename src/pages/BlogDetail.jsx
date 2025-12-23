@@ -156,7 +156,7 @@ const BlogDetail = () => {
   return (
     <>
       <SEO
-        title={`${post.title} | TOOR Blog`}
+        title={`${post.title} | Zanafly Blog`}
         description={post.excerpt}
         keywords={post.tags.join(', ')}
         canonical={`/blog/${id}`}

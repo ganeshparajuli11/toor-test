@@ -14,14 +14,39 @@ const SALT_ROUNDS = 12;
  * User Store - Manages user data persistence
  */
 
-// Ensure users file exists
+// Ensure users file exists with default user
 const ensureUsersFile = () => {
     const dir = path.dirname(USERS_FILE);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
     if (!fs.existsSync(USERS_FILE)) {
-        fs.writeFileSync(USERS_FILE, JSON.stringify({ users: [], lastUpdated: null }, null, 2));
+        // Create default demo user
+        const defaultUsers = {
+            users: [
+                {
+                    id: uuidv4(),
+                    email: 'user@zanafly.com',
+                    passwordHash: bcrypt.hashSync('user@123', SALT_ROUNDS),
+                    firstName: 'Demo',
+                    lastName: 'User',
+                    phone: '+1234567890',
+                    avatar: null,
+                    isVerified: true,
+                    verificationToken: null,
+                    verificationExpires: null,
+                    resetPasswordToken: null,
+                    resetPasswordExpires: null,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    lastLogin: null,
+                    bookings: []
+                }
+            ],
+            lastUpdated: new Date().toISOString()
+        };
+        fs.writeFileSync(USERS_FILE, JSON.stringify(defaultUsers, null, 2));
+        console.log('[UserStore] Created default user: user@zanafly.com / user@123');
     }
 };
 
@@ -350,6 +375,72 @@ export const regenerateVerificationToken = async (email) => {
     return { user: safeUser, verificationToken };
 };
 
+/**
+ * Get all users (without sensitive data)
+ * @returns {Array} List of users
+ */
+export const getAllUsers = async () => {
+    const data = readUsers();
+    return data.users.map(({ passwordHash, verificationToken, resetPasswordToken, ...user }) => user);
+};
+
+/**
+ * Get user stats
+ * @returns {Object} User statistics
+ */
+export const getUserStats = async () => {
+    const data = readUsers();
+    const users = data.users;
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+    return {
+        total: users.length,
+        verified: users.filter(u => u.isVerified).length,
+        unverified: users.filter(u => !u.isVerified).length,
+        newThisMonth: users.filter(u => new Date(u.createdAt) > thirtyDaysAgo).length,
+        activeThisMonth: users.filter(u => u.lastLogin && new Date(u.lastLogin) > thirtyDaysAgo).length
+    };
+};
+
+/**
+ * Update user status (for admin)
+ * @param {string} id
+ * @param {string} status - 'active', 'blocked', 'inactive'
+ * @returns {Object|null} Updated user or null
+ */
+export const updateUserStatus = async (id, status) => {
+    const data = readUsers();
+    const userIndex = data.users.findIndex(u => u.id === id);
+
+    if (userIndex === -1) return null;
+
+    data.users[userIndex].status = status;
+    data.users[userIndex].updatedAt = new Date().toISOString();
+
+    writeUsers(data);
+
+    const { passwordHash, verificationToken, resetPasswordToken, ...safeUser } = data.users[userIndex];
+    return safeUser;
+};
+
+/**
+ * Delete user (for admin)
+ * @param {string} id
+ * @returns {boolean} Success
+ */
+export const deleteUser = async (id) => {
+    const data = readUsers();
+    const userIndex = data.users.findIndex(u => u.id === id);
+
+    if (userIndex === -1) return false;
+
+    data.users.splice(userIndex, 1);
+    writeUsers(data);
+    return true;
+};
+
 export default {
     createUser,
     findUserByEmail,
@@ -362,5 +453,9 @@ export default {
     changePassword,
     addBookingToUser,
     getUserBookings,
-    regenerateVerificationToken
+    regenerateVerificationToken,
+    getAllUsers,
+    getUserStats,
+    updateUserStatus,
+    deleteUser
 };

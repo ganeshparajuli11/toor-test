@@ -509,7 +509,7 @@ const Bookings = () => {
     <>
       {/* SEO Meta Tags */}
       <SEO
-        title="My Bookings | TOOR - Travel Booking Platform"
+        title="My Bookings | Zanafly - Travel Booking Platform"
         description="View and manage all your travel bookings in one place"
         keywords="my bookings, booking history, travel bookings, hotel bookings"
         canonical="/bookings"

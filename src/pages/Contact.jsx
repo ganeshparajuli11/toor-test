@@ -19,7 +19,7 @@ const Contact = () => {
     {
       icon: <Mail size={24} />,
       title: 'Email Us',
-      details: ['support@toor.com', 'info@toor.com'],
+      details: ['support@zanafly.com', 'info@zanafly.com'],
       description: 'Send us an email anytime'
     },
     {
@@ -74,9 +74,9 @@ const Contact = () => {
   return (
     <>
       <SEO
-        title="Contact Us | TOOR - Get in Touch"
+        title="Contact Us | Zanafly - Get in Touch"
         description="Have questions? Get in touch with our team. We're here to help with all your travel needs."
-        keywords="contact TOOR, customer support, travel help, get in touch"
+        keywords="contact Zanafly, customer support, travel help, get in touch"
         canonical="/contact"
       />
 

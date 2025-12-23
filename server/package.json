@@ -1,7 +1,7 @@
 {
-    "name": "toor-server",
+    "name": "zanafly-server",
     "version": "1.0.0",
-    "description": "Backend for Toor Travel Booking",
+    "description": "Backend for Zanafly Travel Booking",
     "main": "server.js",
     "type": "module",
     "scripts": {

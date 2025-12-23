@@ -181,7 +181,7 @@ const Cruises = () => {
   return (
     <>
       <SEO
-        title={`Cruises to ${destination} | TOOR - Best Cruise Deals`}
+        title={`Cruises to ${destination} | Zanafly - Best Cruise Deals`}
         description={`Find and book amazing cruises to ${destination}. Compare prices and get the best cruise deals.`}
         keywords="cruise booking, cruise deals, vacation cruises, ocean cruises"
         canonical="/cruises"

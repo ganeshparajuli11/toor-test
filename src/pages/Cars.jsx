@@ -118,7 +118,7 @@ const Cars = () => {
   return (
     <>
       <SEO
-        title={`Car Rentals in ${pickupLocation} | TOOR - Best Car Rental Deals`}
+        title={`Car Rentals in ${pickupLocation} | Zanafly - Best Car Rental Deals`}
         description={`Find and book rental cars in ${pickupLocation}. Compare prices and get the best car rental deals.`}
         keywords="car rental, rent a car, car hire, vehicle rental, cheap car rental"
         canonical="/cars"

@@ -131,7 +131,7 @@ const Flights = () => {
   return (
     <>
       <SEO
-        title={`Flights from ${from} to ${to} | TOOR - Best Flight Deals`}
+        title={`Flights from ${from} to ${to} | Zanafly - Best Flight Deals`}
         description={`Find and book cheap flights from ${from} to ${to}. Compare prices and get the best deals.`}
         keywords="cheap flights, flight booking, airline tickets, flight deals"
         canonical="/flights"

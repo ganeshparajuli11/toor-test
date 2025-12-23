@@ -15,19 +15,35 @@ import {
   Car,
   Ship,
   Globe,
-  ChevronDown
+  ChevronDown,
+  ShieldCheck
 } from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 import logo from '../../assets/logo.png';
 import { useLanguage } from '../../contexts/LanguageContext';
 import './AdminLayout.css';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+  const [adminUser, setAdminUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language, setLanguage, currency, setCurrency } = useLanguage();
   const languageDropdownRef = useRef(null);
+
+  useEffect(() => {
+    // Get admin user from localStorage
+    const storedAdmin = localStorage.getItem('adminUser');
+    if (storedAdmin) {
+      setAdminUser(JSON.parse(storedAdmin));
+    }
+  }, []);
+
+  const isSuperAdmin = adminUser?.role === 'super_admin';
 
   const menuItems = [
     { path: '/admin', icon: LayoutDashboard, label: t('Dashboard'), exact: true },
@@ -38,6 +54,7 @@ const AdminLayout = () => {
     { path: '/admin/cruises', icon: Ship, label: t('Cruises') },
     { path: '/admin/payments', icon: CreditCard, label: t('Payments') },
     { path: '/admin/settings', icon: Settings, label: t('Admin Settings') },
+    ...(isSuperAdmin ? [{ path: '/admin/admins', icon: ShieldCheck, label: t('Manage Admins') }] : []),
   ];
 
   const isActive = (item) => {
@@ -47,10 +64,25 @@ const AdminLayout = () => {
     return location.pathname.startsWith(item.path);
   };
 
-  const handleLogout = () => {
-    // TODO: Implement actual logout logic
-    localStorage.removeItem('adminToken');
-    navigate('/admin/login');
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        // Call logout endpoint
+        await axios.post(`${API_URL}/api/admin/auth/logout`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear all admin data
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminRefreshToken');
+      localStorage.removeItem('adminUser');
+      toast.success('Logged out successfully');
+      navigate('/admin/login');
+    }
   };
 
   const handleLanguageChange = (lang, curr) => {
@@ -194,14 +226,16 @@ const AdminLayout = () => {
             </button>
 
             <div className="admin-user-menu">
-              <img
-                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100"
-                alt="Admin"
-                className="admin-avatar"
-              />
+              <div className="admin-avatar-initials">
+                {adminUser ? `${adminUser.firstName?.[0] || ''}${adminUser.lastName?.[0] || ''}` : 'AD'}
+              </div>
               <div className="admin-user-info">
-                <span className="admin-user-name">Admin User</span>
-                <span className="admin-user-role">Administrator</span>
+                <span className="admin-user-name">
+                  {adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Admin User'}
+                </span>
+                <span className="admin-user-role">
+                  {adminUser?.role === 'super_admin' ? 'Super Admin' : 'Administrator'}
+                </span>
               </div>
             </div>
           </div>

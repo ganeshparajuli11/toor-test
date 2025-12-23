@@ -112,6 +112,22 @@ export async function saveBooking(bookingData) {
 }
 
 /**
+ * Get booking by ID
+ */
+export async function getBookingById(id) {
+    const bookings = await getAllBookings();
+    return bookings.find(b => b.id === id) || null;
+}
+
+/**
+ * Save multiple bookings (replaces all)
+ */
+export async function saveBookings(bookings) {
+    await saveAllBookings(bookings);
+    return bookings;
+}
+
+/**
  * Update an existing booking
  */
 export async function updateBooking(id, updates) {

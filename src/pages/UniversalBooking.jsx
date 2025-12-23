@@ -451,7 +451,7 @@ const UniversalBooking = () => {
   return (
     <>
       <SEO
-        title={`Complete Your ${typeLabels[type]} Booking | TOOR`}
+        title={`Complete Your ${typeLabels[type]} Booking | Zanafly`}
         description="Complete your booking with secure payment"
         keywords="booking, payment, reservation"
         canonical={`/${type}/${id}/book`}

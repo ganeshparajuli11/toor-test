@@ -149,7 +149,7 @@ const Footer = () => {
       <div className="footer-bottom">
         <div className="container">
           <p className="copyright">
-            © 2025 TOOR. All rights reserved. Built with React.
+            © 2025 Zanafly. All rights reserved. Built with React.
           </p>
         </div>
       </div>

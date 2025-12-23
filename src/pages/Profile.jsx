@@ -99,7 +99,7 @@ const Profile = () => {
   return (
     <>
       <SEO
-        title="My Profile | TOOR"
+        title="My Profile | Zanafly"
         description="Manage your profile and travel preferences"
         keywords="profile, user profile, travel profile"
         canonical="/profile"

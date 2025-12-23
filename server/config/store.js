@@ -26,7 +26,9 @@ const defaultSettings = {
   stripe: {
     publishableKey: '',
     secretKey: '',
-    webhookSecret: ''
+    webhookSecret: '',
+    currency: 'USD',
+    enable3DSecure: true
   },
   oauth: {
     google: {
@@ -39,6 +41,26 @@ const defaultSettings = {
       appSecret: '',
       enabled: false
     }
+  },
+  email: {
+    smtpHost: '',
+    smtpPort: '587',
+    smtpUser: '',
+    smtpPassword: '',
+    fromEmail: '',
+    fromName: 'Zanafly',
+    enabled: false
+  },
+  database: {
+    mongodbUrl: '',
+    enabled: false
+  },
+  general: {
+    siteName: 'Zanafly',
+    siteUrl: '',
+    currency: 'USD',
+    language: 'en',
+    timezone: 'UTC'
   }
 };
 
@@ -64,6 +86,14 @@ export async function getSettings() {
     }
     if (settings.oauth?.facebook?.appSecret) {
       settings.oauth.facebook.appSecret = decrypt(settings.oauth.facebook.appSecret);
+    }
+    // Decrypt email password
+    if (settings.email?.smtpPassword) {
+      settings.email.smtpPassword = decrypt(settings.email.smtpPassword);
+    }
+    // Decrypt MongoDB URL
+    if (settings.database?.mongodbUrl) {
+      settings.database.mongodbUrl = decrypt(settings.database.mongodbUrl);
     }
 
     return settings;
@@ -101,6 +131,18 @@ export async function saveSettings(newSettings) {
       facebook: newSettings.oauth.facebook ? { ...current.oauth?.facebook, ...newSettings.oauth.facebook } : current.oauth?.facebook
     };
   }
+  // Merge email settings
+  if (newSettings.email) {
+    updated.email = { ...current.email, ...newSettings.email };
+  }
+  // Merge database settings
+  if (newSettings.database) {
+    updated.database = { ...current.database, ...newSettings.database };
+  }
+  // Merge general settings
+  if (newSettings.general) {
+    updated.general = { ...current.general, ...newSettings.general };
+  }
 
   // Create a copy for storage to encrypt sensitive fields
   const storageSettings = JSON.parse(JSON.stringify(updated));
@@ -120,6 +162,14 @@ export async function saveSettings(newSettings) {
   }
   if (storageSettings.oauth?.facebook?.appSecret) {
     storageSettings.oauth.facebook.appSecret = encrypt(storageSettings.oauth.facebook.appSecret);
+  }
+  // Encrypt email password
+  if (storageSettings.email?.smtpPassword) {
+    storageSettings.email.smtpPassword = encrypt(storageSettings.email.smtpPassword);
+  }
+  // Encrypt MongoDB URL
+  if (storageSettings.database?.mongodbUrl) {
+    storageSettings.database.mongodbUrl = encrypt(storageSettings.database.mongodbUrl);
   }
 
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(storageSettings, null, 2));

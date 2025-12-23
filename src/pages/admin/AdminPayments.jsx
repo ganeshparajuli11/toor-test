@@ -12,9 +12,13 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
-  Calendar
+  Calendar,
+  ExternalLink,
+  Zap,
+  Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 import api from '../../services/api.service';
 import './AdminPayments.css';
 
@@ -24,6 +28,8 @@ const AdminPayments = () => {
   const [filterMethod, setFilterMethod] = useState('all');
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [stripeStats, setStripeStats] = useState(null);
   const [summary, setSummary] = useState({
     totalTransactions: 0,
     totalAmount: 0,
@@ -35,16 +41,55 @@ const AdminPayments = () => {
   // Fetch payments from backend
   useEffect(() => {
     fetchPayments();
+    checkStripeConfig();
+    fetchStripeStats();
   }, []);
+
+  // Check Stripe configuration
+  const checkStripeConfig = async () => {
+    try {
+      const response = await api.get('/payment/config-status');
+      if (response.data.success) {
+        setStripeConfigured(response.data.config.connectionStatus === 'connected');
+      }
+    } catch (error) {
+      console.log('Stripe config check failed:', error.message);
+      setStripeConfigured(false);
+    }
+  };
+
+  // Fetch Stripe payment stats
+  const fetchStripeStats = async () => {
+    try {
+      const response = await api.get('/payment/stats');
+      if (response.data.success) {
+        setStripeStats(response.data.stats);
+      }
+    } catch (error) {
+      console.log('Failed to fetch Stripe stats:', error.message);
+    }
+  };
 
   const fetchPayments = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/bookings/payments');
-      const paymentsData = response.data.data || [];
+      // Fetch booking-based payments
+      const bookingsResponse = await api.get('/bookings/payments');
+      const bookingPayments = bookingsResponse.data.data || [];
 
-      // Transform payments data
-      const transformedPayments = paymentsData.map(payment => ({
+      // Fetch real Stripe payments if configured
+      let stripePayments = [];
+      try {
+        const stripeResponse = await api.get('/payment/payments');
+        if (stripeResponse.data.success && stripeResponse.data.payments) {
+          stripePayments = stripeResponse.data.payments;
+        }
+      } catch (err) {
+        console.log('Stripe payments not available:', err.message);
+      }
+
+      // Transform booking payments
+      const transformedBookingPayments = bookingPayments.map(payment => ({
         id: payment.id,
         transactionId: payment.id,
         bookingRef: payment.bookingId,
@@ -57,20 +102,53 @@ const AdminPayments = () => {
         cardBrand: payment.isDemo ? 'demo' : 'stripe',
         date: payment.createdAt ? new Date(payment.createdAt).toLocaleString() : 'N/A',
         description: `${payment.type?.charAt(0).toUpperCase()}${payment.type?.slice(1) || 'Hotel'} Booking - ${payment.itemName || 'Booking'}`,
-        fee: payment.isDemo ? 0 : (payment.amount * 0.029 + 0.30).toFixed(2), // Stripe fee: 2.9% + $0.30
+        fee: payment.isDemo ? 0 : (payment.amount * 0.029 + 0.30).toFixed(2),
         net: payment.isDemo ? payment.amount : (payment.amount - (payment.amount * 0.029 + 0.30)).toFixed(2),
         refundable: payment.status === 'completed',
         threeDSecure: !payment.isDemo,
-        isDemo: payment.isDemo || false
+        isDemo: payment.isDemo || false,
+        source: 'booking'
       }));
 
-      setPayments(transformedPayments);
-      setSummary(response.data.summary || {
-        totalTransactions: transformedPayments.length,
-        totalAmount: transformedPayments.reduce((sum, p) => sum + p.amount, 0),
-        completedAmount: transformedPayments.filter(p => p.status === 'Succeeded').reduce((sum, p) => sum + p.amount, 0),
-        demoTransactions: transformedPayments.filter(p => p.isDemo).length,
-        realTransactions: transformedPayments.filter(p => !p.isDemo).length
+      // Transform Stripe payments (real payments from Stripe API)
+      const transformedStripePayments = stripePayments.map(payment => ({
+        id: payment.id,
+        transactionId: payment.id,
+        bookingRef: payment.bookingId || 'N/A',
+        customer: payment.customerName || 'Guest',
+        email: payment.customerEmail || 'N/A',
+        amount: payment.amount || 0,
+        currency: payment.currency || 'USD',
+        status: payment.status === 'succeeded' ? 'Succeeded' :
+                payment.status === 'requires_payment_method' ? 'Pending' :
+                payment.refunded ? 'Refunded' : 'Pending',
+        paymentMethod: `${payment.cardBrand ? payment.cardBrand.charAt(0).toUpperCase() + payment.cardBrand.slice(1) : 'Card'} •••• ${payment.cardLast4 || '****'}`,
+        cardBrand: payment.cardBrand || 'stripe',
+        date: payment.created ? new Date(payment.created).toLocaleString() : 'N/A',
+        description: payment.description || 'Zanafly Payment',
+        fee: payment.fee || (payment.amount * 0.029 + 0.30).toFixed(2),
+        net: (payment.amount - (payment.fee || payment.amount * 0.029 + 0.30)).toFixed(2),
+        refundable: payment.status === 'succeeded' && !payment.refunded,
+        threeDSecure: true,
+        isDemo: false,
+        source: 'stripe',
+        receiptUrl: payment.receiptUrl
+      }));
+
+      // Combine and deduplicate (prefer Stripe data if same transaction ID)
+      const stripeIds = new Set(transformedStripePayments.map(p => p.id));
+      const combinedPayments = [
+        ...transformedStripePayments,
+        ...transformedBookingPayments.filter(p => !stripeIds.has(p.id))
+      ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      setPayments(combinedPayments);
+      setSummary({
+        totalTransactions: combinedPayments.length,
+        totalAmount: combinedPayments.reduce((sum, p) => sum + p.amount, 0),
+        completedAmount: combinedPayments.filter(p => p.status === 'Succeeded').reduce((sum, p) => sum + p.amount, 0),
+        demoTransactions: combinedPayments.filter(p => p.isDemo).length,
+        realTransactions: combinedPayments.filter(p => !p.isDemo).length
       });
 
     } catch (error) {
@@ -142,18 +220,29 @@ const AdminPayments = () => {
     .reduce((sum, p) => sum + parseFloat(p.fee || 0), 0);
   const netRevenue = totalRevenue - totalFees;
 
-  const handleRefund = async (paymentId, bookingId) => {
-    if (!window.confirm('Are you sure you want to refund this payment?')) return;
+  const handleRefund = async (payment) => {
+    if (!window.confirm(`Are you sure you want to refund $${payment.amount.toFixed(2)} to ${payment.customer}?`)) return;
 
-    toast.loading('Processing refund...');
+    const toastId = toast.loading('Processing refund...');
     try {
-      await api.post(`/bookings/${bookingId}/cancel`);
-      toast.dismiss();
+      // For real Stripe payments, use the payment refund endpoint
+      if (!payment.isDemo && payment.transactionId.startsWith('pi_')) {
+        await api.post('/payment/refund', {
+          paymentIntentId: payment.transactionId,
+          reason: 'requested_by_customer'
+        });
+      } else {
+        // For demo/booking-based payments, cancel the booking
+        await api.post(`/bookings/${payment.bookingRef}/cancel`);
+      }
+
+      toast.dismiss(toastId);
       toast.success('Refund processed successfully!');
       fetchPayments();
+      fetchStripeStats();
     } catch (error) {
-      toast.dismiss();
-      toast.error('Failed to process refund');
+      toast.dismiss(toastId);
+      toast.error(error.response?.data?.message || 'Failed to process refund');
     }
   };
 
@@ -331,17 +420,61 @@ const AdminPayments = () => {
         </div>
       </div>
 
+      {/* Stripe Status Banner */}
+      {stripeConfigured ? (
+        <div className="integration-alert" style={{
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: 'white'
+        }}>
+          <Zap size={20} />
+          <div>
+            <strong>Stripe Connected</strong>
+            <p style={{ margin: 0, opacity: 0.9 }}>
+              Real payments are enabled. {stripeStats?.successfulPayments || 0} successful payments in the last 30 days.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="integration-alert" style={{
+          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+          color: 'white'
+        }}>
+          <AlertCircle size={20} />
+          <div style={{ flex: 1 }}>
+            <strong>Stripe Not Configured</strong>
+            <p style={{ margin: 0, opacity: 0.9 }}>
+              Configure Stripe in Admin Settings to accept real payments.
+            </p>
+          </div>
+          <Link to="/admin/settings" style={{
+            background: 'rgba(255,255,255,0.2)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '14px'
+          }}>
+            <Settings size={16} />
+            Configure
+          </Link>
+        </div>
+      )}
+
       {/* Demo Mode Banner */}
       {summary.demoTransactions > 0 && (
         <div className="integration-alert" style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white'
+          color: 'white',
+          marginTop: summary.demoTransactions > 0 ? '-0.5rem' : '0'
         }}>
           <AlertCircle size={20} />
           <div>
-            <strong>Demo Payments Active</strong>
+            <strong>Demo Payments Present</strong>
             <p style={{ margin: 0, opacity: 0.9 }}>
-              You have {summary.demoTransactions} demo payment(s). Configure Stripe in Admin Settings for real payments.
+              You have {summary.demoTransactions} demo payment(s). These are test transactions.
             </p>
           </div>
         </div>
@@ -435,10 +568,21 @@ const AdminPayments = () => {
                       <button
                         className="action-btn refund"
                         title="Refund Payment"
-                        onClick={() => handleRefund(payment.id, payment.bookingRef)}
+                        onClick={() => handleRefund(payment)}
                       >
                         <RefreshCw size={16} />
                       </button>
+                    )}
+                    {payment.receiptUrl && (
+                      <a
+                        href={payment.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="action-btn receipt"
+                        title="View Receipt"
+                      >
+                        <ExternalLink size={16} />
+                      </a>
                     )}
                   </div>
                 </td>

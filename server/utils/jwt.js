@@ -63,8 +63,8 @@ export const generateAccessToken = (user) => {
 
     return jwt.sign(payload, JWT_SECRET, {
         expiresIn: ACCESS_TOKEN_EXPIRY,
-        issuer: 'toor-api',
-        audience: 'toor-app'
+        issuer: 'zanafly-api',
+        audience: 'zanafly-app'
     });
 };
 
@@ -81,8 +81,8 @@ export const generateRefreshToken = (user) => {
 
     return jwt.sign(payload, JWT_SECRET, {
         expiresIn: REFRESH_TOKEN_EXPIRY,
-        issuer: 'toor-api',
-        audience: 'toor-app'
+        issuer: 'zanafly-api',
+        audience: 'zanafly-app'
     });
 };
 
@@ -108,8 +108,8 @@ export const generateTokenPair = (user) => {
 export const verifyAccessToken = (token) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET, {
-            issuer: 'toor-api',
-            audience: 'toor-app'
+            issuer: 'zanafly-api',
+            audience: 'zanafly-app'
         });
 
         if (decoded.type !== 'access') {
@@ -131,8 +131,8 @@ export const verifyAccessToken = (token) => {
 export const verifyRefreshToken = (token) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET, {
-            issuer: 'toor-api',
-            audience: 'toor-app'
+            issuer: 'zanafly-api',
+            audience: 'zanafly-app'
         });
 
         if (decoded.type !== 'refresh') {
@@ -155,6 +155,107 @@ export const decodeToken = (token) => {
     try {
         return jwt.decode(token);
     } catch (error) {
+        return null;
+    }
+};
+
+/**
+ * Generate admin access token
+ * @param {Object} admin - Admin object (id, email, firstName, lastName, role)
+ * @returns {string} JWT admin access token
+ */
+export const generateAdminAccessToken = (admin) => {
+    const payload = {
+        adminId: admin.id,
+        email: admin.email,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        role: admin.role,
+        type: 'admin_access'
+    };
+
+    return jwt.sign(payload, JWT_SECRET, {
+        expiresIn: ACCESS_TOKEN_EXPIRY,
+        issuer: 'zanafly-api',
+        audience: 'zanafly-admin'
+    });
+};
+
+/**
+ * Generate admin refresh token
+ * @param {Object} admin - Admin object (id)
+ * @returns {string} JWT admin refresh token
+ */
+export const generateAdminRefreshToken = (admin) => {
+    const payload = {
+        adminId: admin.id,
+        role: admin.role,
+        type: 'admin_refresh'
+    };
+
+    return jwt.sign(payload, JWT_SECRET, {
+        expiresIn: REFRESH_TOKEN_EXPIRY,
+        issuer: 'zanafly-api',
+        audience: 'zanafly-admin'
+    });
+};
+
+/**
+ * Generate both admin access and refresh tokens
+ * @param {Object} admin - Admin object
+ * @returns {Object} { accessToken, refreshToken, expiresIn }
+ */
+export const generateAdminTokenPair = (admin) => {
+    return {
+        accessToken: generateAdminAccessToken(admin),
+        refreshToken: generateAdminRefreshToken(admin),
+        expiresIn: 900, // 15 minutes in seconds
+        tokenType: 'Bearer'
+    };
+};
+
+/**
+ * Verify admin access token
+ * @param {string} token - JWT token
+ * @returns {Object|null} Decoded payload or null
+ */
+export const verifyAdminAccessToken = (token) => {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET, {
+            issuer: 'zanafly-api',
+            audience: 'zanafly-admin'
+        });
+
+        if (decoded.type !== 'admin_access') {
+            return null;
+        }
+
+        return decoded;
+    } catch (error) {
+        console.error('[JWT] Admin access token verification failed:', error.message);
+        return null;
+    }
+};
+
+/**
+ * Verify admin refresh token
+ * @param {string} token - JWT admin refresh token
+ * @returns {Object|null} Decoded payload or null
+ */
+export const verifyAdminRefreshToken = (token) => {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET, {
+            issuer: 'zanafly-api',
+            audience: 'zanafly-admin'
+        });
+
+        if (decoded.type !== 'admin_refresh') {
+            return null;
+        }
+
+        return decoded;
+    } catch (error) {
+        console.error('[JWT] Admin refresh token verification failed:', error.message);
         return null;
     }
 };
@@ -198,6 +299,11 @@ export default {
     generateTokenPair,
     verifyAccessToken,
     verifyRefreshToken,
+    generateAdminAccessToken,
+    generateAdminRefreshToken,
+    generateAdminTokenPair,
+    verifyAdminAccessToken,
+    verifyAdminRefreshToken,
     decodeToken,
     isTokenExpired,
     getTokenExpiry,

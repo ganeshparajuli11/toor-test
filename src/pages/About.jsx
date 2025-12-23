@@ -40,7 +40,7 @@ const About = () => {
       name: 'Sarah Johnson',
       role: 'CEO & Founder',
       image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop',
-      description: 'With 20+ years in the travel industry, Sarah founded TOOR with a vision to democratize travel.'
+      description: 'With 20+ years in the travel industry, Sarah founded Zanafly with a vision to democratize travel.'
     },
     {
       name: 'Michael Chen',
@@ -63,7 +63,7 @@ const About = () => {
   ];
 
   const milestones = [
-    { year: '2010', event: 'TOOR Founded', description: 'Started with a simple mission: make travel accessible to everyone' },
+    { year: '2010', event: 'Zanafly Founded', description: 'Started with a simple mission: make travel accessible to everyone' },
     { year: '2013', event: 'Reached 1M Users', description: 'Celebrated our millionth happy traveler' },
     { year: '2016', event: 'Global Expansion', description: 'Expanded operations to 50+ countries' },
     { year: '2019', event: 'Mobile App Launch', description: 'Launched our award-winning mobile application' },
@@ -74,9 +74,9 @@ const About = () => {
   return (
     <>
       <SEO
-        title="About Us | TOOR - Your Travel Partner"
-        description="Learn about TOOR, our mission, values, and the team dedicated to making your travel dreams come true."
-        keywords="about TOOR, travel company, our story, our mission"
+        title="About Us | Zanafly - Your Travel Partner"
+        description="Learn about Zanafly, our mission, values, and the team dedicated to making your travel dreams come true."
+        keywords="about Zanafly, travel company, our story, our mission"
         canonical="/about"
       />
 
@@ -86,7 +86,7 @@ const About = () => {
         {/* Hero Section */}
         <div className="about-hero">
           <div className="container">
-            <h1 className="about-hero-title">About TOOR</h1>
+            <h1 className="about-hero-title">About Zanafly</h1>
             <p className="about-hero-subtitle">
               Making Travel Dreams Come True Since 2010
             </p>
@@ -100,7 +100,7 @@ const About = () => {
               <div className="about-mission-text">
                 <h2 className="section-title">Our Mission</h2>
                 <p className="section-description">
-                  At TOOR, we believe that travel is more than just visiting new places—it's about creating
+                  At Zanafly, we believe that travel is more than just visiting new places—it's about creating
                   unforgettable experiences, discovering new cultures, and making lasting memories.
                 </p>
                 <p className="section-description">
@@ -158,7 +158,7 @@ const About = () => {
           <div className="container">
             <h2 className="section-title center">Meet Our Team</h2>
             <p className="section-subtitle center">
-              The passionate people behind TOOR
+              The passionate people behind Zanafly
             </p>
             <div className="team-grid">
               {team.map((member, index) => (
@@ -211,7 +211,7 @@ const About = () => {
               <Award size={48} className="cta-icon" />
               <h2 className="cta-title">Ready to Start Your Journey?</h2>
               <p className="cta-description">
-                Join millions of travelers who trust TOOR for their adventures
+                Join millions of travelers who trust Zanafly for their adventures
               </p>
               <button className="cta-button">Start Planning</button>
             </div>
