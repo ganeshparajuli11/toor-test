@@ -10,6 +10,7 @@ import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import { getApiUrl, API_ENDPOINTS } from '../config/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api.service';
 import ratehawkService from '../services/ratehawk.service';
 import './BookingDetail.css';
@@ -273,6 +274,18 @@ const BookingDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currency: contextCurrency, formatCurrency } = useLanguage();
+  const { user, isAuthenticated } = useAuth();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.error('Please login to continue with your booking');
+      // Store the current URL to redirect back after login
+      const currentUrl = window.location.pathname + window.location.search;
+      sessionStorage.setItem('redirectAfterLogin', currentUrl);
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
 
   // Get booking parameters from URL
   const matchHash = searchParams.get('matchHash');
@@ -800,6 +813,11 @@ const BookingDetail = () => {
         <Footer />
       </div>
     );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
   }
 
   const bookingData = booking || fallbackBooking;

@@ -10,6 +10,11 @@ export const useLocation = () => {
   return context;
 };
 
+// Helper function to check if current path is admin
+const isAdminPage = () => {
+  return window.location.pathname.startsWith('/admin');
+};
+
 export const LocationProvider = ({ children }) => {
   const [userLocation, setUserLocation] = useState(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -17,6 +22,12 @@ export const LocationProvider = ({ children }) => {
 
   // Check localStorage on mount
   useEffect(() => {
+    // Don't show location modal on admin pages
+    if (isAdminPage()) {
+      setIsLoading(false);
+      return;
+    }
+
     const savedLocation = localStorage.getItem('userLocation');
     if (savedLocation) {
       try {
@@ -28,7 +39,10 @@ export const LocationProvider = ({ children }) => {
     } else {
       // No saved location, show modal after a short delay
       setTimeout(() => {
-        setShowLocationModal(true);
+        // Double check we're not on admin page before showing
+        if (!isAdminPage()) {
+          setShowLocationModal(true);
+        }
       }, 1000);
     }
     setIsLoading(false);

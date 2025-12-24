@@ -13,7 +13,11 @@ import {
   AlertCircle,
   CheckCircle,
   Users,
-  Info
+  Info,
+  Settings,
+  Zap,
+  Lock,
+  Database
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApiSettings } from '../../contexts/ApiSettingsContext';
@@ -30,6 +34,7 @@ const AdminSettings = () => {
   // Get API settings from context
   const {
     apiSettings: contextApiSettings,
+    saveApiSettings,
     updateRateHawkSettings,
     updateStripeSettings,
     updateOAuthSettings,
@@ -287,7 +292,7 @@ const AdminSettings = () => {
     { id: 'oauth', label: 'Social Login', icon: Users },
     { id: 'payment', label: 'Payment', icon: CreditCard },
     { id: 'email', label: 'Email SMTP', icon: Mail },
-    { id: 'database', label: 'Database', icon: Shield },
+    { id: 'database', label: 'Database', icon: Database },
     { id: 'general', label: 'General', icon: Globe }
   ];
 
@@ -295,8 +300,11 @@ const AdminSettings = () => {
     <div className="admin-settings">
       <div className="settings-header">
         <div>
-          <h1 className="settings-title">Settings</h1>
-          <p className="settings-subtitle">Manage system configuration and API integrations</p>
+          <h1 className="settings-title">
+            <Settings size={32} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+            Settings
+          </h1>
+          <p className="settings-subtitle">Manage system configuration, API integrations, and security settings</p>
         </div>
       </div>
 
@@ -329,7 +337,10 @@ const AdminSettings = () => {
 
               <div className="settings-card">
                 <div className="card-header">
-                  <h3 className="card-title">Primary API Configuration</h3>
+                  <h3 className="card-title">
+                    <Zap size={18} />
+                    Primary API Configuration
+                  </h3>
                   {isRateHawkConfigured() ? (
                     <span className="status-badge active">
                       <CheckCircle size={14} />
@@ -630,7 +641,10 @@ const AdminSettings = () => {
 
               <div className="settings-card">
                 <div className="card-header">
-                  <h3 className="card-title">Stripe Settings</h3>
+                  <h3 className="card-title">
+                    <Lock size={18} />
+                    Stripe Settings
+                  </h3>
                   {paymentSettings.stripePublishableKey && paymentSettings.stripeSecretKey ? (
                     <span className="status-badge active">
                       <CheckCircle size={14} />
@@ -689,10 +703,10 @@ const AdminSettings = () => {
                       }
                       className="form-select"
                     >
-                      <option value="USD">USD - US Dollar</option>
+                      <option value="CHF">CHF - Swiss Franc</option>
                       <option value="EUR">EUR - Euro</option>
+                      <option value="USD">USD - US Dollar</option>
                       <option value="GBP">GBP - British Pound</option>
-                      <option value="AED">AED - UAE Dirham</option>
                     </select>
                   </div>
 
@@ -939,7 +953,10 @@ const AdminSettings = () => {
 
               <div className="settings-card">
                 <div className="card-header">
-                  <h3 className="card-title">MongoDB Settings</h3>
+                  <h3 className="card-title">
+                    <Database size={18} />
+                    MongoDB Settings
+                  </h3>
                   {databaseSettings.mongodbUrl ? (
                     <span className="status-badge active">
                       <CheckCircle size={14} />
@@ -1042,8 +1059,9 @@ const AdminSettings = () => {
                       }
                       className="form-select"
                     >
-                      <option value="USD">USD</option>
+                      <option value="CHF">CHF</option>
                       <option value="EUR">EUR</option>
+                      <option value="USD">USD</option>
                       <option value="GBP">GBP</option>
                     </select>
                   </div>

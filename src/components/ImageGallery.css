@@ -38,6 +38,7 @@
   position: relative;
   width: 100%;
   height: 100%;
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
 }
 
 .gallery-main-image img {
@@ -45,6 +46,7 @@
   height: 100%;
   object-fit: cover;
   transition: transform var(--transition-base);
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
 }
 
 .gallery-main-image-group:hover img {
@@ -98,6 +100,7 @@
   position: relative;
   width: 100%;
   height: 100%;
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
 }
 
 .gallery-thumbnail img {
@@ -105,6 +108,7 @@
   height: 100%;
   object-fit: cover;
   transition: transform var(--transition-base);
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
 }
 
 .gallery-thumbnail-group:hover img {

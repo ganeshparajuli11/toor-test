@@ -1,5 +1,5 @@
 import express from 'express';
-import { getBookings, saveBooking, updateBooking, getBookingStats, getPayments } from '../config/bookingStore.js';
+import { getBookings, saveBooking, updateBooking, getBookingStats, getPayments, getBookingsByEmail, getBookingById } from '../config/bookingStore.js';
 
 const router = express.Router();
 
@@ -12,6 +12,33 @@ router.get('/', async (req, res) => {
     } catch (error) {
         console.error('Error fetching bookings:', error);
         res.status(500).json({ message: 'Failed to fetch bookings' });
+    }
+});
+
+// GET /api/bookings/user/:email - Get bookings for a specific user by email
+router.get('/user/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        const { sort = 'latest', page = 1, limit = 10, status } = req.query;
+
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
+        }
+
+        const result = await getBookingsByEmail(email, {
+            sort,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            status
+        });
+
+        res.json({
+            success: true,
+            ...result
+        });
+    } catch (error) {
+        console.error('Error fetching user bookings:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch user bookings' });
     }
 });
 

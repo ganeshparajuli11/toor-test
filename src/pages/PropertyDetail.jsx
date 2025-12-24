@@ -91,11 +91,39 @@ const PropertyDetail = () => {
 
       // First, check if we have cached data from Hotels page
       let cachedData = null;
+      // Helper function to process image URLs
+      const processImageUrl = (url) => {
+        if (!url || typeof url !== 'string') return null;
+        let processed = url;
+        // Decode URL-encoded placeholders
+        processed = processed.replace(/%7Bsize%7D/gi, '1024x768');
+        processed = processed.replace(/%7B/g, '{').replace(/%7D/g, '}');
+        // Replace {size} placeholders
+        processed = processed.replace(/t\/\{size\}\//gi, 't/1024x768/');
+        processed = processed.replace(/\/\{size\}\//gi, '/1024x768/');
+        processed = processed.replace(/t\{size\}/gi, '1024x768');
+        processed = processed.replace(/_\{size\}_/gi, '_1024x768_');
+        processed = processed.replace(/\{size\}/gi, '1024x768');
+        // Ensure HTTPS
+        if (processed.startsWith('http://')) {
+          processed = processed.replace('http://', 'https://');
+        }
+        if (processed.startsWith('//')) {
+          processed = 'https:' + processed;
+        }
+        return processed;
+      };
+
       try {
         const cached = sessionStorage.getItem(`hotel_${id}`);
         if (cached) {
           cachedData = JSON.parse(cached);
           console.log('[PropertyDetail] Using cached hotel data:', cachedData);
+          // Process cached images
+          if (cachedData.images && cachedData.images.length > 0) {
+            cachedData.images = cachedData.images.map(processImageUrl).filter(Boolean);
+            console.log('[PropertyDetail] Processed cached images:', cachedData.images);
+          }
           // Set cached data immediately for instant display
           if (cachedData.images && cachedData.images.length > 0) {
             const initialProperty = {
@@ -116,15 +144,30 @@ const PropertyDetail = () => {
       try {
         const hotelData = await ratehawkService.getHotelDetails(id);
         console.log('Hotel details from API:', hotelData);
+        console.log('[PropertyDetail] API images:', hotelData.images);
 
         // Use price from search params if available (since hotel/info doesn't return price)
         if (priceFromSearch && parseFloat(priceFromSearch) > 0) {
           hotelData.price = parseFloat(priceFromSearch);
         }
 
-        // If API returned no images but we have cached images, use those
-        if ((!hotelData.images || hotelData.images.length === 0) && cachedData?.images?.length > 0) {
+        // Prefer cached images if they have more images than API response
+        // This is because the search API may return more images than the hotel/info API
+        const apiImageCount = hotelData.images?.length || 0;
+        const cachedImageCount = cachedData?.images?.length || 0;
+
+        if (cachedImageCount > apiImageCount) {
+          console.log(`[PropertyDetail] Using cached images (${cachedImageCount}) over API images (${apiImageCount})`);
           hotelData.images = cachedData.images;
+        } else if (apiImageCount === 0 && cachedImageCount > 0) {
+          console.log('[PropertyDetail] API returned no images, using cached images');
+          hotelData.images = cachedData.images;
+        }
+
+        // Process all images to ensure {size} placeholders are replaced
+        if (hotelData.images && Array.isArray(hotelData.images)) {
+          hotelData.images = hotelData.images.map(processImageUrl).filter(Boolean);
+          console.log('[PropertyDetail] Processed images:', hotelData.images);
         }
 
         setProperty(hotelData);

@@ -12,7 +12,13 @@ import {
   Plane,
   Ship,
   Car,
-  RefreshCw
+  RefreshCw,
+  X,
+  Calendar,
+  Users,
+  CreditCard,
+  Phone,
+  MapPin
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api.service';
@@ -24,6 +30,8 @@ const AdminBookings = () => {
   const [filterType, setFilterType] = useState('all');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [stats, setStats] = useState({
     confirmed: 0,
     pending: 0,
@@ -46,9 +54,17 @@ const AdminBookings = () => {
       const transformedBookings = bookingsData.map(booking => ({
         id: booking.id,
         bookingRef: booking.id,
+        // Guest info (who the booking is FOR)
         customer: booking.guest ? `${booking.guest.firstName} ${booking.guest.lastName}` : 'Guest',
         email: booking.guest?.email || 'N/A',
         phone: booking.guest?.phone || 'N/A',
+        // Booked by info (who MADE the booking - logged in user)
+        bookedBy: booking.bookedBy ? {
+          name: booking.bookedBy.name || 'N/A',
+          email: booking.bookedBy.email || 'N/A',
+          phone: booking.bookedBy.phone || 'N/A',
+          id: booking.bookedBy.id || 'N/A'
+        } : null,
         type: (booking.type || 'hotel').charAt(0).toUpperCase() + (booking.type || 'hotel').slice(1),
         destination: booking.subtitle || booking.title || 'N/A',
         hotelName: booking.title || 'N/A',
@@ -58,8 +74,10 @@ const AdminBookings = () => {
         nights: booking.details?.find(d => d.label === 'Nights')?.value || 'N/A',
         amount: booking.totalPrice || 0,
         status: (booking.status || 'pending').charAt(0).toUpperCase() + (booking.status || 'pending').slice(1),
-        paymentStatus: booking.isDemo ? 'Demo' : 'Paid',
+        paymentStatus: booking.paymentStatus || (booking.isDemo ? 'Demo' : 'Paid'),
+        paymentId: booking.paymentId || 'N/A',
         bookingDate: booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : 'N/A',
+        bookingDateTime: booking.createdAt || null,
         voucherSent: booking.status === 'confirmed',
         isDemo: booking.isDemo || false,
         rawData: booking
@@ -131,10 +149,24 @@ const AdminBookings = () => {
       await api.post(`/bookings/${bookingId}/cancel`);
       toast.success('Booking cancelled successfully');
       fetchBookings();
+      if (showModal && selectedBooking?.id === bookingId) {
+        setShowModal(false);
+        setSelectedBooking(null);
+      }
     } catch (error) {
       console.error('Error cancelling booking:', error);
       toast.error('Failed to cancel booking');
     }
+  };
+
+  const handleViewDetails = (booking) => {
+    setSelectedBooking(booking);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedBooking(null);
   };
 
   const handleExport = () => {
@@ -369,7 +401,7 @@ const AdminBookings = () => {
                     <button
                       className="action-btn view"
                       title="View Details"
-                      onClick={() => toast.info(`Booking: ${booking.bookingRef}\nCustomer: ${booking.customer}\nAmount: $${booking.amount}`)}
+                      onClick={() => handleViewDetails(booking)}
                     >
                       <Eye size={16} />
                     </button>
@@ -399,6 +431,195 @@ const AdminBookings = () => {
               Bookings will appear here when customers make reservations.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Booking Details Modal */}
+      {showModal && selectedBooking && (
+        <div className="booking-modal-overlay" onClick={closeModal}>
+          <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Booking Details</h2>
+              <button className="modal-close" onClick={closeModal}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="modal-content">
+              {/* Booking Reference */}
+              <div className="modal-section">
+                <div className="modal-row">
+                  <span className="modal-label">Booking Reference:</span>
+                  <span className="modal-value booking-ref-value">
+                    {selectedBooking.bookingRef}
+                    {selectedBooking.isDemo && (
+                      <span className="demo-badge-modal">DEMO</span>
+                    )}
+                  </span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Status:</span>
+                  <span className={`status-badge ${getStatusClass(selectedBooking.status)}`}>
+                    {selectedBooking.status}
+                  </span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Payment:</span>
+                  <span className={`payment-badge ${selectedBooking.paymentStatus.toLowerCase()}`}>
+                    {selectedBooking.paymentStatus}
+                  </span>
+                </div>
+              </div>
+
+              {/* Booked By Information (Who made the booking) */}
+              {selectedBooking.bookedBy && (
+                <div className="modal-section">
+                  <h3 className="section-title">
+                    <Users size={18} /> Booked By (Account Holder)
+                  </h3>
+                  <div className="modal-row">
+                    <span className="modal-label">Name:</span>
+                    <span className="modal-value">{selectedBooking.bookedBy.name}</span>
+                  </div>
+                  <div className="modal-row">
+                    <span className="modal-label">Email:</span>
+                    <span className="modal-value">
+                      <a href={`mailto:${selectedBooking.bookedBy.email}`} style={{ color: '#667eea' }}>
+                        {selectedBooking.bookedBy.email}
+                      </a>
+                    </span>
+                  </div>
+                  {selectedBooking.bookedBy.phone && selectedBooking.bookedBy.phone !== 'N/A' && (
+                    <div className="modal-row">
+                      <span className="modal-label">Phone:</span>
+                      <span className="modal-value">{selectedBooking.bookedBy.phone}</span>
+                    </div>
+                  )}
+                  {selectedBooking.bookedBy.id && selectedBooking.bookedBy.id !== 'N/A' && (
+                    <div className="modal-row">
+                      <span className="modal-label">User ID:</span>
+                      <span className="modal-value" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                        {selectedBooking.bookedBy.id}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Guest Information (Who the booking is for) */}
+              <div className="modal-section">
+                <h3 className="section-title">
+                  <Users size={18} /> Guest Information (Booking For)
+                </h3>
+                <div className="modal-row">
+                  <span className="modal-label">Name:</span>
+                  <span className="modal-value">{selectedBooking.customer}</span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Email:</span>
+                  <span className="modal-value">
+                    <a href={`mailto:${selectedBooking.email}`} style={{ color: '#667eea' }}>
+                      {selectedBooking.email}
+                    </a>
+                  </span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Phone:</span>
+                  <span className="modal-value">{selectedBooking.phone}</span>
+                </div>
+              </div>
+
+              {/* Booking Details */}
+              <div className="modal-section">
+                <h3 className="section-title">
+                  {getTypeIcon(selectedBooking.type)} Booking Information
+                </h3>
+                <div className="modal-row">
+                  <span className="modal-label">Type:</span>
+                  <span className="modal-value">{selectedBooking.type}</span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Property:</span>
+                  <span className="modal-value">{selectedBooking.hotelName}</span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Destination:</span>
+                  <span className="modal-value">{selectedBooking.destination}</span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Check-in:</span>
+                  <span className="modal-value">{selectedBooking.checkIn}</span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Check-out:</span>
+                  <span className="modal-value">{selectedBooking.checkOut}</span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Guests:</span>
+                  <span className="modal-value">{selectedBooking.guests}</span>
+                </div>
+                {selectedBooking.nights && selectedBooking.nights !== 'N/A' && (
+                  <div className="modal-row">
+                    <span className="modal-label">Nights:</span>
+                    <span className="modal-value">{selectedBooking.nights}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Information */}
+              <div className="modal-section">
+                <h3 className="section-title">
+                  <CreditCard size={18} /> Payment Information
+                </h3>
+                <div className="modal-row">
+                  <span className="modal-label">Amount:</span>
+                  <span className="modal-value amount-value">${selectedBooking.amount.toLocaleString()}</span>
+                </div>
+                <div className="modal-row">
+                  <span className="modal-label">Payment Status:</span>
+                  <span className={`payment-badge ${selectedBooking.paymentStatus.toLowerCase()}`}>
+                    {selectedBooking.paymentStatus}
+                  </span>
+                </div>
+                {selectedBooking.paymentId && selectedBooking.paymentId !== 'N/A' && (
+                  <div className="modal-row">
+                    <span className="modal-label">Payment ID:</span>
+                    <span className="modal-value" style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                      {selectedBooking.paymentId}
+                    </span>
+                  </div>
+                )}
+                <div className="modal-row">
+                  <span className="modal-label">Booking Date:</span>
+                  <span className="modal-value">{selectedBooking.bookingDate}</span>
+                </div>
+                {selectedBooking.bookingDateTime && (
+                  <div className="modal-row">
+                    <span className="modal-label">Booking Time:</span>
+                    <span className="modal-value">
+                      {new Date(selectedBooking.bookingDateTime).toLocaleTimeString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="modal-actions">
+                {selectedBooking.status !== 'Cancelled' && (
+                  <button
+                    className="modal-btn cancel-btn"
+                    onClick={() => handleCancelBooking(selectedBooking.id)}
+                  >
+                    <XCircle size={18} />
+                    Cancel Booking
+                  </button>
+                )}
+                <button className="modal-btn close-btn" onClick={closeModal}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

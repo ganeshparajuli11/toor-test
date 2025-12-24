@@ -27,7 +27,7 @@ const defaultSettings = {
     publishableKey: '',
     secretKey: '',
     webhookSecret: '',
-    currency: 'USD',
+    currency: 'CHF',
     enable3DSecure: true
   },
   oauth: {
@@ -58,7 +58,7 @@ const defaultSettings = {
   general: {
     siteName: 'Zanafly',
     siteUrl: '',
-    currency: 'USD',
+    currency: 'CHF',
     language: 'en',
     timezone: 'UTC'
   }

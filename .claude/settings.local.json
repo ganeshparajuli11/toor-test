@@ -23,7 +23,11 @@
       "Bash(fi)",
       "Bash(ls:*)",
       "Bash(timeout 3 node:*)",
-      "Bash(xargs kill -9)"
+      "Bash(xargs kill -9)",
+      "Bash(chmod:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(tar:*)"
     ],
     "deny": [],
     "ask": []

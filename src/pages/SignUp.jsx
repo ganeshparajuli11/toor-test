@@ -1,23 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Check } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  ArrowRight,
+  Check,
+  X,
+  Plane,
+  Hotel,
+  Ship,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import useOAuth from '../hooks/useOAuth';
-import Button from '../components/Button';
 import SEO from '../components/SEO';
+import logo from '../assets/logo.png';
 import './SignUp.css';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [password, setPassword] = useState('');
   const { signup } = useAuth();
   const { t } = useLanguage();
-  const { loginWithGoogle, loginWithFacebook, isGoogleEnabled, isFacebookEnabled, loading: oauthLoading } = useOAuth();
+  const { loginWithGoogle, loginWithFacebook, isGoogleEnabled, isFacebookEnabled } = useOAuth();
 
   const {
     register,
@@ -26,41 +41,50 @@ const SignUp = () => {
     formState: { errors },
   } = useForm();
 
-  const password = watch('password', '');
+  const watchedPassword = watch('password', '');
 
-  const passwordStrength = {
-    hasLength: password.length >= 8,
-    hasUpper: /[A-Z]/.test(password),
-    hasLower: /[a-z]/.test(password),
-    hasNumber: /\d/.test(password),
+  useEffect(() => {
+    setPassword(watchedPassword);
+  }, [watchedPassword]);
+
+  // Password strength calculation
+  const getPasswordStrength = (pwd) => {
+    let strength = 0;
+    if (pwd.length >= 8) strength++;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) strength++;
+    if (/\d/.test(pwd)) strength++;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) strength++;
+    return strength;
   };
 
-  const strengthCount = Object.values(passwordStrength).filter(Boolean).length;
+  const passwordStrength = getPasswordStrength(password);
+
+  const passwordChecks = {
+    length: password.length >= 8,
+    letters: /[a-z]/.test(password) && /[A-Z]/.test(password),
+    number: /\d/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
 
   const onSubmit = async (data) => {
-    if (!agreedToTerms) {
-      toast.error(t('Please agree to the Terms of Service'));
+    if (!agreeToTerms) {
+      toast.error('Please agree to the Terms of Service and Privacy Policy');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // New signup signature: (firstName, lastName, email, password, phone)
       const result = await signup(
         data.firstName,
         data.lastName,
         data.email,
         data.password,
-        data.phoneNumber
+        data.phone || ''
       );
 
       if (result.success) {
-        // Show message about email verification
-        toast.success('Account created! Please check your email to verify your account.');
-        setTimeout(() => {
-          navigate('/');
-        }, 2000);
+        setTimeout(() => navigate('/'), 1500);
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -72,7 +96,7 @@ const SignUp = () => {
   const handleSocialLogin = (provider) => {
     if (provider === 'Google') {
       if (!isGoogleEnabled) {
-        toast.error('Google sign-in is not configured. Please contact the administrator.');
+        toast.error('Google sign-in is not configured.');
         return;
       }
       const result = loginWithGoogle();
@@ -81,7 +105,7 @@ const SignUp = () => {
       }
     } else if (provider === 'Facebook') {
       if (!isFacebookEnabled) {
-        toast.error('Facebook sign-in is not configured. Please contact the administrator.');
+        toast.error('Facebook sign-in is not configured.');
         return;
       }
       const result = loginWithFacebook();
@@ -94,263 +118,273 @@ const SignUp = () => {
   return (
     <>
       <SEO
-        title="Sign Up - Zanafly | Create Your Account"
-        description="Join Zanafly today and start exploring amazing travel destinations. Sign up now to book hotels, flights, and cruise packages."
-        keywords="sign up, register, create account, travel booking, Zanafly registration"
+        title="Create Account - Zanafly | Start Your Journey"
+        description="Join Zanafly today and unlock exclusive travel deals, easy booking management, and personalized travel recommendations."
+        keywords="sign up, create account, register, travel account, Zanafly registration"
         canonical={`${window.location.origin}/signup`}
       />
 
-      <div className="auth-page">
-        {/* Left Panel - Branding */}
-        <div className="auth-brand-panel signup-brand">
-          <div className="brand-content">
-            <Link to="/" className="brand-logo">
-              <img src="/src/assets/logo.png" alt="Zanafly" />
-            </Link>
-            <div className="brand-text">
-              <h1>{t('Discover Your Next Adventure')}</h1>
-              <p>{t('Find the best deals on hotels, flights, and more')}</p>
-            </div>
-            <div className="brand-features">
-              <div className="feature-item">
-                <div className="feature-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </div>
-                <span>{t('Best Price Guarantee')}</span>
-              </div>
-              <div className="feature-item">
-                <div className="feature-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </div>
-                <span>{t('Easy Booking')}</span>
-              </div>
-              <div className="feature-item">
-                <div className="feature-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </div>
-                <span>{t('Trusted by Millions')}</span>
-              </div>
-            </div>
-          </div>
-          <div className="brand-image">
-            <img
-              src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&h=800&fit=crop&q=80"
-              alt="Adventure"
-            />
+      <div className="signup-page">
+        {/* Animated Background */}
+        <div className="signup-bg">
+          <div className="signup-bg-gradient"></div>
+          <div className="signup-bg-pattern"></div>
+          <div className="floating-icons">
+            <Plane className="float-icon icon-1" size={32} />
+            <Hotel className="float-icon icon-2" size={28} />
+            <Ship className="float-icon icon-3" size={30} />
+            <Plane className="float-icon icon-4" size={24} />
+            <Hotel className="float-icon icon-5" size={26} />
           </div>
         </div>
 
-        {/* Right Panel - Form */}
-        <div className="auth-form-panel">
-          <div className="form-container signup-container">
-            <div className="mobile-logo">
-              <Link to="/">
-                <img src="/src/assets/logo.png" alt="Zanafly" />
-              </Link>
-            </div>
+        {/* SignUp Card */}
+        <div className="signup-card">
+          {/* Logo */}
+          <Link to="/" className="signup-logo">
+            <img src={logo} alt="Zanafly" />
+          </Link>
 
-            <div className="form-header">
-              <h2>{t('Create account')}</h2>
-              <p>{t('Fill in your details to get started')}</p>
-            </div>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
-              {/* Name Fields */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="firstName">{t('First name')}</label>
-                  <div className={`input-with-icon ${errors.firstName ? 'error' : ''}`}>
-                    <User className="field-icon" size={18} />
-                    <input
-                      id="firstName"
-                      type="text"
-                      placeholder="John"
-                      {...register('firstName', {
-                        required: t('First name') + ' is required',
-                        minLength: { value: 2, message: 'Min 2 characters' },
-                      })}
-                    />
-                  </div>
-                  {errors.firstName && <span className="error-text">{errors.firstName.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="lastName">{t('Last name')}</label>
-                  <div className={`input-with-icon ${errors.lastName ? 'error' : ''}`}>
-                    <User className="field-icon" size={18} />
-                    <input
-                      id="lastName"
-                      type="text"
-                      placeholder="Doe"
-                      {...register('lastName', {
-                        required: t('Last name') + ' is required',
-                        minLength: { value: 2, message: 'Min 2 characters' },
-                      })}
-                    />
-                  </div>
-                  {errors.lastName && <span className="error-text">{errors.lastName.message}</span>}
-                </div>
-              </div>
-
-              {/* Email Field */}
-              <div className="form-group">
-                <label htmlFor="email">{t('Email address')}</label>
-                <div className={`input-with-icon ${errors.email ? 'error' : ''}`}>
-                  <Mail className="field-icon" size={18} />
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="name@example.com"
-                    {...register('email', {
-                      required: t('Email address') + ' is required',
-                      pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                        message: 'Invalid email address',
-                      },
-                    })}
-                  />
-                </div>
-                {errors.email && <span className="error-text">{errors.email.message}</span>}
-              </div>
-
-              {/* Phone Field */}
-              <div className="form-group">
-                <label htmlFor="phone">{t('Phone number')}</label>
-                <div className={`input-with-icon ${errors.phoneNumber ? 'error' : ''}`}>
-                  <Phone className="field-icon" size={18} />
-                  <input
-                    id="phone"
-                    type="tel"
-                    placeholder="+1 (555) 000-0000"
-                    {...register('phoneNumber', {
-                      required: t('Phone number') + ' is required',
-                      pattern: {
-                        value: /^[0-9+\s\-()]+$/,
-                        message: 'Invalid phone number',
-                      },
-                    })}
-                  />
-                </div>
-                {errors.phoneNumber && <span className="error-text">{errors.phoneNumber.message}</span>}
-              </div>
-
-              {/* Password Field */}
-              <div className="form-group">
-                <label htmlFor="password">{t('Password')}</label>
-                <div className={`input-with-icon ${errors.password ? 'error' : ''}`}>
-                  <Lock className="field-icon" size={18} />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder={t('Password')}
-                    {...register('password', {
-                      required: t('Password') + ' is required',
-                      minLength: { value: 8, message: 'Min 8 characters' },
-                      pattern: {
-                        value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                        message: 'Need uppercase, lowercase & number',
-                      },
-                    })}
-                  />
-                  <button
-                    type="button"
-                    className="toggle-password"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {errors.password && <span className="error-text">{errors.password.message}</span>}
-
-                {/* Password Strength Indicator */}
-                {password && (
-                  <div className="password-strength">
-                    <div className="strength-bar">
-                      <div
-                        className={`strength-fill strength-${strengthCount}`}
-                        style={{ width: `${(strengthCount / 4) * 100}%` }}
-                      />
-                    </div>
-                    <div className="strength-checklist">
-                      <span className={passwordStrength.hasLength ? 'met' : ''}>
-                        <Check size={12} /> 8+
-                      </span>
-                      <span className={passwordStrength.hasUpper ? 'met' : ''}>
-                        <Check size={12} /> A-Z
-                      </span>
-                      <span className={passwordStrength.hasLower ? 'met' : ''}>
-                        <Check size={12} /> a-z
-                      </span>
-                      <span className={passwordStrength.hasNumber ? 'met' : ''}>
-                        <Check size={12} /> 0-9
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Terms Checkbox */}
-              <label className="checkbox-label terms-checkbox">
-                <input
-                  type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
-                />
-                <span className="checkbox-custom"></span>
-                <span>
-                  {t('I agree to the')}{' '}
-                  <Link to="/terms">{t('Terms of Service')}</Link> {t('and')}{' '}
-                  <Link to="/privacy">{t('Privacy Policy')}</Link>
-                </span>
-              </label>
-
-              {/* Submit */}
-              <Button type="submit" fullWidth loading={isLoading} disabled={isLoading}>
-                {t('Create Account')}
-                <ArrowRight size={18} />
-              </Button>
-
-              {/* Divider */}
-              <div className="divider">
-                <span>{t('or sign up with')}</span>
-              </div>
-
-              {/* Social Login */}
-              <div className="social-buttons">
-                <button type="button" className="social-btn" onClick={() => handleSocialLogin('Google')}>
-                  <svg width="18" height="18" viewBox="0 0 18 18">
-                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
-                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" />
-                    <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" />
-                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
-                  </svg>
-                  Google
-                </button>
-                <button type="button" className="social-btn" onClick={() => handleSocialLogin('Facebook')}>
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="#1877F2">
-                    <path d="M18 9a9 9 0 1 0-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.255 1.343-3.501 3.4-3.501.984 0 2.014.175 2.014.175v2.215h-1.135c-1.118 0-1.467.694-1.467 1.406V9h2.496l-.399 2.6h-2.097v6.29A9.002 9.002 0 0 0 18 9z" />
-                  </svg>
-                  Facebook
-                </button>
-              </div>
-
-              {/* Sign In Link */}
-              <p className="auth-footer">
-                {t('Already have an account?')}{' '}
-                <Link to="/login">{t('Sign In')}</Link>
-              </p>
-            </form>
+          {/* Header */}
+          <div className="signup-header">
+            <h1>{t('Create Account')}</h1>
+            <p>{t('Start your journey with us today')}</p>
           </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="signup-form">
+            {/* Name Row */}
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="firstName">{t('First Name')}</label>
+                <div className={`field-input ${errors.firstName ? 'error' : ''}`}>
+                  <span className="field-icon">
+                    <User size={20} />
+                  </span>
+                  <input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    {...register('firstName', { required: 'First name is required' })}
+                  />
+                </div>
+                {errors.firstName && <span className="field-error">{errors.firstName.message}</span>}
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="lastName">{t('Last Name')}</label>
+                <div className={`field-input ${errors.lastName ? 'error' : ''}`}>
+                  <span className="field-icon">
+                    <User size={20} />
+                  </span>
+                  <input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    {...register('lastName', { required: 'Last name is required' })}
+                  />
+                </div>
+                {errors.lastName && <span className="field-error">{errors.lastName.message}</span>}
+              </div>
+            </div>
+
+            {/* Email Field */}
+            <div className="form-field">
+              <label htmlFor="email">{t('Email')}</label>
+              <div className={`field-input ${errors.email ? 'error' : ''}`}>
+                <span className="field-icon">
+                  <Mail size={20} />
+                </span>
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  {...register('email', {
+                    required: 'Email is required',
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Invalid email address',
+                    },
+                  })}
+                />
+              </div>
+              {errors.email && <span className="field-error">{errors.email.message}</span>}
+            </div>
+
+            {/* Phone Field */}
+            <div className="form-field">
+              <label htmlFor="phone">{t('Phone')} <span className="optional">(Optional)</span></label>
+              <div className={`field-input ${errors.phone ? 'error' : ''}`}>
+                <span className="field-icon">
+                  <Phone size={20} />
+                </span>
+                <input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1 (555) 000-0000"
+                  {...register('phone')}
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div className="form-field">
+              <label htmlFor="password">{t('Password')}</label>
+              <div className={`field-input ${errors.password ? 'error' : ''}`}>
+                <span className="field-icon">
+                  <Lock size={20} />
+                </span>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Create a strong password"
+                  {...register('password', {
+                    required: 'Password is required',
+                    minLength: {
+                      value: 8,
+                      message: 'Password must be at least 8 characters',
+                    },
+                  })}
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {errors.password && <span className="field-error">{errors.password.message}</span>}
+
+              {/* Password Strength */}
+              {password && (
+                <div className="password-strength">
+                  <div className="strength-bar">
+                    <div
+                      className={`strength-fill strength-${passwordStrength}`}
+                      style={{ width: `${passwordStrength * 25}%` }}
+                    />
+                  </div>
+                  <div className="strength-checklist">
+                    <span className={passwordChecks.length ? 'met' : ''}>
+                      {passwordChecks.length ? <Check size={14} /> : <X size={14} />}
+                      8+ chars
+                    </span>
+                    <span className={passwordChecks.letters ? 'met' : ''}>
+                      {passwordChecks.letters ? <Check size={14} /> : <X size={14} />}
+                      Aa
+                    </span>
+                    <span className={passwordChecks.number ? 'met' : ''}>
+                      {passwordChecks.number ? <Check size={14} /> : <X size={14} />}
+                      123
+                    </span>
+                    <span className={passwordChecks.special ? 'met' : ''}>
+                      {passwordChecks.special ? <Check size={14} /> : <X size={14} />}
+                      @#$
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Confirm Password Field */}
+            <div className="form-field">
+              <label htmlFor="confirmPassword">{t('Confirm Password')}</label>
+              <div className={`field-input ${errors.confirmPassword ? 'error' : ''}`}>
+                <span className="field-icon">
+                  <Lock size={20} />
+                </span>
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Confirm your password"
+                  {...register('confirmPassword', {
+                    required: 'Please confirm your password',
+                    validate: (value) => value === password || 'Passwords do not match',
+                  })}
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <span className="field-error">{errors.confirmPassword.message}</span>
+              )}
+            </div>
+
+            {/* Terms Checkbox */}
+            <label className="terms-checkbox">
+              <input
+                type="checkbox"
+                checked={agreeToTerms}
+                onChange={(e) => setAgreeToTerms(e.target.checked)}
+              />
+              <span className="checkmark"></span>
+              <span>
+                {t('I agree to the')}{' '}
+                <Link to="/terms">{t('Terms of Service')}</Link>
+                {' '}{t('and')}{' '}
+                <Link to="/privacy">{t('Privacy Policy')}</Link>
+              </span>
+            </label>
+
+            {/* Submit Button */}
+            <button type="submit" className="signup-btn" disabled={isLoading}>
+              {isLoading ? (
+                <span className="btn-loading">
+                  <span className="spinner"></span>
+                  Creating Account...
+                </span>
+              ) : (
+                <>
+                  {t('Create Account')}
+                  <ArrowRight size={20} />
+                </>
+              )}
+            </button>
+
+            {/* Divider */}
+            <div className="signup-divider">
+              <span>{t('or sign up with')}</span>
+            </div>
+
+            {/* Social Login */}
+            <div className="social-login">
+              <button
+                type="button"
+                className="social-btn google"
+                onClick={() => handleSocialLogin('Google')}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                Google
+              </button>
+              <button
+                type="button"
+                className="social-btn facebook"
+                onClick={() => handleSocialLogin('Facebook')}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#1877F2">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                Facebook
+              </button>
+            </div>
+
+            {/* Sign In Link */}
+            <p className="signin-link">
+              {t('Already have an account?')}{' '}
+              <Link to="/login">{t('Sign In')}</Link>
+            </p>
+          </form>
         </div>
       </div>
     </>

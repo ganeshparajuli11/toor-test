@@ -24,7 +24,7 @@ import logo from '../../assets/logo.png';
 import { useLanguage } from '../../contexts/LanguageContext';
 import './AdminLayout.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);

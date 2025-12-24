@@ -19,13 +19,32 @@ const ImageSlider = ({ images = [], alt = 'Hotel image', className = '' }) => {
     ? images.slice(0, 10) // Limit to 10 images
     : FALLBACK_IMAGES;
 
-  // Process image URL
+  // Process image URL - handle all RateHawk formats
   const processImageUrl = (url) => {
     if (!url || typeof url !== 'string') return FALLBACK_IMAGES[0];
-    return url
-      .replace(/\{size\}/g, '1024x768')
-      .replace(/t\{size\}/g, '1024x768')
-      .replace(/^http:\/\//, 'https://');
+
+    let processed = url;
+
+    // Handle URL-encoded placeholders
+    processed = processed.replace(/%7Bsize%7D/gi, '1024x768');
+    processed = processed.replace(/%7B/g, '{').replace(/%7D/g, '}');
+
+    // Replace {size} placeholders in various formats
+    processed = processed.replace(/t\/\{size\}\//gi, 't/1024x768/');
+    processed = processed.replace(/\/\{size\}\//gi, '/1024x768/');
+    processed = processed.replace(/t\{size\}/gi, '1024x768');
+    processed = processed.replace(/_\{size\}_/gi, '_1024x768_');
+    processed = processed.replace(/\{size\}/gi, '1024x768');
+
+    // Ensure HTTPS
+    if (processed.startsWith('http://')) {
+      processed = processed.replace('http://', 'https://');
+    }
+    if (processed.startsWith('//')) {
+      processed = 'https:' + processed;
+    }
+
+    return processed;
   };
 
   const goToNext = (e) => {

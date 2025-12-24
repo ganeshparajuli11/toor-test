@@ -52,7 +52,7 @@ router.post('/create-payment-intent', async (req, res) => {
             });
         }
 
-        const { amount, currency = 'usd', bookingId, customerEmail, customerName, description, metadata = {} } = req.body;
+        const { amount, currency = 'chf', bookingId, customerEmail, customerName, description, metadata = {} } = req.body;
 
         if (!amount || amount <= 0) {
             return res.status(400).json({

@@ -229,6 +229,71 @@ export async function getBookingStats() {
 }
 
 /**
+ * Get bookings by user email
+ */
+export async function getBookingsByEmail(email, { sort = 'latest', page = 1, limit = 20, status } = {}) {
+    let bookings = await getAllBookings();
+
+    // Filter by email
+    bookings = bookings.filter(b =>
+        b.guest?.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    // Filter by status if provided
+    if (status && status !== 'all') {
+        bookings = bookings.filter(b => b.status === status);
+    }
+
+    // Apply sort
+    bookings.sort((a, b) => {
+        switch (sort) {
+            case 'oldest':
+                return new Date(a.createdAt) - new Date(b.createdAt);
+            case 'price-high':
+                return (b.totalPrice || 0) - (a.totalPrice || 0);
+            case 'price-low':
+                return (a.totalPrice || 0) - (b.totalPrice || 0);
+            case 'latest':
+            default:
+                return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+    });
+
+    // Calculate pagination
+    const total = bookings.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const paginatedBookings = bookings.slice(startIndex, startIndex + limit);
+
+    // Calculate user stats
+    const allUserBookings = await getAllBookings();
+    const userBookings = allUserBookings.filter(b =>
+        b.guest?.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    const stats = {
+        totalBookings: userBookings.length,
+        confirmedBookings: userBookings.filter(b => b.status === 'confirmed').length,
+        pendingBookings: userBookings.filter(b => b.status === 'pending').length,
+        cancelledBookings: userBookings.filter(b => b.status === 'cancelled').length,
+        totalSpent: userBookings
+            .filter(b => b.status === 'confirmed')
+            .reduce((sum, b) => sum + (b.totalPrice || 0), 0)
+    };
+
+    return {
+        data: paginatedBookings,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages
+        },
+        stats
+    };
+}
+
+/**
  * Get payments list for admin
  */
 export async function getPayments({ page = 1, limit = 20 }) {

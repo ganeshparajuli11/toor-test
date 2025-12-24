@@ -133,10 +133,30 @@ router.post('/suggested', async (req, res) => {
         // Process images - replace {size} placeholder
         const processImage = (url) => {
             if (!url) return null;
-            return url
-                .replace(/\{size\}/g, '1024x768')
-                .replace(/t\{size\}/g, '1024x768')
-                .replace(/^http:\/\//, 'https://');
+            if (typeof url !== 'string') return null;
+
+            let processed = url;
+
+            // Decode URL-encoded placeholders
+            processed = processed.replace(/%7Bsize%7D/gi, '{size}');
+            processed = processed.replace(/%7B/g, '{').replace(/%7D/g, '}');
+
+            // Replace {size} placeholders
+            processed = processed.replace(/t\/\{size\}\//gi, 't/1024x768/');
+            processed = processed.replace(/\/\{size\}\//gi, '/1024x768/');
+            processed = processed.replace(/t\{size\}/gi, '1024x768');
+            processed = processed.replace(/_\{size\}_/gi, '_1024x768_');
+            processed = processed.replace(/\{size\}/gi, '1024x768');
+
+            // Ensure HTTPS
+            if (processed.startsWith('http://')) {
+                processed = processed.replace('http://', 'https://');
+            }
+            if (processed.startsWith('//')) {
+                processed = 'https:' + processed;
+            }
+
+            return processed;
         };
 
         // Default images for suggested hotels (fallback if API doesn't return images)
@@ -405,41 +425,121 @@ router.post('/info', async (req, res) => {
 
             let processed = url;
 
-            // Handle various {size} placeholder formats
-            // Format: t/{size}/ or /{size}/ or {size}
-            processed = processed.replace(/\/\{size\}\//g, '/1024x768/');
-            processed = processed.replace(/\{size\}/g, '1024x768');
+            // First, decode any URL-encoded placeholders
+            // %7B = { and %7D = }
+            processed = processed.replace(/%7Bsize%7D/gi, '{size}');
+            processed = processed.replace(/%7B/g, '{').replace(/%7D/g, '}');
+
+            // Handle various {size} placeholder formats from RateHawk
+            // Format examples:
+            // - t/{size}/hash.jpg
+            // - /{size}/hash.jpg
+            // - {size}
+            // - t{size}
+            // - _{size}_
+            processed = processed.replace(/t\/\{size\}\//gi, 't/1024x768/');
+            processed = processed.replace(/\/\{size\}\//gi, '/1024x768/');
+            processed = processed.replace(/t\{size\}/gi, '1024x768');
+            processed = processed.replace(/_\{size\}_/gi, '_1024x768_');
+            processed = processed.replace(/\{size\}/gi, '1024x768');
+
+            // Also handle size placeholders with different names
+            processed = processed.replace(/\{width\}x\{height\}/gi, '1024x768');
+            processed = processed.replace(/\{w\}x\{h\}/gi, '1024x768');
 
             // Ensure HTTPS
             if (processed.startsWith('http://')) {
                 processed = processed.replace('http://', 'https://');
             }
 
+            // Add protocol if missing but has domain
+            if (processed.startsWith('//')) {
+                processed = 'https:' + processed;
+            }
+
             return processed;
         };
 
-        // Log raw images for debugging
+        // Log raw hotel data for debugging
+        console.log('[Hotel Info] Raw hotel keys:', Object.keys(hotel));
         console.log('[Hotel Info] Raw images count:', (hotel.images || []).length);
         if (hotel.images && hotel.images.length > 0) {
-            console.log('[Hotel Info] First image sample:', hotel.images[0]);
+            console.log('[Hotel Info] First 3 image samples:', JSON.stringify(hotel.images.slice(0, 3)));
         }
 
+        // Check for images in different possible locations
+        let allRawImages = [];
+
+        // 1. Main images array
+        if (hotel.images && Array.isArray(hotel.images)) {
+            allRawImages.push(...hotel.images);
+        }
+
+        // 2. Photo info
+        if (hotel.photo_info && Array.isArray(hotel.photo_info)) {
+            allRawImages.push(...hotel.photo_info);
+        }
+
+        // 3. Photos array
+        if (hotel.photos && Array.isArray(hotel.photos)) {
+            allRawImages.push(...hotel.photos);
+        }
+
+        // 4. Main image/thumbnail
+        if (hotel.main_photo) {
+            allRawImages.push(hotel.main_photo);
+        }
+        if (hotel.thumbnail) {
+            allRawImages.push(hotel.thumbnail);
+        }
+
+        // 5. Room groups images
+        if (hotel.room_groups && Array.isArray(hotel.room_groups)) {
+            hotel.room_groups.forEach(room => {
+                if (room.images && Array.isArray(room.images)) {
+                    allRawImages.push(...room.images);
+                }
+                if (room.photos && Array.isArray(room.photos)) {
+                    allRawImages.push(...room.photos);
+                }
+                // Room group name_struct might have images
+                if (room.name_struct && room.name_struct.images) {
+                    allRawImages.push(...room.name_struct.images);
+                }
+            });
+        }
+
+        console.log('[Hotel Info] Total raw images found:', allRawImages.length);
+
         // Process images from various formats RateHawk might return
-        const images = (hotel.images || []).map((img, idx) => {
-            // String URL
+        const images = allRawImages.map((img, idx) => {
+            // String URL - most common format
             if (typeof img === 'string') {
                 return processImage(img);
             }
-            // Object with url property
+            // Object with various property names
             if (img && typeof img === 'object') {
-                // Try different property names
-                const url = img.url || img.src || img.image || img.photo;
+                // Try different property names that RateHawk might use
+                const url = img.url || img.src || img.image || img.photo || img.tmpl ||
+                           img.orig || img.original || img.large || img.medium || img.small ||
+                           img.thumbnail || img.preview || img.link || img.href;
                 if (url) return processImage(url);
+
+                // Check for nested structure
+                if (img.images && typeof img.images === 'string') {
+                    return processImage(img.images);
+                }
             }
             return null;
         }).filter(Boolean);
 
-        console.log('[Hotel Info] Processed images count:', images.length);
+        // Remove duplicates
+        const uniqueImages = [...new Set(images)];
+
+        console.log('[Hotel Info] Processed images count:', uniqueImages.length);
+        if (uniqueImages.length > 0) {
+            console.log('[Hotel Info] First processed image:', uniqueImages[0]);
+        }
 
         // Extract amenities from amenity_groups
         let amenities = [];
@@ -501,8 +601,12 @@ router.post('/info', async (req, res) => {
             latitude: hotel.latitude,
             longitude: hotel.longitude,
             description: description,
-            images: images.length > 0 ? images : [
-                'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop'
+            images: uniqueImages.length > 0 ? uniqueImages : [
+                'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=600&fit=crop',
+                'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&h=600&fit=crop',
+                'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&h=600&fit=crop',
+                'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&h=600&fit=crop',
+                'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&h=600&fit=crop'
             ],
             amenities,
             amenity_groups: hotel.amenity_groups,

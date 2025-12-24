@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Shield, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Shield, AlertCircle, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import './AdminLogin.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Use environment variable for API URL or default to relative path for production
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -114,116 +115,112 @@ const AdminLogin = () => {
 
   return (
     <div className="admin-login-page">
-      <div className="login-container">
-        <div className="login-card">
-          {/* Header */}
-          <div className="login-header">
-            <div className="login-logo">
-              <Shield size={48} className="logo-icon" />
-            </div>
-            <h1 className="login-title">Admin Login</h1>
-            <p className="login-subtitle">Sign in to access the admin panel</p>
-          </div>
+      {/* Background */}
+      <div className="admin-login-bg">
+        <div className="admin-bg-gradient"></div>
+        <div className="admin-bg-pattern"></div>
+        <div className="admin-bg-glow glow-1"></div>
+        <div className="admin-bg-glow glow-2"></div>
+      </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="login-form">
-            {/* Email Field */}
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">
-                Email Address
-              </label>
-              <div className={`input-wrapper ${errors.email ? 'error' : ''}`}>
-                <Mail size={18} className="input-icon" />
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter your email"
-                  className="form-input"
-                  disabled={loading}
-                  autoComplete="email"
-                />
-              </div>
-              {errors.email && (
-                <span className="error-message">{errors.email}</span>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div className="form-group">
-              <label htmlFor="password" className="form-label">
-                Password
-              </label>
-              <div className={`input-wrapper ${errors.password ? 'error' : ''}`}>
-                <Lock size={18} className="input-icon" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Enter your password"
-                  className="form-input"
-                  disabled={loading}
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {errors.password && (
-                <span className="error-message">{errors.password}</span>
-              )}
-            </div>
-
-            {/* Submit Error */}
-            {errors.submit && (
-              <div className="submit-error">
-                <AlertCircle size={18} />
-                <span>{errors.submit}</span>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="submit-btn"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <div className="spinner"></div>
-                  <span>Signing in...</span>
-                </>
-              ) : (
-                <>
-                  <Shield size={20} />
-                  <span>Sign In</span>
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Footer */}
-          <div className="login-footer">
-            <p className="footer-text">
-              Protected admin area. Unauthorized access is prohibited.
-            </p>
+      {/* Login Card */}
+      <div className="admin-login-card">
+        {/* Logo/Icon */}
+        <div className="admin-logo">
+          <div className="admin-logo-icon">
+            <Shield size={32} />
           </div>
         </div>
 
-        {/* Background Decoration */}
-        <div className="login-bg-decoration">
-          <div className="decoration-circle circle-1"></div>
-          <div className="decoration-circle circle-2"></div>
-          <div className="decoration-circle circle-3"></div>
+        {/* Header */}
+        <div className="admin-login-header">
+          <h1>Admin Portal</h1>
+          <p>Sign in to access the dashboard</p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="admin-login-form">
+          {/* Email Field */}
+          <div className="admin-form-field">
+            <label htmlFor="email">Email Address</label>
+            <div className={`admin-field-input ${errors.email ? 'error' : ''}`}>
+              <span className="admin-field-icon">
+                <Mail size={20} />
+              </span>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="admin@example.com"
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
+            {errors.email && <span className="admin-field-error">{errors.email}</span>}
+          </div>
+
+          {/* Password Field */}
+          <div className="admin-form-field">
+            <label htmlFor="password">Password</label>
+            <div className={`admin-field-input ${errors.password ? 'error' : ''}`}>
+              <span className="admin-field-icon">
+                <Lock size={20} />
+              </span>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                disabled={loading}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="admin-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+            {errors.password && <span className="admin-field-error">{errors.password}</span>}
+          </div>
+
+          {/* Submit Error */}
+          {errors.submit && (
+            <div className="admin-submit-error">
+              <AlertCircle size={18} />
+              <span>{errors.submit}</span>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button type="submit" className="admin-login-btn" disabled={loading}>
+            {loading ? (
+              <span className="admin-btn-loading">
+                <span className="admin-spinner"></span>
+                Signing in...
+              </span>
+            ) : (
+              <>
+                Access Dashboard
+                <ArrowRight size={20} />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div className="admin-login-footer">
+          <div className="security-badge">
+            <Shield size={14} />
+            <span>Secure Admin Access</span>
+          </div>
+          <p>Protected area. Unauthorized access is prohibited.</p>
         </div>
       </div>
     </div>

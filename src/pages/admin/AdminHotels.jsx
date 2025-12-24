@@ -27,7 +27,7 @@ import axios from 'axios';
 import ratehawkService from '../../services/ratehawk.service';
 import './AdminHotels.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
 const AdminHotels = () => {
   const [searchTerm, setSearchTerm] = useState('');

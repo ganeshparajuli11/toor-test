@@ -168,7 +168,55 @@ const Bookings = () => {
     setUserStats(stats);
   };
 
-  // Fetch bookings data from RateHawk API
+  // Transform local booking to display format
+  const transformLocalBooking = (booking) => {
+    // Parse check-in/check-out from details array
+    const checkInDetail = booking.details?.find(d => d.label === 'Check-in');
+    const checkOutDetail = booking.details?.find(d => d.label === 'Check-out');
+    const guestsDetail = booking.details?.find(d => d.label === 'Guests');
+    const nightsDetail = booking.details?.find(d => d.label === 'Nights');
+    const roomsDetail = booking.details?.find(d => d.label === 'Rooms');
+
+    // Parse guests from string like "2 Adults, 1 Child"
+    let adults = 2, children = 0;
+    if (guestsDetail?.value) {
+      const adultsMatch = guestsDetail.value.match(/(\d+)\s*Adult/i);
+      const childrenMatch = guestsDetail.value.match(/(\d+)\s*Child/i);
+      if (adultsMatch) adults = parseInt(adultsMatch[1]);
+      if (childrenMatch) children = parseInt(childrenMatch[1]);
+    }
+
+    return {
+      id: booking.id,
+      order_id: booking.id,
+      partner_order_id: booking.id,
+      type: booking.type || 'hotel',
+      name: booking.title || 'Booking',
+      location: booking.subtitle || '',
+      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
+      checkIn: checkInDetail?.value || 'N/A',
+      checkOut: checkOutDetail?.value || 'N/A',
+      nights: nightsDetail?.value ? parseInt(nightsDetail.value) : 1,
+      guests: {
+        adults,
+        children
+      },
+      rooms: roomsDetail?.value ? parseInt(roomsDetail.value) : 1,
+      roomNames: [],
+      status: booking.status || 'confirmed',
+      paymentStatus: booking.paymentStatus || 'full',
+      price: booking.totalPrice || 0,
+      currency: 'USD',
+      bookingDate: booking.createdAt,
+      isCancellable: booking.status !== 'cancelled',
+      freeCancellationBefore: null,
+      confirmationId: booking.id,
+      isLocal: true, // Flag to identify local bookings
+      rawData: booking
+    };
+  };
+
+  // Fetch bookings data from both RateHawk API and local database
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
@@ -193,19 +241,36 @@ const Bookings = () => {
 
         console.log('[Bookings] Fetching with params:', requestParams);
 
-        // Fetch from RateHawk API
-        const response = await api.post('/hotels/bookings', requestParams);
+        // Fetch from both sources in parallel
+        const [rateHawkResponse, localResponse] = await Promise.all([
+          api.post('/hotels/bookings', requestParams).catch(err => {
+            console.warn('[Bookings] RateHawk API error:', err.message);
+            return { data: { success: false } };
+          }),
+          api.get(`/bookings/user/${encodeURIComponent(user.email)}`, {
+            params: {
+              sort: sortBy,
+              page: currentPage,
+              limit: 10,
+              status: selectedFilter === 'all' ? undefined : selectedFilter
+            }
+          }).catch(err => {
+            console.warn('[Bookings] Local API error:', err.message);
+            return { data: { success: false } };
+          })
+        ]);
 
-        if (response.data?.success && response.data?.data) {
+        let allBookings = [];
+        let totalFromApi = 0;
+
+        // Process RateHawk bookings
+        if (rateHawkResponse.data?.success && rateHawkResponse.data?.data) {
           const {
             orders = [],
-            total_orders = 0,
-            total_pages = 1,
-            found_orders = 0,
-            found_pages = 1
-          } = response.data.data;
+            total_orders = 0
+          } = rateHawkResponse.data.data;
 
-          console.log('[Bookings] Received', orders.length, 'orders, total:', total_orders);
+          console.log('[Bookings] Received', orders.length, 'RateHawk orders');
 
           // Fetch hotel info for each unique hotel
           const uniqueHotelIds = [...new Set(orders.map(o => o.hotel?.id).filter(Boolean))];
@@ -222,29 +287,49 @@ const Bookings = () => {
           }
 
           // Transform orders to display format
-          const transformedBookings = orders.map(order => {
+          const rateHawkBookings = orders.map(order => {
             const hotelInfo = hotelInfoMap[order.hotel?.id] || null;
             return transformBooking(order, hotelInfo);
           });
 
-          // Apply price sort (API doesn't support price sorting)
-          if (sortBy === 'price-high' || sortBy === 'price-low') {
-            transformedBookings.sort((a, b) =>
-              sortBy === 'price-high' ? b.price - a.price : a.price - b.price
-            );
-          }
-
-          setBookings(transformedBookings);
-          setTotalPages(found_pages || total_pages || 1);
-          setTotalOrders(found_orders || total_orders || 0);
-          calculateUserStats(transformedBookings, total_orders);
-        } else {
-          console.warn('[Bookings] No data in response');
-          setBookings([]);
-          setTotalPages(1);
-          setTotalOrders(0);
-          calculateUserStats([]);
+          allBookings = [...rateHawkBookings];
+          totalFromApi += total_orders;
         }
+
+        // Process local bookings
+        if (localResponse.data?.success && localResponse.data?.data) {
+          const localBookings = localResponse.data.data;
+          console.log('[Bookings] Received', localBookings.length, 'local bookings');
+
+          const transformedLocalBookings = localBookings.map(transformLocalBooking);
+
+          // Merge local bookings, avoiding duplicates by ID
+          const existingIds = new Set(allBookings.map(b => b.id));
+          transformedLocalBookings.forEach(booking => {
+            if (!existingIds.has(booking.id)) {
+              allBookings.push(booking);
+            }
+          });
+
+          totalFromApi += localResponse.data.stats?.totalBookings || localBookings.length;
+        }
+
+        // Sort combined results
+        if (sortBy === 'latest') {
+          allBookings.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate));
+        } else if (sortBy === 'oldest') {
+          allBookings.sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate));
+        } else if (sortBy === 'price-high') {
+          allBookings.sort((a, b) => b.price - a.price);
+        } else if (sortBy === 'price-low') {
+          allBookings.sort((a, b) => a.price - b.price);
+        }
+
+        setBookings(allBookings);
+        setTotalPages(Math.ceil(allBookings.length / 10) || 1);
+        setTotalOrders(totalFromApi);
+        calculateUserStats(allBookings, totalFromApi);
+
       } catch (error) {
         console.error('[Bookings] API Error:', error.message);
         toast.error('Failed to load bookings. Please try again.');
@@ -280,7 +365,7 @@ const Bookings = () => {
     }, 500);
   };
 
-  // Handle cancel booking through RateHawk API
+  // Handle cancel booking through RateHawk API or local API
   const handleCancelBooking = async (booking) => {
     const partnerOrderId = booking.partner_order_id || booking.id;
 
@@ -290,9 +375,9 @@ const Bookings = () => {
       return;
     }
 
-    // Check free cancellation deadline
+    // Check free cancellation deadline (only for RateHawk bookings)
     let isFreeCancellation = false;
-    if (booking.freeCancellationBefore) {
+    if (!booking.isLocal && booking.freeCancellationBefore) {
       const deadline = new Date(booking.freeCancellationBefore);
       const now = new Date();
       isFreeCancellation = now < deadline;
@@ -310,10 +395,18 @@ const Bookings = () => {
 
     setProcessingId(booking.id);
     try {
-      // Cancel through RateHawk API
-      const response = await api.post('/hotels/booking/cancel', {
-        partner_order_id: partnerOrderId
-      });
+      let response;
+
+      // Use different API based on booking source
+      if (booking.isLocal) {
+        // Cancel through local API
+        response = await api.post(`/bookings/${booking.id}/cancel`);
+      } else {
+        // Cancel through RateHawk API
+        response = await api.post('/hotels/booking/cancel', {
+          partner_order_id: partnerOrderId
+        });
+      }
 
       if (response.data?.success) {
         const cancelData = response.data.data;
@@ -357,11 +450,11 @@ const Bookings = () => {
           toast.success('Booking cancelled successfully');
         }
       } else {
-        toast.error(response.data?.error || 'Failed to cancel booking');
+        toast.error(response.data?.error || response.data?.message || 'Failed to cancel booking');
       }
     } catch (error) {
       console.error('Cancel API Error:', error.message);
-      const errorMessage = error.response?.data?.error || 'Failed to cancel booking';
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Failed to cancel booking';
       toast.error(errorMessage);
     } finally {
       setProcessingId(null);

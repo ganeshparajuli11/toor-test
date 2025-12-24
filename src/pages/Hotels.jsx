@@ -348,16 +348,11 @@ const Hotels = () => {
         {/* Results Section */}
         <div className="hotels-results-container">
           <div className="container">
-            {/* API Status Banner */}
-            {!loading && hasSearchParams && (
-              <div className={`hotels-status-banner ${useFallback ? 'warning' : 'success'} fade-in`}>
-                <strong>{useFallback ? 'Demo Mode' : 'Live RateHawk API'}</strong>
-                <span>
-                  {useFallback
-                    ? 'Using demo data. Configure RateHawk API keys in Admin Settings.'
-                    : `Showing real hotel data from RateHawk API for ${currentLocation}`
-                  }
-                </span>
+            {/* API Status Banner - Only show in development for debugging */}
+            {import.meta.env.DEV && !loading && hasSearchParams && useFallback && (
+              <div className={`hotels-status-banner warning fade-in`}>
+                <strong>Demo Mode</strong>
+                <span>Using demo data. Configure RateHawk API keys in Admin Settings.</span>
               </div>
             )}
 

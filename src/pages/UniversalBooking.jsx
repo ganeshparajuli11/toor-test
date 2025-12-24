@@ -1,23 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
-  User, Mail, Phone, CreditCard, Calendar, Check, ChevronRight, AlertCircle, Lock
+  User, Mail, Phone, CreditCard, Calendar, Check, ChevronRight, AlertCircle, Lock, Settings, UserPlus, LogIn
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useAuth } from '../contexts/AuthContext';
-import { useApiSettings } from '../contexts/ApiSettingsContext';
 import api from '../services/api.service';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import './UniversalBooking.css';
 
-// Initialize Stripe outside component to avoid recreation
-const stripePromise = loadStripe('pk_test_51Oxyz...'); // Replace with your actual publishable key or get from context
-
-const CheckoutForm = ({ totalPrice, onSuccess }) => {
+const CheckoutForm = ({ totalPrice, onSuccess, customerEmail, customerName, bookingId }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState(null);
@@ -34,11 +30,19 @@ const CheckoutForm = ({ totalPrice, onSuccess }) => {
     setError(null);
 
     try {
-      // 1. Create PaymentIntent on backend
+      // 1. Create PaymentIntent on backend with booking details
       const { data } = await api.post('/payment/create-payment-intent', {
         amount: totalPrice,
-        currency: 'usd'
+        currency: 'chf',
+        bookingId: bookingId || `BK${Date.now().toString().slice(-8)}`,
+        customerEmail: customerEmail,
+        customerName: customerName,
+        description: 'Zanafly Booking Payment'
       });
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to create payment');
+      }
 
       const { clientSecret } = data;
 
@@ -90,191 +94,29 @@ const CheckoutForm = ({ totalPrice, onSuccess }) => {
       {error && <div className="payment-error">{error}</div>}
 
       <button type="submit" className="submit-btn" disabled={!stripe || processing}>
-        {processing ? 'Processing...' : `Pay $${totalPrice}`}
+        {processing ? 'Processing...' : `Pay CHF ${totalPrice}`}
         <ChevronRight size={20} />
       </button>
     </form>
   );
 };
 
-// Demo Payment Form (for testing without Stripe)
-const DemoPaymentForm = ({ totalPrice, onSuccess, formData }) => {
-  const [processing, setProcessing] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [cardName, setCardName] = useState('');
-
-  const handleDemoPayment = async (e) => {
-    e.preventDefault();
-
-    // Basic validation
-    if (!cardNumber || !expiry || !cvc || !cardName) {
-      toast.error('Please fill in all card details');
-      return;
-    }
-
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
-      toast.error('Please fill in all personal information');
-      return;
-    }
-
-    setProcessing(true);
-    toast.loading('Processing payment...');
-
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    toast.dismiss();
-
-    // Simulate successful payment
-    const demoPaymentIntent = {
-      id: `demo_pi_${Date.now()}`,
-      status: 'succeeded',
-      amount: totalPrice * 100,
-      currency: 'usd',
-      created: Date.now(),
-      isDemo: true
-    };
-
-    setProcessing(false);
-    onSuccess(demoPaymentIntent);
-  };
-
-  // Format card number with spaces
-  const formatCardNumber = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    return parts.length ? parts.join(' ') : value;
-  };
-
-  // Format expiry date
-  const formatExpiry = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.substring(0, 2) + '/' + v.substring(2, 4);
-    }
-    return v;
-  };
-
+// Payment Not Configured Component
+const PaymentNotConfigured = () => {
   return (
-    <form onSubmit={handleDemoPayment} id="demo-payment-form">
-      <div className="demo-mode-banner" style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        padding: '12px 16px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px'
-      }}>
-        <AlertCircle size={20} />
-        <div>
-          <strong>Demo Mode</strong>
-          <p style={{ margin: 0, fontSize: '13px', opacity: 0.9 }}>
-            Use any test card details. Try: 4242 4242 4242 4242
-          </p>
-        </div>
-      </div>
-
-      <div className="form-group form-group-full">
-        <label className="form-label">Cardholder Name</label>
-        <input
-          type="text"
-          value={cardName}
-          onChange={(e) => setCardName(e.target.value)}
-          className="form-input"
-          placeholder="John Doe"
-          required
-        />
-      </div>
-
-      <div className="form-group form-group-full">
-        <label className="form-label">Card Number</label>
-        <div className="input-with-icon">
-          <CreditCard size={20} />
-          <input
-            type="text"
-            value={cardNumber}
-            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-            className="form-input"
-            placeholder="4242 4242 4242 4242"
-            maxLength={19}
-            required
-          />
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-        <div className="form-group">
-          <label className="form-label">Expiry Date</label>
-          <input
-            type="text"
-            value={expiry}
-            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-            className="form-input"
-            placeholder="MM/YY"
-            maxLength={5}
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">CVC</label>
-          <input
-            type="text"
-            value={cvc}
-            onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').substring(0, 4))}
-            className="form-input"
-            placeholder="123"
-            maxLength={4}
-            required
-          />
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        className="submit-btn"
-        disabled={processing}
-        style={{
-          width: '100%',
-          padding: '16px 24px',
-          fontSize: '16px',
-          fontWeight: '600',
-          color: 'white',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: processing ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          marginTop: '20px',
-          opacity: processing ? 0.7 : 1,
-          transition: 'all 0.2s ease'
-        }}
-      >
-        {processing ? 'Processing...' : `Pay $${totalPrice} (Demo)`}
-        <ChevronRight size={20} />
-      </button>
-
-      <p style={{
-        textAlign: 'center',
-        fontSize: '12px',
-        color: '#666',
-        marginTop: '12px'
-      }}>
-        This is a demo payment. No real charges will be made.
+    <div className="payment-not-configured" style={{
+      background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%)',
+      color: 'white',
+      padding: '24px',
+      borderRadius: '12px',
+      textAlign: 'center'
+    }}>
+      <Settings size={48} style={{ marginBottom: '16px', opacity: 0.9 }} />
+      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px' }}>Payment Not Available</h3>
+      <p style={{ margin: 0, fontSize: '14px', opacity: 0.9, lineHeight: 1.6 }}>
+        Payment processing is currently not configured. Please contact the administrator to enable payments.
       </p>
-    </form>
+    </div>
   );
 };
 
@@ -282,17 +124,52 @@ const UniversalBooking = () => {
   const { type, id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { apiSettings } = useApiSettings();
+  const { user, isAuthenticated } = useAuth();
 
-  // Update stripe promise when settings change (if using context for key)
-  const [stripePromise, setStripePromise] = useState(null);
+  // Guest checkout state
+  const [isGuestCheckout, setIsGuestCheckout] = useState(false);
+  const [showAuthChoice, setShowAuthChoice] = useState(false);
 
+  // Check if user needs to choose between login or guest checkout
   useEffect(() => {
-    if (apiSettings?.stripe?.publishableKey) {
-      setStripePromise(loadStripe(apiSettings.stripe.publishableKey));
+    if (!isAuthenticated && !isGuestCheckout) {
+      setShowAuthChoice(true);
+    } else {
+      setShowAuthChoice(false);
     }
-  }, [apiSettings]);
+  }, [isAuthenticated, isGuestCheckout]);
+
+  // Stripe state
+  const [stripePromise, setStripePromise] = useState(null);
+  const [stripeLoading, setStripeLoading] = useState(true);
+  const [stripeError, setStripeError] = useState(null);
+
+  // Fetch Stripe publishable key from backend on mount
+  useEffect(() => {
+    if (!isAuthenticated && !isGuestCheckout) return; // Don't fetch if not logged in or not guest checkout
+
+    const fetchStripeKey = async () => {
+      try {
+        setStripeLoading(true);
+        setStripeError(null);
+
+        const response = await api.get('/payment/publishable-key');
+
+        if (response.data.success && response.data.publishableKey) {
+          setStripePromise(loadStripe(response.data.publishableKey));
+        } else {
+          setStripeError('Stripe payment is not configured');
+        }
+      } catch (error) {
+        console.error('Error fetching Stripe key:', error);
+        setStripeError('Unable to load payment system');
+      } finally {
+        setStripeLoading(false);
+      }
+    };
+
+    fetchStripeKey();
+  }, [isAuthenticated, isGuestCheckout]);
 
   const [formData, setFormData] = useState({
     firstName: user?.name?.split(' ')[0] || '',
@@ -397,10 +274,9 @@ const UniversalBooking = () => {
   };
 
   const handlePaymentSuccess = async (paymentIntent) => {
-    const isDemo = paymentIntent.isDemo;
     const bookingId = `BK${Date.now().toString().slice(-8)}`;
 
-    // Create booking object
+    // Create booking object with complete user and guest details
     const booking = {
       id: bookingId,
       paymentId: paymentIntent.id,
@@ -409,10 +285,25 @@ const UniversalBooking = () => {
       ...bookingDetails,
       totalPrice,
       taxesAndFees,
+      // Guest information (who the booking is for)
       guest: formData,
+      // Logged-in user information (who made the booking)
+      bookedBy: isGuestCheckout ? {
+        type: 'guest',
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        phone: formData.phone
+      } : {
+        type: 'registered',
+        id: user?.id || user?._id,
+        name: user?.name,
+        email: user?.email,
+        phone: user?.phone || formData.phone
+      },
+      bookingSource: isGuestCheckout ? 'guest' : 'authenticated',
       status: 'confirmed',
-      createdAt: new Date().toISOString(),
-      isDemo
+      paymentStatus: 'paid',
+      createdAt: new Date().toISOString()
     };
 
     try {
@@ -427,14 +318,7 @@ const UniversalBooking = () => {
       localStorage.setItem('bookings', JSON.stringify(existingBookings));
     }
 
-    if (isDemo) {
-      toast.success(
-        `Demo booking confirmed! Booking ID: ${bookingId}`,
-        { duration: 4000 }
-      );
-    } else {
-      toast.success('Payment successful! Booking confirmed.');
-    }
+    toast.success('Payment successful! Booking confirmed.');
 
     setTimeout(() => {
       navigate('/bookings');
@@ -447,6 +331,94 @@ const UniversalBooking = () => {
     cruise: 'Cruise',
     car: 'Car Rental'
   };
+
+  // Handle guest checkout selection
+  const handleGuestCheckout = () => {
+    setIsGuestCheckout(true);
+    setShowAuthChoice(false);
+    toast.success('Continuing as guest');
+  };
+
+  // Handle login redirect
+  const handleLoginRedirect = () => {
+    const currentUrl = window.location.pathname + window.location.search;
+    sessionStorage.setItem('redirectAfterLogin', currentUrl);
+    navigate('/login');
+  };
+
+  // Show auth choice screen if not authenticated and not guest checkout
+  if (showAuthChoice) {
+    return (
+      <>
+        <SEO
+          title={`Complete Your ${typeLabels[type]} Booking | Zanafly`}
+          description="Complete your booking with secure payment"
+          keywords="booking, payment, reservation"
+          canonical={`/${type}/${id}/book`}
+        />
+
+        <div className="booking-page">
+          <Header />
+
+          <div className="booking-content">
+            <div className="container">
+              <div className="booking-header">
+                <h1 className="booking-title">Complete Your Booking</h1>
+                <p className="booking-subtitle">Choose how you'd like to continue</p>
+              </div>
+
+              <div className="auth-choice-container">
+                <div className="auth-choice-card">
+                  <div className="auth-choice-icon">
+                    <LogIn size={48} />
+                  </div>
+                  <h3>Sign In</h3>
+                  <p>Already have an account? Sign in to access your bookings and saved preferences.</p>
+                  <button className="auth-choice-btn primary" onClick={handleLoginRedirect}>
+                    <LogIn size={20} />
+                    Sign In
+                  </button>
+                  <Link to="/signup" className="auth-choice-link">
+                    Don't have an account? <span>Sign Up</span>
+                  </Link>
+                </div>
+
+                <div className="auth-choice-divider">
+                  <span>OR</span>
+                </div>
+
+                <div className="auth-choice-card">
+                  <div className="auth-choice-icon guest">
+                    <UserPlus size={48} />
+                  </div>
+                  <h3>Continue as Guest</h3>
+                  <p>Book without creating an account. Just enter your name and email to proceed.</p>
+                  <button className="auth-choice-btn secondary" onClick={handleGuestCheckout}>
+                    <UserPlus size={20} />
+                    Continue as Guest
+                  </button>
+                  <span className="auth-choice-note">
+                    You'll receive booking confirmation via email
+                  </span>
+                </div>
+              </div>
+
+              {/* Show booking summary */}
+              <div className="auth-choice-summary">
+                <h4>Booking Summary</h4>
+                <div className="summary-preview">
+                  <span className="summary-preview-title">{bookingDetails.title}</span>
+                  <span className="summary-preview-price">CHF {totalPrice}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Footer />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -559,16 +531,31 @@ const UniversalBooking = () => {
                     <span>Your payment information is secure and encrypted</span>
                   </div>
 
-                  {stripePromise ? (
+                  {stripeLoading ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                      <div className="loading-spinner" style={{
+                        width: '40px',
+                        height: '40px',
+                        border: '3px solid #f3f3f3',
+                        borderTop: '3px solid #667eea',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto 16px'
+                      }} />
+                      <p style={{ color: '#666', margin: 0 }}>Loading payment system...</p>
+                    </div>
+                  ) : stripePromise ? (
                     <Elements stripe={stripePromise}>
-                      <CheckoutForm totalPrice={totalPrice} onSuccess={handlePaymentSuccess} />
+                      <CheckoutForm
+                        totalPrice={totalPrice}
+                        onSuccess={handlePaymentSuccess}
+                        customerEmail={formData.email}
+                        customerName={`${formData.firstName} ${formData.lastName}`}
+                        bookingId={`BK${Date.now().toString().slice(-8)}`}
+                      />
                     </Elements>
                   ) : (
-                    <DemoPaymentForm
-                      totalPrice={totalPrice}
-                      onSuccess={handlePaymentSuccess}
-                      formData={formData}
-                    />
+                    <PaymentNotConfigured />
                   )}
                 </div>
               </div>
@@ -597,19 +584,19 @@ const UniversalBooking = () => {
                   <div className="summary-pricing">
                     {bookingDetails.pricePerNight > 0 && bookingDetails.nights > 1 && (
                       <div className="pricing-row">
-                        <span>${bookingDetails.pricePerNight} × {bookingDetails.nights} nights</span>
-                        <span>${bookingDetails.price}</span>
+                        <span>CHF {bookingDetails.pricePerNight} × {bookingDetails.nights} nights</span>
+                        <span>CHF {bookingDetails.price}</span>
                       </div>
                     )}
                     {(!bookingDetails.pricePerNight || bookingDetails.nights <= 1) && (
                       <div className="pricing-row">
                         <span>Base Price</span>
-                        <span>${bookingDetails.price}</span>
+                        <span>CHF {bookingDetails.price}</span>
                       </div>
                     )}
                     <div className="pricing-row">
                       <span>Taxes & Fees (15%)</span>
-                      <span>${taxesAndFees}</span>
+                      <span>CHF {taxesAndFees}</span>
                     </div>
                   </div>
 
@@ -617,7 +604,7 @@ const UniversalBooking = () => {
 
                   <div className="summary-total">
                     <span>Total</span>
-                    <span>${totalPrice}</span>
+                    <span>CHF {totalPrice}</span>
                   </div>
 
                   <div className="summary-features">
